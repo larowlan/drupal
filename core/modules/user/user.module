@@ -333,6 +333,14 @@ function user_load_by_name($name) {
 
 /**
  * Verify the syntax of the given name.
+ *
+ * @param string $name
+ *   The user name to validate.
+ *
+ * @return string|null
+ *   A translated violation message if the name is invalid or NULL if the name
+ *   is valid.
+ *
  */
 function user_validate_name($name) {
   if (!$name) {

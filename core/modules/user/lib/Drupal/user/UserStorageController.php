@@ -208,7 +208,9 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
       'type' => 'string_field',
       'settings' => array('default_value' => ''),
       'property_constraints' => array(
-        'value' => array('Length' => array('max' => 60)),
+        // No Length contraint here because the UserName constraint also covers
+        // that.
+        'value' => array('UserName' => array()),
       ),
     );
     $properties['pass'] = array(

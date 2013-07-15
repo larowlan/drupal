@@ -66,10 +66,13 @@ class UserValidationTest extends DrupalUnitTestBase {
     $violations = $user->validate();
     $this->assertEqual(count($violations), 0, 'No violations when validating a default user.');
 
-    $user->set('name', $this->randomString(61));
+    // Only test one example invalid name here, the rest is already covered in
+    // the testUsernames() method in this class.
+    $name = $this->randomName(61);
+    $user->set('name', $name);
     $violations = $user->validate();
     $this->assertEqual(count($violations), 1, 'Violation found when name is too long.');
     $this->assertEqual($violations[0]->getPropertyPath(), 'name.0.value');
-    $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %limit characters or less.', array('%limit' => 60)));
+    $this->assertEqual($violations[0]->getMessage(), t('The username %name is too long: it must be %max characters or less.', array('%name' => $name, '%max' => 60)));
   }
 }
