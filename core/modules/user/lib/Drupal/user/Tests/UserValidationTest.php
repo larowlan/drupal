@@ -7,18 +7,31 @@
 
 namespace Drupal\user\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\DrupalUnitTestBase;
 
-class UserValidationTest extends WebTestBase {
+/**
+ * Performs validation tests on user fields.
+ */
+class UserValidationTest extends DrupalUnitTestBase {
+
+  /**
+   * Modules to enable.
+   *
+   * @var array
+   */
+  public static $modules = array('user');
+
   public static function getInfo() {
     return array(
-      'name' => 'Username/e-mail validation',
-      'description' => 'Verify that username/email validity checks behave as designed.',
+      'name' => 'User validation',
+      'description' => 'Verify that user validity checks behave as designed.',
       'group' => 'User'
     );
   }
 
-  // Username validation.
+  /**
+   * Tests user name validation.
+   */
   function testUsernames() {
     $test_cases = array( // '<username>' => array('<description>', 'assert<testName>'),
       'foo'                    => array('Valid username', 'assertNull'),
@@ -43,5 +56,20 @@ class UserValidationTest extends WebTestBase {
       $result = user_validate_name($name);
       $this->$test($result, $description . ' (' . $name . ')');
     }
+  }
+
+  /**
+   * Runs entity validation checks.
+   */
+  function testValidation() {
+    $user = entity_create('user', array('name' => 'test'));
+    $violations = $user->validate();
+    $this->assertEqual(count($violations), 0, 'No violations when validating a default user.');
+
+    $user->set('name', $this->randomString(61));
+    $violations = $user->validate();
+    $this->assertEqual(count($violations), 1, 'Violation found when name is too long.');
+    $this->assertEqual($violations[0]->getPropertyPath(), 'name.0.value');
+    $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %limit characters or less.', array('%limit' => 60)));
   }
 }

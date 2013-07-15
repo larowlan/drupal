@@ -207,6 +207,9 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
       'description' => t('The name of this user'),
       'type' => 'string_field',
       'settings' => array('default_value' => ''),
+      'property_constraints' => array(
+        'value' => array('Length' => array('max' => 60)),
+      ),
     );
     $properties['pass'] = array(
       'label' => t('Name'),
