@@ -214,23 +214,23 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
       ),
     );
     $properties['pass'] = array(
-      'label' => t('Name'),
+      'label' => t('Password'),
       'description' => t('The password of this user (hashed)'),
       'type' => 'string_field',
     );
     $properties['mail'] = array(
-      'label' => t('Name'),
+      'label' => t('E-mail'),
       'description' => t('The e-mail of this user'),
-      'type' => 'string_field',
+      'type' => 'email_field',
       'settings' => array('default_value' => ''),
     );
     $properties['signature'] = array(
-      'label' => t('Name'),
+      'label' => t('Signature'),
       'description' => t('The signature of this user'),
       'type' => 'string_field',
     );
     $properties['signature_format'] = array(
-      'label' => t('Name'),
+      'label' => t('Signature format'),
       'description' => t('The signature format of this user'),
       'type' => 'string_field',
     );
