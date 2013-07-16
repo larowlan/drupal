@@ -210,7 +210,10 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
       'property_constraints' => array(
         // No Length contraint here because the UserName constraint also covers
         // that.
-        'value' => array('UserName' => array()),
+        'value' => array(
+          'UserName' => array(),
+          'UserNameUnique' => array(),
+        ),
       ),
     );
     $properties['pass'] = array(

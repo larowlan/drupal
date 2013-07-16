@@ -19,7 +19,7 @@ class UserValidationTest extends DrupalUnitTestBase {
    *
    * @var array
    */
-  public static $modules = array('user');
+  public static $modules = array('field', 'user', 'system');
 
   public static function getInfo() {
     return array(
@@ -27,6 +27,15 @@ class UserValidationTest extends DrupalUnitTestBase {
       'description' => 'Verify that user validity checks behave as designed.',
       'group' => 'User'
     );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp() {
+    parent::setUp();
+    $this->installSchema('user', array('users'));
+    $this->installSchema('system', array('sequences'));
   }
 
   /**
@@ -74,6 +83,15 @@ class UserValidationTest extends DrupalUnitTestBase {
     $this->assertEqual(count($violations), 1, 'Violation found when name is too long.');
     $this->assertEqual($violations[0]->getPropertyPath(), 'name.0.value');
     $this->assertEqual($violations[0]->getMessage(), t('The username %name is too long: it must be %max characters or less.', array('%name' => $name, '%max' => 60)));
+
+    // Create a second test user to provoke a name collision.
+    $user2 = entity_create('user', array('name' => 'existing'));
+    $user2->save();
+    $user->set('name', 'existing');
+    $violations = $user->validate();
+    $this->assertEqual(count($violations), 1, 'Violation found on name collision.');
+    $this->assertEqual($violations[0]->getPropertyPath(), 'name.0.value');
+    $this->assertEqual($violations[0]->getMessage(), t('The name %name is already taken.', array('%name' => 'existing')));
 
     // Make the name valid.
     $user->set('name', $this->randomName());

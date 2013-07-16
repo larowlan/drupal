@@ -15,9 +15,6 @@ use Drupal\Core\Annotation\Translation;
 /**
  * Checks if a value is a valid user name.
  *
- * This class is empty because all validation messages are retrieved from
- * user_validate_name().
- *
  * @Plugin(
  *   id = "UserName",
  *   label = @Translation("User name", context = "Validation")
