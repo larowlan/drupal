@@ -3550,7 +3550,7 @@ function drupal_pre_render_link($element) {
  * For example, adding this code to node.html.twig will result in the comment
  * links being rendered as a single list:
  * @code
- * print render($content['links']['comment']);
+ * {{ content.links.comment }}
  * @endcode
  *
  * (where $node->content has been transformed into $content before handing
@@ -3560,7 +3560,7 @@ function drupal_pre_render_link($element) {
  * allows the following code to be used to render all remaining links into a
  * single list, regardless of their group:
  * @code
- * print render($content['links']);
+ * {{ content.links }}
  * @endcode
  *
  * In the above example, this will result in the statistics and translation
@@ -3989,7 +3989,8 @@ function show(&$element) {
  * @see drupal_render_cache_set()
  */
 function drupal_render_cache_get($elements) {
-  if (!in_array($_SERVER['REQUEST_METHOD'], array('GET', 'HEAD')) || !$cid = drupal_render_cid_create($elements)) {
+  $request = Drupal::request();
+  if (!$request->isMethodSafe() || !$cid = drupal_render_cid_create($elements)) {
     return FALSE;
   }
   $bin = isset($elements['#cache']['bin']) ? $elements['#cache']['bin'] : 'cache';
@@ -4021,7 +4022,8 @@ function drupal_render_cache_get($elements) {
  */
 function drupal_render_cache_set(&$markup, $elements) {
   // Create the cache ID for the element.
-  if (!in_array($_SERVER['REQUEST_METHOD'], array('GET', 'HEAD')) || !$cid = drupal_render_cid_create($elements)) {
+  $request = Drupal::request();
+  if (!$request->isMethodSafe() || !$cid = drupal_render_cid_create($elements)) {
     return FALSE;
   }
 
