@@ -226,6 +226,9 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
       'description' => t('The e-mail of this user'),
       'type' => 'email_field',
       'settings' => array('default_value' => ''),
+      'property_constraints' => array(
+        'value' => array('UserMailUnique' => array()),
+      ),
     );
     $properties['signature'] = array(
       'label' => t('Signature'),

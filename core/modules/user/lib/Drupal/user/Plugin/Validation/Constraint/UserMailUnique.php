@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Contains \Drupal\user\Plugin\Validation\Constraint\UserNameUnique.
+ * Contains \Drupal\user\Plugin\Validation\Constraint\UserMailUnique.
  */
 
 namespace Drupal\user\Plugin\Validation\Constraint;
@@ -13,16 +13,16 @@ use Drupal\Core\Annotation\Translation;
 
 
 /**
- * Checks if a user name is unique on the site.
+ * Checks if a user's e-mail address is unique on the site.
  *
  * @Plugin(
- *   id = "UserNameUnique",
- *   label = @Translation("User name unique", context = "Validation")
+ *   id = "UserMailUnique",
+ *   label = @Translation("User e-mail unique", context = "Validation")
  * )
  */
-class UserNameUnique extends Constraint {
+class UserMailUnique extends Constraint {
 
-  public $message = 'The name %value is already taken.';
+  public $message = 'The e-mail address %value is already taken.';
 
   /**
    * {@inheritdoc}
