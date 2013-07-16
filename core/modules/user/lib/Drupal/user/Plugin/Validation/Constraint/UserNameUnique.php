@@ -23,4 +23,11 @@ use Drupal\Core\Annotation\Translation;
 class UserNameUnique extends Constraint {
 
   public $message = 'The name %name is already taken.';
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validatedBy() {
+    return '\Drupal\user\Plugin\Validation\Constraint\UniqueValidator';
+  }
 }
