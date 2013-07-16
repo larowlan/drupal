@@ -27,7 +27,7 @@ const USERNAME_MAX_LENGTH = 60;
 /**
  * Maximum length of user e-mail text field.
  */
-const EMAIL_MAX_LENGTH = 254;
+const EMAIL_MAX_LENGTH = 255;
 
 /**
  * Only administrators can create user accounts.
