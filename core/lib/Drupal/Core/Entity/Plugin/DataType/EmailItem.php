@@ -52,6 +52,7 @@ class EmailItem extends LegacyConfigFieldItem {
    * {@inheritdoc}
    */
   public function isEmpty() {
-    return !isset($this->values['value']) || $this->values['value'] === '';
+    $value = isset($this->values['value']) ? $this->values['value'] : $this->get('value')->getValue();
+    return !isset($value) || $value === '';
   }
 }
