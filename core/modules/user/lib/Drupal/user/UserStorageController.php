@@ -234,10 +234,15 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
       'label' => t('Signature'),
       'description' => t('The signature of this user'),
       'type' => 'string_field',
+      'property_constraints' => array(
+        'value' => array('Length' => array('max' => 255)),
+      ),
     );
     $properties['signature_format'] = array(
       'label' => t('Signature format'),
       'description' => t('The signature format of this user'),
+      // @todo Convert the type to filter_format once
+      // https://drupal.org/node/1758622 is comitted
       'type' => 'string_field',
     );
     $properties['theme'] = array(

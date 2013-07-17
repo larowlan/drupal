@@ -118,5 +118,12 @@ class UserValidationTest extends DrupalUnitTestBase {
     $this->assertEqual(count($violations), 1, 'Violation found when e-mail already exists.');
     $this->assertEqual($violations[0]->getPropertyPath(), 'mail.0.value');
     $this->assertEqual($violations[0]->getMessage(), t('The e-mail address %mail is already taken.', array('%mail' => 'existing@exmaple.com')));
+    $user->set('mail', NULL);
+
+    $user->set('signature', $this->randomString(256));
+    $violations = $user->validate();
+    $this->assertEqual(count($violations), 1, 'Violation found when singature is too long.');
+    $this->assertEqual($violations[0]->getPropertyPath(), 'signature.0.value');
+    $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %max characters or less.', array('%max' => 255)));
   }
 }
