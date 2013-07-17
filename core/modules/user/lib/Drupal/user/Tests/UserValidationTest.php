@@ -7,6 +7,7 @@
 
 namespace Drupal\user\Tests;
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\simpletest\DrupalUnitTestBase;
 
 /**
@@ -121,16 +122,31 @@ class UserValidationTest extends DrupalUnitTestBase {
     $user->set('mail', NULL);
 
     $user->set('signature', $this->randomString(256));
-    $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Violation found when singature is too long.');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'signature.0.value');
-    $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %max characters or less.', array('%max' => 255)));
+    $this->assertLengthViolation($user, 'signature', 255);
     $user->set('signature', NULL);
 
     $user->set('theme', $this->randomString(DRUPAL_EXTENSION_NAME_MAX_LENGTH + 1));
-    $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Violation found when theme setting is too long.');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'theme.0.value');
-    $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %max characters or less.', array('%max' => DRUPAL_EXTENSION_NAME_MAX_LENGTH)));
+    $this->assertLengthViolation($user, 'theme', DRUPAL_EXTENSION_NAME_MAX_LENGTH);
+    $user->set('theme', NULL);
+
+    $user->set('timezone', $this->randomString(33));
+    $this->assertLengthViolation($user, 'timezone', 32);
+  }
+
+  /**
+   * Verifies that a length violation exists for the given field.
+   *
+   * @param \Drupal\core\Entity\EntityInterface $entity
+   *   The entity object to validate.
+   * @param string $field_name
+   *   The field that violates the maximum length.
+   * @param int $length
+   *   Number of characters that was exceeded.
+  */
+  protected function assertLengthViolation(EntityInterface $entity, $field_name, $length) {
+    $violations = $entity->validate();
+    $this->assertEqual(count($violations), 1, "Violation found when $field_name is too long.");
+    $this->assertEqual($violations[0]->getPropertyPath(), "$field_name.0.value");
+    $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %limit characters or less.', array('%limit' => $length)));
   }
 }
