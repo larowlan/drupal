@@ -287,7 +287,7 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
     $properties['init'] = array(
       'label' => t('Init'),
       'description' => t('The email address used for initial account creation.'),
-      'type' => 'string_field',
+      'type' => 'email_field',
       'settings' => array('default_value' => ''),
     );
     $properties['roles'] = array(

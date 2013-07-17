@@ -131,6 +131,13 @@ class UserValidationTest extends DrupalUnitTestBase {
 
     $user->set('timezone', $this->randomString(33));
     $this->assertLengthViolation($user, 'timezone', 32);
+    $user->set('timezone', NULL);
+
+    $user->set('init', 'invalid');
+    $violations = $user->validate();
+    $this->assertEqual(count($violations), 1, 'Violation found when init email is invalid');
+    $this->assertEqual($violations[0]->getPropertyPath(), 'init.0.value');
+    $this->assertEqual($violations[0]->getMessage(), t('This value is not a valid email address.'));
   }
 
   /**
