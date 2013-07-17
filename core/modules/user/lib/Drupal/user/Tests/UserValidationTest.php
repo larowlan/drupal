@@ -138,6 +138,9 @@ class UserValidationTest extends DrupalUnitTestBase {
     $this->assertEqual(count($violations), 1, 'Violation found when init email is invalid');
     $this->assertEqual($violations[0]->getPropertyPath(), 'init.0.value');
     $this->assertEqual($violations[0]->getMessage(), t('This value is not a valid email address.'));
+
+    // @todo Test user role validation once https://drupal.org/node/2015701 got
+    // committed.
   }
 
   /**
