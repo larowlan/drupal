@@ -249,6 +249,9 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
       'label' => t('Theme'),
       'description' => t('The default theme of this user'),
       'type' => 'string_field',
+      'property_constraints' => array(
+        'value' => array('Length' => array('max' => DRUPAL_EXTENSION_NAME_MAX_LENGTH)),
+      ),
     );
     $properties['timezone'] = array(
       'label' => t('Timeone'),

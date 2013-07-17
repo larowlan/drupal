@@ -125,5 +125,12 @@ class UserValidationTest extends DrupalUnitTestBase {
     $this->assertEqual(count($violations), 1, 'Violation found when singature is too long.');
     $this->assertEqual($violations[0]->getPropertyPath(), 'signature.0.value');
     $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %max characters or less.', array('%max' => 255)));
+    $user->set('signature', NULL);
+
+    $user->set('theme', $this->randomString(DRUPAL_EXTENSION_NAME_MAX_LENGTH + 1));
+    $violations = $user->validate();
+    $this->assertEqual(count($violations), 1, 'Violation found when theme setting is too long.');
+    $this->assertEqual($violations[0]->getPropertyPath(), 'theme.0.value');
+    $this->assertEqual($violations[0]->getMessage(), t('This value is too long. It should have %max characters or less.', array('%max' => DRUPAL_EXTENSION_NAME_MAX_LENGTH)));
   }
 }
