@@ -293,8 +293,9 @@ class UserStorageController extends DatabaseStorageControllerNG implements UserS
     $properties['roles'] = array(
       'label' => t('Roles'),
       'description' => t('The roles the user has.'),
-      'type' => 'entity_reference_field',
-      'settings' => array('target_type' => 'user_role'),
+      // @todo Convert this to entity_reference_field, see
+      // https://drupal.org/node/2044859
+      'type' => 'string_field',
     );
     return $properties;
   }

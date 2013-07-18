@@ -43,39 +43,23 @@ class EntityReferenceItem extends FieldItemBase {
    * Implements \Drupal\Core\TypedData\ComplexDataInterface::getPropertyDefinitions().
    */
   public function getPropertyDefinitions() {
-    $entity_type = $this->definition['settings']['target_type'];
     // Definitions vary by entity type and bundle, so key them accordingly.
-    $key = $entity_type . ':';
+    $key = $this->definition['settings']['target_type'] . ':';
     $key .= isset($this->definition['settings']['target_bundle']) ? $this->definition['settings']['target_bundle'] : '';
 
     if (!isset(static::$propertyDefinitions[$key])) {
-      // Determine the type of the entity ID field.
-      $entity_manager = \Drupal::entityManager();
-      $entity_info = $entity_manager->getDefinition($entity_type);
-      $id_key = $entity_info['entity_keys']['id'];
-      $controller = $entity_manager->getStorageController($entity_type);
-      $base_definitions = $controller->baseFieldDefinitions();
-      // If we cannot find a field definition we fallback to just the string
-      // type.
-      // @todo Remove this check once all storage controllers properly return
-      // their field definitions.
-      $id_type = isset($base_definitions[$id_key]['type']) ? $base_definitions[$id_key]['type'] : 'string';
-
       static::$propertyDefinitions[$key]['target_id'] = array(
-        'type' => $id_type,
+        // @todo: Lookup the entity type's ID data type and use it here.
+        'type' => 'integer',
         'label' => t('Entity ID'),
-        // Don't copy over the field constraints from the base field definitions
-        // of the entity type because we don't know what they depend on.
-      );
-      if ($id_type == 'integer') {
-        static::$propertyDefinitions[$key]['target_id']['constraints'] = array(
+        'constraints' => array(
           'Range' => array('min' => 0),
-        );
-      }
+        ),
+      );
       static::$propertyDefinitions[$key]['entity'] = array(
         'type' => 'entity_reference',
         'constraints' => array(
-          'EntityType' => $entity_type,
+          'EntityType' => $this->definition['settings']['target_type'],
         ),
         'label' => t('Entity'),
         'description' => t('The referenced entity'),
@@ -142,7 +126,7 @@ class EntityReferenceItem extends FieldItemBase {
   public function onChange($property_name) {
     // Make sure that the target ID and the target property stay in sync.
     if ($property_name == 'target_id') {
-      $this->properties['entity']->setValue($this->get('target_id')->value, FALSE);
+      $this->properties['entity']->setValue($this->target_id, FALSE);
     }
     elseif ($property_name == 'entity') {
       $this->set('target_id', $this->properties['entity']->getTargetIdentifier(), FALSE);
