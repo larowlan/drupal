@@ -142,7 +142,7 @@ class EntityReferenceItem extends FieldItemBase {
   public function onChange($property_name) {
     // Make sure that the target ID and the target property stay in sync.
     if ($property_name == 'target_id') {
-      $this->properties['entity']->setValue($this->target_id, FALSE);
+      $this->properties['entity']->setValue($this->get('target_id')->value, FALSE);
     }
     elseif ($property_name == 'entity') {
       $this->set('target_id', $this->properties['entity']->getTargetIdentifier(), FALSE);
