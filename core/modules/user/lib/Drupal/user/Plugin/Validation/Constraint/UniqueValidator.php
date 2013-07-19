@@ -20,13 +20,12 @@ class UniqueValidator extends ConstraintValidator {
    */
   public function validate($value, Constraint $constraint) {
     $field = $this->context->getMetadata()->getTypedData()->getParent();
-    $field_name = $field->getName();
-    $user = $field->getParent();
-    $uid = $user->get('uid')->value;
+    $uid = $field->getParent()->id();
+
     $value_taken = (bool) db_select('users')
       ->fields('users', array('uid'))
       ->condition('uid', (int) $uid, '<>')
-      ->condition($field_name, db_like($value), 'LIKE')
+      ->condition($field->getName(), db_like($value), 'LIKE')
       ->range(0, 1)
       ->execute()
       ->fetchField();
