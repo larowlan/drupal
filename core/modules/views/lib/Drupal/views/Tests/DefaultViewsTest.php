@@ -97,11 +97,11 @@ class DefaultViewsTest extends ViewTestBase {
 
       $node = $this->drupalCreateNode($values);
 
-      search_index($node->nid, 'node', $node->body[Language::LANGCODE_NOT_SPECIFIED][0]['value'], Language::LANGCODE_NOT_SPECIFIED);
+      search_index($node->id(), 'node', $node->body[Language::LANGCODE_NOT_SPECIFIED][0]['value'], Language::LANGCODE_NOT_SPECIFIED);
 
       $comment = array(
         'uid' => $user->id(),
-        'nid' => $node->nid,
+        'nid' => $node->id(),
         'node_type' => 'node_type_' . $node->bundle(),
       );
       entity_create('comment', $comment)->save();
@@ -117,7 +117,7 @@ class DefaultViewsTest extends ViewTestBase {
     $views = $controller->loadMultiple();
 
     foreach ($views as $name => $view_storage) {
-      $view = $view_storage->get('executable');
+      $view = $view_storage->getExecutable();
       $view->initDisplay();
       foreach ($view->storage->get('display') as $display_id => $display) {
         $view->setDisplay($display_id);

@@ -8,35 +8,12 @@
 namespace Drupal\image;
 
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
+use Drupal\image\ImageEffectInterface;
 
 /**
  * Provides an interface defining an image style entity.
  */
 interface ImageStyleInterface extends ConfigEntityInterface {
-
-  /**
-   * Delivers an image derivative.
-   *
-   * Transfers a generated image derivative to the requesting agent. Modules may
-   * implement this method to set different serve different image derivatives
-   * from different stream wrappers or to customize different permissions on
-   * each image style.
-   *
-   * @param string $scheme
-   *   The scheme name of the original image file stream wrapper ('public',
-   *   'private', 'temporary', etc.).
-   * @param string $target
-   *   The target part of the uri.
-   *
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Symfony\Component\HttpFoundation\Response
-   *   The image to be delivered.
-   *
-   * @throws \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException
-   *   \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException
-   *
-   * @todo Move to controller after https://drupal.org/node/1987712.
-   */
-  public function deliver($scheme, $target);
 
   /**
    * Returns the URI of this image when using this style.
@@ -75,6 +52,9 @@ interface ImageStyleInterface extends ConfigEntityInterface {
    * @param string $path
    *   (optional) The original image path or URI. If it's supplied, only this
    *   image derivative will be flushed.
+   *
+   * @return self
+   *   This image style.
    */
   public function flush($path = NULL);
 
@@ -108,5 +88,46 @@ interface ImageStyleInterface extends ConfigEntityInterface {
    *   resulting width and height, in pixels.
    */
   public function transformDimensions(array &$dimensions);
+
+  /**
+   * Returns a specific image effect.
+   *
+   * @param string $effect
+   *   The image effect ID.
+   *
+   * @return \Drupal\image\ImageEffectInterface
+   *   The image effect object.
+   */
+  public function getEffect($effect);
+
+  /**
+   * Returns the image effects for this style.
+   *
+   * @return \Drupal\image\ImageEffectBag|\Drupal\image\ImageEffectInterface[]
+   *   The image effect plugin bag.
+   */
+  public function getEffects();
+
+  /**
+   * Saves an image effect for this style.
+   *
+   * @param array $configuration
+   *   An array of image effect configuration.
+   *
+   * @return string
+   *   The image effect ID.
+   */
+  public function saveImageEffect(array $configuration);
+
+  /**
+   * Deletes an image effect from this style.
+   *
+   * @param \Drupal\image\ImageEffectInterface $effect
+   *   The image effect object.
+   *
+   * @return self
+   *   This image style.
+   */
+  public function deleteImageEffect(ImageEffectInterface $effect);
 
 }

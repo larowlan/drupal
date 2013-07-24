@@ -11,8 +11,6 @@ use Drupal\views\ViewExecutable;
 use Drupal\views\ViewStorageInterface;
 use Drupal\views_ui\ViewUI;
 use Drupal\views\ViewsData;
-use Drupal\user\TempStore;
-use Drupal\user\TempStoreFactory;
 use Drupal\Core\Controller\ControllerInterface;
 use Drupal\Core\Entity\EntityManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -21,6 +19,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * Returns responses for Views UI routes.
@@ -42,11 +42,11 @@ class ViewsUIController implements ControllerInterface {
   protected $viewsData;
 
   /**
-   * Stores the user tempstore.
+   * The URL generator to use.
    *
-   * @var \Drupal\user\TempStore
+   * @var \Symfony\Component\Routing\Generator\UrlGeneratorInterface
    */
-  protected $tempStore;
+  protected $urlGenerator;
 
   /**
    * Constructs a new \Drupal\views_ui\Controller\ViewsUIController object.
@@ -55,13 +55,13 @@ class ViewsUIController implements ControllerInterface {
    *   The Entity manager.
    * @param \Drupal\views\ViewsData views_data
    *   The Views data cache object.
-   * @param \Drupal\user\TempStoreFactory $temp_store_factory
-   *   The factory for the temp store object.
+   * @param \Symfony\Component\Routing\Generator\UrlGeneratorInterface
+   *   The URL generator.
    */
-  public function __construct(EntityManager $entity_manager, ViewsData $views_data, TempStoreFactory $temp_store_factory) {
+  public function __construct(EntityManager $entity_manager, ViewsData $views_data, UrlGeneratorInterface $url_generator) {
     $this->entityManager = $entity_manager;
     $this->viewsData = $views_data;
-    $this->tempStore = $temp_store_factory->get('views');
+    $this->urlGenerator = $url_generator;
   }
 
   /**
@@ -71,7 +71,7 @@ class ViewsUIController implements ControllerInterface {
     return new static(
       $container->get('plugin.manager.entity'),
       $container->get('views.views_data'),
-      $container->get('user.tempstore')
+      $container->get('url_generator')
     );
   }
 
@@ -89,7 +89,7 @@ class ViewsUIController implements ControllerInterface {
     $fields = array();
     $handler_types = ViewExecutable::viewsHandlerTypes();
     foreach ($views as $view) {
-      $executable = $view->get('executable');
+      $executable = $view->getExecutable();
       $executable->initDisplay();
       foreach ($executable->displayHandlers as $display_id => $display) {
         if ($executable->setDisplay($display_id)) {
@@ -164,12 +164,21 @@ class ViewsUIController implements ControllerInterface {
    *   The view being acted upon.
    * @param string $op
    *   The operation to perform, e.g., 'enable' or 'disable'.
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The current request.
    *
    * @return \Drupal\Core\Ajax\AjaxResponse|\Symfony\Component\HttpFoundation\RedirectResponse
    *   Either returns a rebuilt listing page as an AJAX response, or redirects
    *   back to the listing page.
+   *
+   * @throws \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException
    */
   public function ajaxOperation(ViewStorageInterface $view, $op, Request $request) {
+    if (!drupal_valid_token($request->query->get('token'), $op)) {
+      // Throw an access denied exception if the token is invalid or missing.
+      throw new AccessDeniedHttpException();
+    }
+
     // Perform the operation.
     $view->$op()->save();
 
@@ -182,8 +191,7 @@ class ViewsUIController implements ControllerInterface {
     }
 
     // Otherwise, redirect back to the page.
-    // @todo Remove url() wrapper once http://drupal.org/node/1668866 is in.
-    return new RedirectResponse(url('admin/structure/views', array('absolute' => TRUE)));
+    return new RedirectResponse($this->urlGenerator->generate('views_ui.list', array(), TRUE));
   }
 
   /**
