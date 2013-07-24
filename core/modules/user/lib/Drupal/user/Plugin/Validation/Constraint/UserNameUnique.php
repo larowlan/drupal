@@ -28,6 +28,6 @@ class UserNameUnique extends Constraint {
    * {@inheritdoc}
    */
   public function validatedBy() {
-    return '\Drupal\user\Plugin\Validation\Constraint\UniqueValidator';
+    return '\Drupal\user\Plugin\Validation\Constraint\UserUniqueValidator';
   }
 }
