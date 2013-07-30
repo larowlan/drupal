@@ -511,6 +511,7 @@ function template_preprocess_views_view_table(&$variables) {
   // Store rows so that they may be used by further preprocess functions.
   $result = $variables['result'] = $variables['rows'];
   $variables['rows'] = array();
+  // @todo Remove field_classes to field_attributes.
   $variables['field_classes'] = array();
   $variables['header'] = array();
 
@@ -575,6 +576,7 @@ function template_preprocess_views_view_table(&$variables) {
       }
 
       // Set up the header label class.
+      // @todo Rename to header_attributes.
       $variables['header_classes'][$field] = array();
       if ($fields[$field]->options['element_default_classes']) {
         $variables['header_classes'][$field]['class'][] = 'views-field';
@@ -600,6 +602,8 @@ function template_preprocess_views_view_table(&$variables) {
         if ($element_label_type) {
           $variables['header'][$field] = '<' . $element_label_type . '>' . $variables['header'][$field] . '</' . $element_label_type . '>';
         }
+        // Improves accessibility of complex tables.
+        $vars['header_classes'][$field]['id'] = drupal_html_id('view-' . $field . '-table-column');
       }
     }
 
@@ -624,6 +628,11 @@ function template_preprocess_views_view_table(&$variables) {
       // Add responsive header classes.
       if (!empty($options['info'][$field]['responsive'])) {
         $variables['field_classes'][$field][$num]['class'][] = $options['info'][$field]['responsive'];
+      }
+
+      // Improves accessibility of complex tables.
+      if (isset($vars['header_classes'][$field]['id'])) {
+        $vars['field_classes'][$field][$num]['headers'] = array($vars['header_classes'][$field]['id']);
       }
 
       if (!empty($fields[$field]) && empty($fields[$field]->options['exclude'])) {
@@ -763,7 +772,7 @@ function template_preprocess_views_view_grid(&$variables) {
   $num_rows = floor(count($variables['rows']) / $options['columns']);
 
   // Iterate over each rendered views result row.
-  foreach ($variables['rows'] as $item) {
+  foreach ($variables['rows'] as $result_index => $item) {
 
     // Add the item.
     if ($horizontal) {
@@ -785,7 +794,7 @@ function template_preprocess_views_view_grid(&$variables) {
         }
       }
       // Add custom row classes.
-      $row_class = array_filter(explode(' ', $options['row_class_custom']));
+      $row_class = array_filter(explode(' ', $variables['view']->style_plugin->getCustomClass($result_index, 'row')));
       if (!empty($row_class)) {
         $row_attributes['class'] = array_merge($row_attributes['class'], $row_class);
       }
@@ -810,7 +819,7 @@ function template_preprocess_views_view_grid(&$variables) {
         }
       }
       // Add custom column classes.
-      $col_class = array_filter(explode(' ', $options['col_class_custom']));
+      $col_class = array_filter(explode(' ', $variables['view']->style_plugin->getCustomClass($result_index, 'col')));
       if (!empty($col_class)) {
         $col_attributes['class'] = array_merge($col_attributes['class'], $col_class);
       }
@@ -1142,7 +1151,7 @@ function theme_views_mini_pager($variables) {
         // Below is ignored by default, supplied to support hook_link_alter
         // implementations.
         'pager_context' => array(
-          'link_type' => 'previous',
+          'link_type' => 'next',
           'element' => $element,
           'interval' => 1,
         ),
