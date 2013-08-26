@@ -2,6 +2,7 @@
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\Json;
+use Drupal\Component\Utility\SortArray;
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Tags;
 use Drupal\Component\Utility\Url;
@@ -447,7 +448,6 @@ function drupal_get_query_parameters(array $query = NULL, array $exclude = array
 /**
  * Parses an array into a valid, rawurlencoded query string.
  *
- * @see \Drupal\Core\Routing\PathBasedGeneratorInterface::httpBuildQuery()
  * @see drupal_get_query_parameters()
  * @deprecated as of Drupal 8.0. Use Url::buildQuery() instead.
  * @ingroup php_wrappers
@@ -1191,7 +1191,7 @@ function datetime_default_format_type() {
  * When creating links in modules, consider whether l() could be a better
  * alternative than url().
  *
- * @see \Drupal\Core\Routing\PathBasedGeneratorInterface::generateFromPath().
+ * @see \Drupal\Core\Routing\UrlGeneratorInterface::generateFromPath().
  */
 function url($path = NULL, array $options = array()) {
   $generator = Drupal::urlGenerator();
@@ -1313,6 +1313,12 @@ function l($text, $path, array $options = array()) {
     'html' => FALSE,
     'language' => NULL,
   );
+
+  // Add a hreflang attribute if we know the language of this link's url and
+  // hreflang has not already been set.
+  if (!empty($variables['options']['language']) && !isset($variables['options']['attributes']['hreflang'])) {
+    $variables['options']['attributes']['hreflang'] = $variables['options']['language']->id;
+  }
 
   // Because l() is called very often we statically cache values that require an
   // extra function call.
@@ -1853,7 +1859,7 @@ function drupal_pre_render_styles($elements) {
   $css_assets = $elements['#items'];
 
   // Aggregate the CSS if necessary, but only during normal site operation.
-  if (!defined('MAINTENANCE_MODE') && config('system.performance')->get('css.preprocess')) {
+  if (!defined('MAINTENANCE_MODE') && Drupal::config('system.performance')->get('css.preprocess')) {
     $css_assets = \Drupal::service('asset.css.collection_optimizer')->optimize($css_assets);
   }
   return \Drupal::service('asset.css.collection_renderer')->render($css_assets);
@@ -1876,7 +1882,7 @@ function drupal_clear_css_cache() {
  */
 function drupal_delete_file_if_stale($uri) {
   // Default stale file threshold is 30 days.
-  if (REQUEST_TIME - filemtime($uri) > config('system.performance')->get('stale_file_threshold')) {
+  if (REQUEST_TIME - filemtime($uri) > Drupal::config('system.performance')->get('stale_file_threshold')) {
     file_unmanaged_delete($uri);
   }
 }
@@ -2299,10 +2305,13 @@ function drupal_js_defaults($data = NULL) {
  * @param $javascript
  *   (optional) An array with all JavaScript code. Defaults to the default
  *   JavaScript array for the given scope.
- * @param $skip_alter
+ * @param bool $skip_alter
  *   (optional) If set to TRUE, this function skips calling drupal_alter() on
  *   $javascript, useful when the calling function passes a $javascript array
  *   that has already been altered.
+ * @param bool $is_ajax
+ *   (optional) If set to TRUE, this function is called from an Ajax request and
+ *   adds javascript settings to update ajaxPageState values.
  *
  * @return
  *   All JavaScript code segments and includes for the scope as HTML tags.
@@ -2311,7 +2320,7 @@ function drupal_js_defaults($data = NULL) {
  * @see locale_js_alter()
  * @see drupal_js_defaults()
  */
-function drupal_get_js($scope = 'header', $javascript = NULL, $skip_alter = FALSE) {
+function drupal_get_js($scope = 'header', $javascript = NULL, $skip_alter = FALSE, $is_ajax = FALSE) {
   if (!isset($javascript)) {
     $javascript = drupal_add_js();
   }
@@ -2337,12 +2346,7 @@ function drupal_get_js($scope = 'header', $javascript = NULL, $skip_alter = FALS
     uasort($items, 'drupal_sort_css_js');
     // Don't add settings if there is no other JavaScript on the page, unless
     // this is an AJAX request.
-    // @todo Clean up container call.
-    $container = drupal_container();
-    if ($container->has('content_negotiation') && $container->isScopeActive('request')) {
-      $type = $container->get('content_negotiation')->getContentType($container->get('request'));
-    }
-    if (!empty($items['settings']) || (!empty($type) && $type == 'ajax')) {
+    if (!empty($items['settings']) || $is_ajax) {
       global $theme_key;
       // Provide the page with information about the theme that's used, so that
       // a later AJAX request can be rendered using the same theme.
@@ -2482,7 +2486,7 @@ function drupal_pre_render_scripts($elements) {
 
   // Aggregate the JavaScript if necessary, but only during normal site
   // operation.
-  if (!defined('MAINTENANCE_MODE') && config('system.performance')->get('js.preprocess')) {
+  if (!defined('MAINTENANCE_MODE') && Drupal::config('system.performance')->get('js.preprocess')) {
     $js_assets = \Drupal::service('asset.js.collection_optimizer')->optimize($js_assets);
   }
   return \Drupal::service('asset.js.collection_renderer')->render($js_assets);
@@ -2834,7 +2838,9 @@ function drupal_get_library($module, $name = NULL) {
           if (is_scalar($options)) {
             // The JavaScript or CSS file has been specified in shorthand
             // format, without an array of options. In this case $options is the
-            // filename.
+            // filename. Convert the shorthand version and remove the old array
+            // key.
+            unset($module_libraries[$key]['js'][$file]);
             $file = $options;
             $options = array();
           }
@@ -3025,21 +3031,21 @@ function drupal_json_decode($var) {
 /**
  * Ensures the private key variable used to generate tokens is set.
  *
- * @return
+ * @return string
  *   The private key.
+ *
+ * @see \Drupal\Core\Access\CsrfTokenManager
+ *
+ * @deprecated as of Drupal 8.0. Use the 'private_key' service instead.
  */
 function drupal_get_private_key() {
-  if (!($key = Drupal::state()->get('system.private_key'))) {
-    $key = Crypt::randomStringHashed(55);
-    Drupal::state()->set('system.private_key', $key);
-  }
-  return $key;
+  return \Drupal::service('private_key')->get();
 }
 
 /**
  * Generates a token based on $value, the user session, and the private key.
  *
- * @param $value
+ * @param string $value
  *   An additional value to base the token on.
  *
  * @return string
@@ -3048,28 +3054,34 @@ function drupal_get_private_key() {
  *   'drupal_private_key' configuration variable.
  *
  * @see drupal_get_hash_salt()
+ * @see \Drupal\Core\Access\CsrfTokenManager
+ *
+ * @deprecated as of Drupal 8.0. Use the csrf_token service instead.
  */
 function drupal_get_token($value = '') {
-  return Crypt::hmacBase64($value, session_id() . drupal_get_private_key() . drupal_get_hash_salt());
+  return \Drupal::csrfToken()->get($value);
 }
 
 /**
  * Validates a token based on $value, the user session, and the private key.
  *
- * @param $token
+ * @param string $token
  *   The token to be validated.
- * @param $value
+ * @param string $value
  *   An additional value to base the token on.
- * @param $skip_anonymous
+ * @param bool $skip_anonymous
  *   Set to true to skip token validation for anonymous users.
  *
- * @return
+ * @return bool
  *   True for a valid token, false for an invalid token. When $skip_anonymous
  *   is true, the return value will always be true for anonymous users.
+ *
+ * @see \Drupal\Core\Access\CsrfTokenManager
+ *
+ * @deprecated as of Drupal 8.0. Use the csrf_token service instead.
  */
 function drupal_valid_token($token, $value = '', $skip_anonymous = FALSE) {
-  global $user;
-  return (($skip_anonymous && $user->id() == 0) || ($token == drupal_get_token($value)));
+  return \Drupal::csrfToken()->validate($token, $value, $skip_anonymous);
 }
 
 /**
@@ -3077,13 +3089,13 @@ function drupal_valid_token($token, $value = '', $skip_anonymous = FALSE) {
  */
 function _drupal_bootstrap_code() {
   require_once __DIR__ . '/../../' . settings()->get('path_inc', 'core/includes/path.inc');
+  require_once __DIR__ . '/module.inc';
   require_once __DIR__ . '/theme.inc';
   require_once __DIR__ . '/pager.inc';
   require_once __DIR__ . '/../../' . settings()->get('menu_inc', 'core/includes/menu.inc');
   require_once __DIR__ . '/tablesort.inc';
   require_once __DIR__ . '/file.inc';
   require_once __DIR__ . '/unicode.inc';
-  require_once __DIR__ . '/image.inc';
   require_once __DIR__ . '/form.inc';
   require_once __DIR__ . '/mail.inc';
   require_once __DIR__ . '/ajax.inc';
@@ -3106,7 +3118,7 @@ function _drupal_bootstrap_code() {
   }
 
   // Set the allowed protocols once we have the config available.
-  $allowed_protocols = \Drupal::config('system.filter')->get('protocols');
+  $allowed_protocols = Drupal::config('system.filter')->get('protocols');
   if (!isset($allowed_protocols)) {
     // filter_xss_admin() is called by the installer and update.php, in which
     // case the configuration may not exist (yet). Provide a minimal default set
@@ -3163,16 +3175,21 @@ function _drupal_bootstrap_full($skip = FALSE) {
  * @see drupal_page_header()
  */
 function drupal_page_set_cache(Response $response, Request $request) {
-  global $base_root;
-
   if (drupal_page_is_cacheable()) {
+
+    // Check if the current page may be compressed.
+    $page_compressed = Drupal::config('system.performance')->get('response.gzip') && extension_loaded('zlib');
+
     $cache = (object) array(
-      'cid' => $base_root . $request->getRequestUri(),
+      'cid' => drupal_page_cache_get_cid($request),
       'data' => array(
-        'path' => $request->attributes->get('system_path'),
+        'path' => $request->attributes->get('_system_path'),
         'body' => $response->getContent(),
         'title' => drupal_get_title(),
         'headers' => array(),
+        // We need to store whether page was compressed or not,
+        // because by the time it is read, the configuration might change.
+        'page_compressed' => $page_compressed,
       ),
       'tags' => array('content' => TRUE),
       'expire' => CacheBackendInterface::CACHE_PERMANENT,
@@ -3189,12 +3206,12 @@ function drupal_page_set_cache(Response $response, Request $request) {
 
      // Use the actual timestamp from an Expires header, if available.
     if ($date = $response->getExpires()) {
-      $date = new DrupalDateTime($date);
+      $date = DrupalDateTime::createFromDateTime($date);
       $cache->expire = $date->getTimestamp();
     }
 
     if ($cache->data['body']) {
-      if (config('system.performance')->get('response.gzip') && extension_loaded('zlib')) {
+      if ($page_compressed) {
         $cache->data['body'] = gzencode($cache->data['body'], 9, FORCE_GZIP);
       }
       cache('page')->set($cache->cid, $cache->data, $cache->expire, $cache->tags);
@@ -3229,7 +3246,7 @@ function drupal_cron_run() {
 
   $return = FALSE;
   // Grab the defined cron queues.
-  $queues = module_invoke_all('queue_info');
+  $queues = Drupal::moduleHandler()->invokeAll('queue_info');
   drupal_alter('queue_info', $queues);
 
   // Try to acquire cron lock.
@@ -3628,6 +3645,11 @@ function drupal_pre_render_dropbutton($element) {
 function drupal_render_page($page) {
   $main_content_display = &drupal_static('system_main_content_added', FALSE);
 
+  // Pull out the page title to set it back later.
+  if (is_array($page) && isset($page['#title'])) {
+    $title = $page['#title'];
+  }
+
   // Allow menu callbacks to return strings or arbitrary arrays to render.
   // If the array returned is not of #type page directly, we need to fill
   // in the page with defaults.
@@ -3650,6 +3672,11 @@ function drupal_render_page($page) {
   // control page regions (for example, the Block module) are enabled.
   if (!$main_content_display) {
     $page['content']['system_main'] = drupal_set_page_content();
+  }
+
+  // Set back the previously stored title.
+  if (isset($title)) {
+    $page['#title'] = $title;
   }
 
   return drupal_render($page);
@@ -3728,7 +3755,31 @@ function drupal_render_page($page) {
  *   - If this element has an array of #theme_wrappers defined and
  *     #render_children is not set, #children is then re-rendered by passing the
  *     element in its current state to theme() successively for each item in
- *     #theme_wrappers.
+ *     #theme_wrappers. Since #theme and #theme_wrappers hooks often define
+ *     variables with the same names it is possible to explicitly override each
+ *     attribute passed to each #theme_wrappers hook by setting the hook name as
+ *     the key and an array of overrides as the value in #theme_wrappers array.
+ *     For example, if we have a render element as follows:
+ *     @code
+ *     array(
+ *       '#theme' => 'image',
+ *       '#attributes' => array('class' => 'foo'),
+ *       '#theme_wrappers' => array('container'),
+ *     );
+ *     @endcode
+ *     and we need to pass the class 'bar' as an attribute for 'container', we
+ *     can rewrite our element thus:
+ *     @code
+ *     array(
+ *       '#theme' => 'image',
+ *       '#attributes' => array('class' => 'foo'),
+ *       '#theme_wrappers' => array(
+ *         'container' => array(
+ *           '#attributes' => array('class' => 'bar'),
+ *         ),
+ *       ),
+ *     );
+ *     @endcode
  *   - If this element has an array of #post_render functions defined, they are
  *     called sequentially to modify the rendered #children. Unlike #pre_render
  *     functions, #post_render functions are passed both the rendered #children
@@ -3857,8 +3908,24 @@ function drupal_render(&$elements) {
   // If the internal #render_children property is set, do not call the
   // #theme_wrappers function(s) to prevent infinite recursion.
   if (isset($elements['#theme_wrappers']) && !isset($elements['#render_children'])) {
-    foreach ($elements['#theme_wrappers'] as $theme_wrapper) {
-      $elements['#children'] = theme($theme_wrapper, $elements);
+    foreach ($elements['#theme_wrappers'] as $key => $value) {
+      // If the value of a #theme_wrappers item is an array then the theme hook
+      // is found in the key of the item and the value contains attribute
+      // overrides. Attribute overrides replace key/value pairs in $elements for
+      // only this theme() call. This allows #theme hooks and #theme_wrappers
+      // hooks to share variable names without conflict or ambiguity.
+      $wrapper_elements = $elements;
+      if (is_string($key)) {
+        $wrapper_hook = $key;
+        foreach ($value as $attribute => $override) {
+          $wrapper_elements[$attribute] = $override;
+        }
+      }
+      else {
+        $wrapper_hook = $value;
+      }
+
+      $elements['#children'] = theme($wrapper_hook, $wrapper_elements);
     }
   }
 
@@ -4231,14 +4298,16 @@ function drupal_render_cid_create($elements) {
  *   that optionally include a '#weight' key.
  * @param $b
  *   Second item for comparison.
+ *
+ * @return int
+ *   The comparison result for uasort().
+ *
+ * @see \Drupal\Component\Utility\SortArray::sortByWeightProperty()
+ *
+ * @deprecated as of Drupal 8.0. Use SortArray::sortByWeightProperty() instead.
  */
 function element_sort($a, $b) {
-  $a_weight = (is_array($a) && isset($a['#weight'])) ? $a['#weight'] : 0;
-  $b_weight = (is_array($b) && isset($b['#weight'])) ? $b['#weight'] : 0;
-  if ($a_weight == $b_weight) {
-    return 0;
-  }
-  return ($a_weight < $b_weight) ? -1 : 1;
+  return SortArray::sortByWeightProperty($a, $b);
 }
 
 /**
@@ -4253,11 +4322,16 @@ function element_sort($a, $b) {
  *   that optionally include a '#title' key.
  * @param $b
  *   Second item for comparison.
+ *
+ * @return int
+ *   The comparison result for uasort().
+ *
+ * @see \Drupal\Component\Utility\SortArray::sortByTitleProperty()
+ *
+ * @deprecated as of Drupal 8.0. Use SortArray::sortByTitleProperty() instead.
  */
 function element_sort_by_title($a, $b) {
-  $a_title = (is_array($a) && isset($a['#title'])) ? $a['#title'] : '';
-  $b_title = (is_array($b) && isset($b['#title'])) ? $b['#title'] : '';
-  return strnatcasecmp($a_title, $b_title);
+  return SortArray::sortByTitleProperty($a, $b);
 }
 
 /**
@@ -4275,7 +4349,7 @@ function element_info($type) {
   $cache = &$drupal_static_fast['cache'];
 
   if (!isset($cache)) {
-    $cache = module_invoke_all('element_info');
+    $cache = Drupal::moduleHandler()->invokeAll('element_info');
     foreach ($cache as $element_type => $info) {
       $cache[$element_type]['#type'] = $element_type;
     }
@@ -4315,14 +4389,16 @@ function element_info_property($type, $property_name, $default = NULL) {
  *   element, a default value of 0 will be used.
  * @param $b
  *   Second item for comparison.
+ *
+ * @return int
+ *   The comparison result for uasort().
+ *
+ * @see \Drupal\Component\Utility\SortArray::sortByWeightElement()
+ *
+ * @deprecated as of Drupal 8.0. Use SortArray::sortByWeightElement() instead.
  */
 function drupal_sort_weight($a, $b) {
-  $a_weight = (is_array($a) && isset($a['weight'])) ? $a['weight'] : 0;
-  $b_weight = (is_array($b) && isset($b['weight'])) ? $b['weight'] : 0;
-  if ($a_weight == $b_weight) {
-    return 0;
-  }
-  return ($a_weight < $b_weight) ? -1 : 1;
+  return SortArray::sortByWeightElement((array) $a, (array) $b);
 }
 
 /**
@@ -4335,15 +4411,16 @@ function drupal_sort_weight($a, $b) {
  *   that optionally include a 'title' key.
  * @param $b
  *   Second item for comparison.
+ *
+ * @return int
+ *   The comparison result for uasort().
+ *
+ * @see \Drupal\Component\Utility\SortArray::sortByTitleElement()
+ *
+ * @deprecated as of Drupal 8.0. Use SortArray::sortByTitleElement() instead.
  */
 function drupal_sort_title($a, $b) {
-  if (!isset($b['title'])) {
-    return -1;
-  }
-  if (!isset($a['title'])) {
-    return 1;
-  }
-  return strcasecmp($a['title'], $b['title']);
+  return SortArray::sortByTitleElement($a, $b);
 }
 
 /**
@@ -4678,11 +4755,6 @@ function drupal_flush_all_caches() {
   // actually loaded.
   $module_handler->loadAll();
 
-  // Update the list of bootstrap modules.
-  // Allows developers to get new bootstrap hooks implementations registered
-  // without having to write a hook_update_N() function.
-  _system_update_bootstrap_status();
-
   // Rebuild the schema and cache a fully-built schema based on new module data.
   // This is necessary for any invocation of index.php, because setting cache
   // table entries requires schema information and that occurs during bootstrap
@@ -4828,7 +4900,7 @@ function archiver_get_archiver($file) {
 function drupal_get_updaters() {
   $updaters = &drupal_static(__FUNCTION__);
   if (!isset($updaters)) {
-    $updaters = module_invoke_all('updater_info');
+    $updaters = Drupal::moduleHandler()->invokeAll('updater_info');
     drupal_alter('updater_info', $updaters);
     uasort($updaters, 'drupal_sort_weight');
   }
@@ -4848,7 +4920,7 @@ function drupal_get_updaters() {
 function drupal_get_filetransfer_info() {
   $info = &drupal_static(__FUNCTION__);
   if (!isset($info)) {
-    $info = module_invoke_all('filetransfer_info');
+    $info = Drupal::moduleHandler()->invokeAll('filetransfer_info');
     drupal_alter('filetransfer_info', $info);
     uasort($info, 'drupal_sort_weight');
   }

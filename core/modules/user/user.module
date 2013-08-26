@@ -4,15 +4,15 @@ use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\entity\Plugin\Core\Entity\EntityDisplay;
-use Drupal\file\Plugin\Core\Entity\File;
-use Drupal\user\Plugin\Core\Entity\User;
+use Drupal\entity\Entity\EntityDisplay;
+use Drupal\file\Entity\File;
+use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 use Drupal\user\RoleInterface;
 use Drupal\Core\Template\Attribute;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Drupal\menu_link\Plugin\Core\Entity\MenuLink;
+use Drupal\menu_link\Entity\MenuLink;
 
 /**
  * @file
@@ -49,8 +49,6 @@ const USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL = 'visitors_admin_approval'
  * Implement hook_help().
  */
 function user_help($path, $arg) {
-  global $user;
-
   switch ($path) {
     case 'admin/help#user':
       $output = '';
@@ -170,14 +168,14 @@ function user_label($entity_type, $entity) {
 function user_attach_accounts(array $entities) {
   $uids = array();
   foreach ($entities as $entity) {
-    $uids[] = $entity->uid;
+    $uids[] = $entity->getAuthorId();
   }
   $uids = array_unique($uids);
   $accounts = user_load_multiple($uids);
   $anonymous = drupal_anonymous_user();
   foreach ($entities as $id => $entity) {
-    if (isset($accounts[$entity->uid])) {
-      $entities[$id]->account = $accounts[$entity->uid];
+    if (isset($accounts[$entity->getAuthorId()])) {
+      $entities[$id]->account = $accounts[$entity->getAuthorId()];
     }
     else {
       $entities[$id]->account = $anonymous;
@@ -206,7 +204,7 @@ function user_field_extra_fields() {
     'description' => t('User module account form elements.'),
     'weight' => -10,
   );
-  if (config('user.settings')->get('signatures')) {
+  if (Drupal::config('user.settings')->get('signatures')) {
     $fields['user']['user']['form']['signature_settings'] = array(
       'label' => t('Signature settings'),
       'description' => t('User module form element.'),
@@ -218,7 +216,7 @@ function user_field_extra_fields() {
     'description' => t('User module form element.'),
     'weight' => 0,
   );
-  if (config('system.timezone')->get('user.configurable')) {
+  if (Drupal::config('system.date')->get('timezone.user.configurable')) {
     $fields['user']['user']['form']['timezone'] = array(
       'label' => t('Timezone'),
       'description' => t('System module form element.'),
@@ -480,7 +478,7 @@ function user_permission() {
     ),
     'cancel account' => array(
       'title' => t('Cancel own user account'),
-      'description' => t('Note: content may be kept, unpublished, deleted or transferred to the %anonymous-name user depending on the configured <a href="@user-settings-url">user settings</a>.', array('%anonymous-name' => config('user.settings')->get('anonymous'), '@user-settings-url' => url('admin/config/people/accounts'))),
+      'description' => t('Note: content may be kept, unpublished, deleted or transferred to the %anonymous-name user depending on the configured <a href="@user-settings-url">user settings</a>.', array('%anonymous-name' => Drupal::config('user.settings')->get('anonymous'), '@user-settings-url' => url('admin/config/people/accounts'))),
     ),
     'select account cancellation method' => array(
       'title' => t('Select method for cancelling own account'),
@@ -509,7 +507,6 @@ function user_search_access() {
  * Implements hook_search_execute().
  */
 function user_search_execute($keys = NULL, $conditions = NULL) {
-  $find = array();
   // Replace wildcards with MySQL/PostgreSQL wildcards.
   $keys = preg_replace('!\*+!', '%', $keys);
   $query = db_select('users')
@@ -587,7 +584,7 @@ function user_validate_current_pass(&$form, &$form_state) {
     // that prevent them from being empty if they are changed.
     $current_value = $account->getPropertyDefinition($key) ? $account->get($key)->value : $account->$key;
     if ((strlen(trim($form_state['values'][$key])) > 0) && ($form_state['values'][$key] != $current_value)) {
-      $current_pass_failed = empty($form_state['values']['current_pass']) || !drupal_container()->get('password')->check($form_state['values']['current_pass'], $account);
+      $current_pass_failed = empty($form_state['values']['current_pass']) || !Drupal::service('password')->check($form_state['values']['current_pass'], $account);
       if ($current_pass_failed) {
         form_set_error('current_pass', t("Your current password is missing or incorrect; it's required to change the %name.", array('%name' => $name)));
         form_set_error($key);
@@ -770,7 +767,7 @@ function user_is_logged_in() {
  *   TRUE if the user is not already logged in and can register for an account.
  */
 function user_register_access() {
-  return user_is_anonymous() && (config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY);
+  return user_is_anonymous() && (Drupal::config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY);
 }
 
 /**
@@ -1090,7 +1087,7 @@ function user_authenticate($name, $password) {
   if (!empty($name) && !empty($password)) {
     $account = user_load_by_name($name);
     if ($account) {
-      $password_hasher = drupal_container()->get('password');
+      $password_hasher = Drupal::service('password');
       if ($password_hasher->check($password, $account)) {
         // Successful authentication.
         $uid = $account->id();
@@ -1137,7 +1134,7 @@ function user_login_finalize(UserInterface $account) {
   // or incorrectly does a redirect which would leave the old session in place.
   drupal_session_regenerate();
 
-  module_invoke_all('user_login', $user);
+  Drupal::moduleHandler()->invokeAll('user_login', array($user));
 }
 
 /**
@@ -1274,7 +1271,7 @@ function user_cancel($edit, $uid, $method) {
   // should use those hooks to respond to the account deletion.
   if ($method != 'user_cancel_delete') {
     // Allow modules to add further sets to this batch.
-    module_invoke_all('user_cancel', $edit, $account, $method);
+    Drupal::moduleHandler()->invokeAll('user_cancel', array($edit, $account, $method));
   }
 
   // Finish the batch and actually cancel the account.
@@ -1453,7 +1450,7 @@ function user_mail($key, &$message, $params) {
   // the locale module is enabled.
   $user_config_context = config_context_enter('Drupal\user\UserConfigContext');
   $user_config_context->setAccount($params['account']);
-  $mail_config = config('user.mail');
+  $mail_config = Drupal::config('user.mail');
 
    // We do not sanitize the token replacement, since the output of this
    // replacement is intended for an e-mail message, not a web browser.
@@ -1767,7 +1764,7 @@ function user_multiple_cancel_confirm($form, &$form_state) {
     '#type' => 'checkbox',
     '#title' => t('Notify user when account is canceled.'),
     '#default_value' => FALSE,
-    '#access' => config('user.settings')->get('notify.status_canceled'),
+    '#access' => Drupal::config('user.settings')->get('notify.status_canceled'),
     '#description' => t('When enabled, the user will receive an e-mail notification after the account has been cancelled.'),
   );
 
@@ -1867,17 +1864,17 @@ function theme_user_signature($variables) {
  */
 function _user_mail_notify($op, $account, $langcode = NULL) {
   // By default, we always notify except for canceled and blocked.
-  $notify = config('user.settings')->get('notify.' . $op);
+  $notify = Drupal::config('user.settings')->get('notify.' . $op);
   if ($notify || ($op != 'status_canceled' && $op != 'status_blocked')) {
     $params['account'] = $account;
     $langcode = $langcode ? $langcode : $account->getPreferredLangcode();
     // Get the custom site notification email to use as the from email address
     // if it has been set.
-    $site_mail = config('system.site')->get('mail_notification');
+    $site_mail = Drupal::config('system.site')->get('mail_notification');
     // If the custom site notification email has not been set, we use the site
     // default for this.
     if (empty($site_mail)) {
-      $site_mail = config('system.site')->get('mail');
+      $site_mail = Drupal::config('system.site')->get('mail');
     }
     if (empty($site_mail)) {
       $site_mail = ini_get('sendmail_from');
@@ -1909,7 +1906,7 @@ function user_form_process_password_confirm($element) {
     'showStrengthIndicator' => FALSE,
   );
 
-  if (config('user.settings')->get('password_strength')) {
+  if (Drupal::config('user.settings')->get('password_strength')) {
 
     global $user;
     $password_settings['showStrengthIndicator'] = TRUE;
@@ -1956,7 +1953,7 @@ function user_node_load($nodes, $types) {
   // Build an array of all uids for node authors, keyed by nid.
   $uids = array();
   foreach ($nodes as $nid => $node) {
-    $uids[$nid] = $node->uid;
+    $uids[$nid] = $node->getAuthorId();
   }
 
   // Fetch name and data for these users.
@@ -1973,7 +1970,7 @@ function user_node_load($nodes, $types) {
  */
 function user_modules_installed($modules) {
   // Assign all available permissions to the administrator role.
-  $rid = config('user.settings')->get('admin_role');
+  $rid = Drupal::config('user.settings')->get('admin_role');
   if ($rid) {
     $permissions = array();
     foreach ($modules as $module) {
@@ -1992,7 +1989,7 @@ function user_modules_installed($modules) {
  */
 function user_modules_uninstalled($modules) {
   // Remove any potentially orphan module data stored for users.
-  drupal_container()->get('user.data')->delete($modules);
+  Drupal::service('user.data')->delete($modules);
 }
 
 /**

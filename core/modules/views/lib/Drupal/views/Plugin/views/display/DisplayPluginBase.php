@@ -99,6 +99,21 @@ abstract class DisplayPluginBase extends PluginBase {
    */
   protected $usesAreas = TRUE;
 
+  /**
+   * Constructs a new DisplayPluginBase object.
+   *
+   * Because DisplayPluginBase::initDisplay() takes the display configuration by
+   * reference and handles it differently than usual plugin configuration, pass
+   * an empty array of configuration to the parent. This prevents our
+   * configuration from being duplicated.
+   *
+   * @todo Replace DisplayPluginBase::$display with
+   *   DisplayPluginBase::$configuration to standardize with other plugins.
+   */
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition) {
+    parent::__construct(array(), $plugin_id, $plugin_definition);
+  }
+
   public function initDisplay(ViewExecutable $view, array &$display, array &$options = NULL) {
     $this->setOptionDefaults($this->options, $this->defineOptions());
     $this->view = $view;
@@ -1445,9 +1460,9 @@ abstract class DisplayPluginBase extends PluginBase {
         );
         $form['use_more_always'] = array(
           '#type' => 'checkbox',
-          '#title' => t("Display 'more' link only if there is more content"),
-          '#description' => t("Leave this unchecked to display the 'more' link even if there are no more items to display."),
-          '#default_value' => !$this->getOption('use_more_always'),
+          '#title' => t('Always display the more link'),
+          '#description' => t('Check this to display the more link even if there are no more items to display.'),
+          '#default_value' => $this->getOption('use_more_always'),
           '#states' => array(
             'visible' => array(
               ':input[name="use_more"]' => array('checked' => TRUE),
@@ -1457,7 +1472,7 @@ abstract class DisplayPluginBase extends PluginBase {
         $form['use_more_text'] = array(
           '#type' => 'textfield',
           '#title' => t('More link text'),
-          '#description' => t("The text to display for the more link."),
+          '#description' => t('The text to display for the more link.'),
           '#default_value' => $this->getOption('use_more_text'),
           '#states' => array(
             'visible' => array(
@@ -1726,11 +1741,11 @@ abstract class DisplayPluginBase extends PluginBase {
         break;
       case 'analyze-theme':
         $form['#title'] .= t('Theming information');
-        if ($theme = drupal_container()->get('request')->request->get('theme')) {
+        if ($theme = \Drupal::request()->request->get('theme')) {
           $this->theme = $theme;
         }
         elseif (empty($this->theme)) {
-          $this->theme = config('system.theme')->get('default');
+          $this->theme = \Drupal::config('system.theme')->get('default');
         }
 
         if (isset($GLOBALS['theme']) && $GLOBALS['theme'] == $this->theme) {
@@ -2246,7 +2261,7 @@ abstract class DisplayPluginBase extends PluginBase {
         break;
       case 'use_more':
         $this->setOption($section, intval($form_state['values'][$section]));
-        $this->setOption('use_more_always', !intval($form_state['values']['use_more_always']));
+        $this->setOption('use_more_always', intval($form_state['values']['use_more_always']));
         $this->setOption('use_more_text', $form_state['values']['use_more_text']);
       case 'distinct':
         $this->setOption($section, $form_state['values'][$section]);

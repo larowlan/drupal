@@ -49,7 +49,7 @@ class BreadcrumbTest extends MenuTestBase {
       'region' => 'content',
     );
     $this->drupalPlaceBlock('system_menu_block:menu-tools', $settings);
-    $settings['theme'] = config('system.theme')->get('admin');
+    $settings['theme'] = \Drupal::config('system.theme')->get('admin');
     $this->drupalPlaceBlock('system_menu_block:menu-tools', $settings);
   }
 
@@ -114,7 +114,6 @@ class BreadcrumbTest extends MenuTestBase {
       'admin/structure/menu' => t('Menus'),
     );
     $this->assertBreadcrumb('admin/structure/menu/manage/tools', $trail);
-    $this->assertBreadcrumb('admin/structure/menu/manage/tools/edit', $trail);
 
     $mlid_node_add = db_query('SELECT mlid FROM {menu_links} WHERE link_path = :href AND module = :module', array(
       ':href' => 'node/add',
@@ -175,15 +174,15 @@ class BreadcrumbTest extends MenuTestBase {
     $trail = $home;
     $this->assertBreadcrumb("node/$nid1", $trail);
     // Also verify that the node does not appear elsewhere (e.g., menu trees).
-    $this->assertNoLink($node1->title);
+    $this->assertNoLink($node1->getTitle());
     // The node itself should not be contained in the breadcrumb on the default
     // local task, since there is no difference between both pages.
     $this->assertBreadcrumb("node/$nid1/view", $trail);
     // Also verify that the node does not appear elsewhere (e.g., menu trees).
-    $this->assertNoLink($node1->title);
+    $this->assertNoLink($node1->getTitle());
 
     $trail += array(
-      "node/$nid1" => $node1->title,
+      "node/$nid1" => $node1->getTitle(),
     );
     $this->assertBreadcrumb("node/$nid1/edit", $trail);
 
@@ -221,10 +220,10 @@ class BreadcrumbTest extends MenuTestBase {
       $tree = array(
         "node/$nid2" => $node2->menu['link_title'],
       );
-      $this->assertBreadcrumb("node/$nid2", $trail, $node2->title, $tree);
+      $this->assertBreadcrumb("node/$nid2", $trail, $node2->getTitle(), $tree);
       // The node itself should not be contained in the breadcrumb on the
       // default local task, since there is no difference between both pages.
-      $this->assertBreadcrumb("node/$nid2/view", $trail, $node2->title, $tree);
+      $this->assertBreadcrumb("node/$nid2/view", $trail, $node2->getTitle(), $tree);
       $trail += array(
         "node/$nid2" => $node2->menu['link_title'],
       );
@@ -245,10 +244,10 @@ class BreadcrumbTest extends MenuTestBase {
       ));
       $nid3 = $node3->id();
 
-      $this->assertBreadcrumb("node/$nid3", $trail, $node3->title, $tree, FALSE);
+      $this->assertBreadcrumb("node/$nid3", $trail, $node3->getTitle(), $tree, FALSE);
       // The node itself should not be contained in the breadcrumb on the
       // default local task, since there is no difference between both pages.
-      $this->assertBreadcrumb("node/$nid3/view", $trail, $node3->title, $tree, FALSE);
+      $this->assertBreadcrumb("node/$nid3/view", $trail, $node3->getTitle(), $tree, FALSE);
       $trail += array(
         "node/$nid3" => $node3->menu['link_title'],
       );
@@ -289,14 +288,14 @@ class BreadcrumbTest extends MenuTestBase {
     $tree = $expected + array(
       'node/' . $parent->id() => $parent->menu['link_title'],
     );
-    $this->assertBreadcrumb(NULL, $trail, $parent->title, $tree);
+    $this->assertBreadcrumb(NULL, $trail, $parent->getTitle(), $tree);
     $trail += array(
       'node/' . $parent->id() => $parent->menu['link_title'],
     );
     $tree += array(
       'node/' . $parent->id() => $child->menu['link_title'],
     );
-    $this->assertBreadcrumb('node/' . $child->id(), $trail, $child->title, $tree);
+    $this->assertBreadcrumb('node/' . $child->id(), $trail, $child->getTitle(), $tree);
 
     // Add a taxonomy term/tag to last node, and add a link for that term to the
     // Tools menu.
@@ -351,7 +350,7 @@ class BreadcrumbTest extends MenuTestBase {
         $link['link_path'] => $link['link_title'],
       );
       $this->assertBreadcrumb($link['link_path'], $trail, $term->label(), $tree);
-      $this->assertRaw(check_plain($parent->title), 'Tagged node found.');
+      $this->assertRaw(check_plain($parent->getTitle()), 'Tagged node found.');
 
       // Additionally make sure that this link appears only once; i.e., the
       // untranslated menu links automatically generated from menu router items

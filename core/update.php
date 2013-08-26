@@ -107,7 +107,7 @@ function update_script_selection_form($form, &$form_state) {
   }
 
   // Find and label any incompatible updates.
-  foreach (update_resolve_dependencies($starting_updates) as $function => $data) {
+  foreach (update_resolve_dependencies($starting_updates) as $data) {
     if (!$data['allowed']) {
       $incompatible_updates_exist = TRUE;
       $incompatible_count++;
@@ -405,7 +405,7 @@ function update_extra_requirements($requirements = NULL) {
  */
 function update_check_requirements($skip_warnings = FALSE) {
   // Check requirements of all loaded modules.
-  $requirements = module_invoke_all('requirements', 'update');
+  $requirements = Drupal::moduleHandler()->invokeAll('requirements', array('update'));
   $requirements += update_extra_requirements();
   $severity = drupal_requirements_severity($requirements);
 

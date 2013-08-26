@@ -8,7 +8,7 @@
 namespace Drupal\aggregator\Plugin\aggregator\fetcher;
 
 use Drupal\aggregator\Plugin\FetcherInterface;
-use Drupal\aggregator\Plugin\Core\Entity\Feed;
+use Drupal\aggregator\Entity\Feed;
 use Drupal\aggregator\Annotation\AggregatorFetcher;
 use Drupal\Core\Annotation\Translation;
 use Guzzle\Http\Exception\BadResponseException;
@@ -45,16 +45,22 @@ class DefaultFetcher implements FetcherInterface {
 
     try {
       $response = $request->send();
+
+      // In case of a 304 Not Modified, there is no new content, so return
+      // FALSE.
+      if ($response->getStatusCode() == 304) {
+        return FALSE;
+      }
+
       $feed->source_string = $response->getBody(TRUE);
       $feed->etag = $response->getEtag();
       $feed->modified = strtotime($response->getLastModified());
       $feed->http_headers = $response->getHeaders();
 
       // Update the feed URL in case of a 301 redirect.
-      if ($previous_response = $response->getPreviousResponse()) {
-        if ($previous_response->getStatusCode() == 301 && $location = $previous_response->getLocation()) {
-          $feed->url->value = $location;
-        }
+
+      if ($response->getEffectiveUrl() != $feed->url->value) {
+        $feed->url->value = $response->getEffectiveUrl();
       }
       return TRUE;
     }

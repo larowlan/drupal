@@ -26,9 +26,9 @@ class CommentFormController extends EntityFormControllerNG {
 
     // Use #comment-form as unique jump target, regardless of node type.
     $form['#id'] = drupal_html_id('comment_form');
-    $form['#theme'] = array('comment_form__node_' . $node->type, 'comment_form');
+    $form['#theme'] = array('comment_form__node_' . $node->getType(), 'comment_form');
 
-    $anonymous_contact = variable_get('comment_anonymous_' . $node->type, COMMENT_ANONYMOUS_MAYNOT_CONTACT);
+    $anonymous_contact = variable_get('comment_anonymous_' . $node->getType(), COMMENT_ANONYMOUS_MAYNOT_CONTACT);
     $is_admin = $comment->id() && user_access('administer comments');
 
     if (!$user->isAuthenticated() && $anonymous_contact != COMMENT_ANONYMOUS_MAYNOT_CONTACT) {
@@ -62,7 +62,7 @@ class CommentFormController extends EntityFormControllerNG {
     if ($is_admin) {
       $author = $comment->name->value;
       $status = (isset($comment->status->value) ? $comment->status->value : COMMENT_NOT_PUBLISHED);
-      $date = (!empty($comment->date) ? $comment->date : new DrupalDateTime($comment->created->value));
+      $date = (!empty($comment->date) ? $comment->date : DrupalDateTime::createFromTimestamp($comment->created->value));
     }
     else {
       if ($user->isAuthenticated()) {
@@ -86,8 +86,8 @@ class CommentFormController extends EntityFormControllerNG {
     );
     if ($is_admin) {
       $form['author']['name']['#title'] = t('Authored by');
-      $form['author']['name']['#description'] = t('Leave blank for %anonymous.', array('%anonymous' => config('user.settings')->get('anonymous')));
-      $form['author']['name']['#autocomplete_path'] = 'user/autocomplete';
+      $form['author']['name']['#description'] = t('Leave blank for %anonymous.', array('%anonymous' => \Drupal::config('user.settings')->get('anonymous')));
+      $form['author']['name']['#autocomplete_route_name'] = 'user_autocomplete';
     }
     elseif ($user->isAuthenticated()) {
       $form['author']['name']['#type'] = 'item';
@@ -145,7 +145,7 @@ class CommentFormController extends EntityFormControllerNG {
       '#title' => t('Subject'),
       '#maxlength' => 64,
       '#default_value' => $comment->subject->value,
-      '#access' => variable_get('comment_subject_field_' . $node->type, 1) == 1,
+      '#access' => variable_get('comment_subject_field_' . $node->getType(), 1) == 1,
     );
 
     // Used for conditional validation of author fields.
@@ -178,7 +178,7 @@ class CommentFormController extends EntityFormControllerNG {
     $element = parent::actions($form, $form_state);
     $comment = $this->entity;
     $node = $comment->nid->entity;
-    $preview_mode = variable_get('comment_preview_' . $node->type, DRUPAL_OPTIONAL);
+    $preview_mode = variable_get('comment_preview_' . $node->getType(), DRUPAL_OPTIONAL);
 
     // No delete action on the comment form.
     unset($element['delete']);
@@ -274,7 +274,7 @@ class CommentFormController extends EntityFormControllerNG {
     // If the comment was posted by an anonymous user and no author name was
     // required, use "Anonymous" by default.
     if ($comment->is_anonymous && (!isset($comment->name->value) || $comment->name->value === '')) {
-      $comment->name->value = config('user.settings')->get('anonymous');
+      $comment->name->value = \Drupal::config('user.settings')->get('anonymous');
     }
 
     // Validate the comment's subject. If not specified, extract from comment
@@ -341,7 +341,7 @@ class CommentFormController extends EntityFormControllerNG {
       }
       $query = array();
       // Find the current display page for this comment.
-      $page = comment_get_display_page($comment->id(), $node->type);
+      $page = comment_get_display_page($comment->id(), $node->getType());
       if ($page > 0) {
         $query['page'] = $page;
       }

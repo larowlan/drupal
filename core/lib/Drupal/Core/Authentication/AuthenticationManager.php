@@ -141,7 +141,7 @@ class AuthenticationManager implements AuthenticationProviderInterface, Authenti
    * @return array
    *   An array of authentication provider objects.
    */
-  protected function getSortedProviders() {
+  public function getSortedProviders() {
     if (!isset($this->sortedProviders)) {
       // Sort the builders according to priority.
       krsort($this->providerOrders);
@@ -182,7 +182,7 @@ class AuthenticationManager implements AuthenticationProviderInterface, Authenti
     // instead.  Assume those were authenticated by cookie, because the legacy
     // router didn't support anything else.
     // @todo Remove this check once the old router is fully removed.
-    if ($request->attributes->has('drupal_menu_item')) {
+    if ($request->attributes->has('_drupal_menu_item')) {
       $active_providers = array('cookie');
     }
     else {

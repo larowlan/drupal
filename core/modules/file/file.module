@@ -5,11 +5,10 @@
  * Defines a "managed_file" Form API field and a "file" field for Field module.
  */
 
-use Drupal\file\Plugin\Core\Entity\File;
+use Drupal\file\Entity\File;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Template\Attribute;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Drupal\file\FileUsage\DatabaseFileUsageBackend;
 use Drupal\file\FileUsage\FileUsageInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
@@ -46,14 +45,12 @@ function file_menu() {
   $items = array();
 
   $items['file/ajax'] = array(
-    'page callback' => 'file_ajax_upload',
-    'access arguments' => array('access content'),
+    'route_name' => 'file.ajax.upload',
     'theme callback' => 'ajax_base_page_theme',
     'type' => MENU_CALLBACK,
   );
   $items['file/progress'] = array(
-    'page callback' => 'file_ajax_progress',
-    'access arguments' => array('access content'),
+    'route name' => 'file.ajax.progress',
     'theme callback' => 'ajax_base_page_theme',
     'type' => MENU_CALLBACK,
   );
@@ -206,7 +203,7 @@ function file_copy(File $source, $destination = NULL, $replace = FILE_EXISTS_REN
     $file->save();
 
     // Inform modules that the file has been copied.
-    module_invoke_all('file_copy', $file, $source);
+    Drupal::moduleHandler()->invokeAll('file_copy', array($file, $source));
 
     return $file;
   }
@@ -281,7 +278,7 @@ function file_move(File $source, $destination = NULL, $replace = FILE_EXISTS_REN
     $file->save();
 
     // Inform modules that the file has been moved.
-    module_invoke_all('file_move', $file, $source);
+    Drupal::moduleHandler()->invokeAll('file_move', array($file, $source));
 
     // Delete the original if it's not in use elsewhere.
     if ($delete_source && !file_usage()->listUsage($source)) {
@@ -325,7 +322,7 @@ function file_validate(File $file, $validators = array()) {
   }
 
   // Let other modules perform validation on the new file.
-  return array_merge($errors, module_invoke_all('file_validate', $file));
+  return array_merge($errors, Drupal::moduleHandler()->invokeAll('file_validate', array($file)));
 }
 
 /**
@@ -408,7 +405,7 @@ function file_validate_size(File $file, $file_limit = 0, $user_limit = 0) {
 }
 
 /**
- * Checks that the file is recognized by image_get_info() as an image.
+ * Checks that the file is recognized by Image::getInfo() as an image.
  *
  * @param Drupal\file\File $file
  *   A file entity.
@@ -421,8 +418,8 @@ function file_validate_size(File $file, $file_limit = 0, $user_limit = 0) {
 function file_validate_is_image(File $file) {
   $errors = array();
 
-  $info = image_get_info($file->getFileUri());
-  if (!$info || empty($info['extension'])) {
+  $image = Drupal::service('image.factory')->get($file->getFileUri());
+  if (!$image->getExtension()) {
     $errors[] = t('Only JPEG, PNG and GIF images are allowed.');
   }
 
@@ -456,16 +453,19 @@ function file_validate_image_resolution(File $file, $maximum_dimensions = 0, $mi
   $errors = array();
 
   // Check first that the file is an image.
-  if ($info = image_get_info($file->getFileUri())) {
+  $image_factory = Drupal::service('image.factory');
+  $image = $image_factory->get($file->getFileUri());
+  if ($image->getExtension()) {
     if ($maximum_dimensions) {
       // Check that it is smaller than the given dimensions.
       list($width, $height) = explode('x', $maximum_dimensions);
-      if ($info['width'] > $width || $info['height'] > $height) {
+      if ($image->getWidth() > $width || $image->getHeight() > $height) {
         // Try to resize the image to fit the dimensions.
-        if ($image = image_load($file->getFileUri())) {
-          image_scale($image, $width, $height);
-          image_save($image);
-          $file->filesize = $image->info['file_size'];
+        $image = $image_factory->get($file->getFileUri());
+        if ($image->getResource()) {
+          $image->scale($width, $height);
+          $image->save();
+          $file->filesize = $image->getFileSize();
           drupal_set_message(t('The image was resized to fit within the maximum allowed dimensions of %dimensions pixels.', array('%dimensions' => $maximum_dimensions)));
         }
         else {
@@ -477,7 +477,7 @@ function file_validate_image_resolution(File $file, $maximum_dimensions = 0, $mi
     if ($minimum_dimensions) {
       // Check that it is larger than the given dimensions.
       list($width, $height) = explode('x', $minimum_dimensions);
-      if ($info['width'] < $width || $info['height'] < $height) {
+      if ($image->getWidth() < $width || $image->getHeight() < $height) {
         $errors[] = t('The image is too small; the minimum dimensions are %dimensions pixels.', array('%dimensions' => $minimum_dimensions));
       }
     }
@@ -866,7 +866,7 @@ function file_save_upload($form_field_name, $validators = array(), $destination 
     // rename filename.php.foo and filename.php to filename.php.foo.txt and
     // filename.php.txt, respectively). Don't rename if 'allow_insecure_uploads'
     // evaluates to TRUE.
-    if (!config('system.file')->get('allow_insecure_uploads') && preg_match('/\.(php|pl|py|cgi|asp|js)(\.|$)/i', $file->getFilename()) && (substr($file->getFilename(), -4) != '.txt')) {
+    if (!Drupal::config('system.file')->get('allow_insecure_uploads') && preg_match('/\.(php|pl|py|cgi|asp|js)(\.|$)/i', $file->getFilename()) && (substr($file->getFilename(), -4) != '.txt')) {
       $file->setMimeType('text/plain');
       $file->setFileUri($file->getFileUri() . '.txt');
       $file->setFilename($file->getFilename() . '.txt');
@@ -915,7 +915,11 @@ function file_save_upload($form_field_name, $validators = array(), $destination 
     if (!empty($errors)) {
       $message = t('The specified file %name could not be uploaded.', array('%name' => $file->getFilename()));
       if (count($errors) > 1) {
-        $message .= theme('item_list', array('items' => $errors));
+        $item_list = array(
+          '#theme' => 'item_list',
+          '#items' => $errors,
+        );
+        $message .= drupal_render($item_list);
       }
       else {
         $message .= ' ' . array_pop($errors);
@@ -957,104 +961,6 @@ function file_save_upload($form_field_name, $validators = array(), $destination 
   $upload_cache[$form_field_name] = $files;
 
   return isset($delta) ? $files[$delta] : $files;
-}
-
-/**
- * Ajax callback: Processes file uploads and deletions.
- *
- * This rebuilds the form element for a particular field item. As long as the
- * form processing is properly encapsulated in the widget element the form
- * should rebuild correctly using FAPI without the need for additional callbacks
- * or processing.
- *
- * @see file_menu()
- */
-function file_ajax_upload() {
-  $form_parents = func_get_args();
-  $form_build_id = (string) array_pop($form_parents);
-
-  $request = \Drupal::request();
-  if (!$request->request->has('form_build_id') || $form_build_id != $request->request->get('form_build_id')) {
-    // Invalid request.
-    drupal_set_message(t('An unrecoverable error occurred. The uploaded file likely exceeded the maximum file size (@size) that this server supports.', array('@size' => format_size(file_upload_max_size()))), 'error');
-    $response = new AjaxResponse();
-    $status_messages = array('#theme' => 'status_messages');
-    return $response->addCommand(new ReplaceCommand(NULL, drupal_render($status_messages)));
-  }
-
-  list($form, $form_state) = ajax_get_form();
-
-  if (!$form) {
-    // Invalid form_build_id.
-    drupal_set_message(t('An unrecoverable error occurred. Use of this form has expired. Try reloading the page and submitting again.'), 'error');
-    $response = new AjaxResponse();
-    $status_messages = array('#theme' => 'status_messages');
-    return $response->addCommand(new ReplaceCommand(NULL, drupal_render($status_messages)));
-  }
-
-  // Get the current element and count the number of files.
-  $current_element = $form;
-  foreach ($form_parents as $parent) {
-    $current_element = $current_element[$parent];
-  }
-  $current_file_count = isset($current_element['#file_upload_delta']) ? $current_element['#file_upload_delta'] : 0;
-
-  // Process user input. $form and $form_state are modified in the process.
-  drupal_process_form($form['#form_id'], $form, $form_state);
-
-  // Retrieve the element to be rendered.
-  foreach ($form_parents as $parent) {
-    $form = $form[$parent];
-  }
-
-  // Add the special Ajax class if a new file was added.
-  if (isset($form['#file_upload_delta']) && $current_file_count < $form['#file_upload_delta']) {
-    $form[$current_file_count]['#attributes']['class'][] = 'ajax-new-content';
-  }
-  // Otherwise just add the new content class on a placeholder.
-  else {
-    $form['#suffix'] .= '<span class="ajax-new-content"></span>';
-  }
-
-  $status_messages = array('#theme' => 'status_messages');
-  $form['#prefix'] .= drupal_render($status_messages);
-  $output = drupal_render($form);
-  $js = drupal_add_js();
-  $settings = drupal_merge_js_settings($js['settings']['data']);
-
-  $response = new AjaxResponse();
-  return $response->addCommand(new ReplaceCommand(NULL, $output, $settings));
-}
-
-/**
- * Ajax callback: Retrieves upload progress.
- *
- * @param $key
- *   The unique key for this upload process.
- */
-function file_ajax_progress($key) {
-  $progress = array(
-    'message' => t('Starting upload...'),
-    'percentage' => -1,
-  );
-
-  $implementation = file_progress_implementation();
-  if ($implementation == 'uploadprogress') {
-    $status = uploadprogress_get_info($key);
-    if (isset($status['bytes_uploaded']) && !empty($status['bytes_total'])) {
-      $progress['message'] = t('Uploading... (@current of @total)', array('@current' => format_size($status['bytes_uploaded']), '@total' => format_size($status['bytes_total'])));
-      $progress['percentage'] = round(100 * $status['bytes_uploaded'] / $status['bytes_total']);
-    }
-  }
-  elseif ($implementation == 'apc') {
-    $status = apc_fetch('upload_' . $key);
-    if (isset($status['current']) && !empty($status['total'])) {
-      $progress['message'] = t('Uploading... (@current of @total)', array('@current' => format_size($status['current']), '@total' => format_size($status['total'])));
-      $progress['percentage'] = round(100 * $status['current'] / $status['total']);
-    }
-  }
-
-  return new JsonResponse($progress);
 }
 
 /**
@@ -1239,7 +1145,13 @@ function file_managed_file_process($element, &$form_state, $form) {
   $element['#tree'] = TRUE;
 
   $ajax_settings = array(
-    'path' => 'file/ajax/' . implode('/', $element['#array_parents']) . '/' . $form['form_build_id']['#value'],
+    'path' => 'file/ajax',
+    'options' => array(
+      'query' => array(
+        'element_parents' => implode('/', $element['#array_parents']),
+        'form_build_id' => $form['form_build_id']['#value'],
+      ),
+    ),
     'wrapper' => $element['#id'] . '-ajax-wrapper',
     'effect' => 'fade',
     'progress' => array(
@@ -1742,7 +1654,7 @@ function file_icon_url(File $file, $icon_directory = NULL) {
 function file_icon_path(File $file, $icon_directory = NULL) {
   // Use the default set of icons if none specified.
   if (!isset($icon_directory)) {
-    $icon_directory = config('file.settings')->get('icon.directory');
+    $icon_directory = Drupal::config('file.settings')->get('icon.directory');
   }
 
   // If there's an icon matching the exact mimetype, go for it.
@@ -1975,9 +1887,9 @@ function file_get_file_references(File $file, $field = NULL, $age = FIELD_LOAD_R
           // the referenced file. This will fail if the usage checked is in a
           // non-current revision because field items are from the current
           // revision.
-          if (!$match && ($field_items = field_get_items($entity, $field_name))) {
-            foreach ($field_items as $item) {
-              if ($file->id() == $item[$field_column]) {
+          if (!$match && ($items = $entity->get($field_name))) {
+            foreach ($items as $item) {
+              if ($file->id() == $item->{$field_column}) {
                 $match = TRUE;
                 break;
               }

@@ -7,6 +7,7 @@
 
 use Drupal\Core\StreamWrapper\LocalStream;
 use Drupal\Component\PhpStorage\MTimeProtectedFastFileStorage;
+use Drupal\Core\StreamWrapper\PublicStream;
 
 /**
  * Stream wrapper bit flags that are the basis for composite types.
@@ -189,7 +190,7 @@ function file_get_stream_wrappers($filter = STREAM_WRAPPERS_ALL) {
   $wrappers_storage = &drupal_static(__FUNCTION__);
 
   if (!isset($wrappers_storage)) {
-    $wrappers = module_invoke_all('stream_wrappers');
+    $wrappers = Drupal::moduleHandler()->invokeAll('stream_wrappers');
     foreach ($wrappers as $scheme => $info) {
       // Add defaults.
       $wrappers[$scheme] += array('type' => STREAM_WRAPPERS_NORMAL);
@@ -312,7 +313,7 @@ function file_uri_target($uri) {
  *   'public', 'private' or any other file scheme defined as the default.
  */
 function file_default_scheme() {
-  return config('system.file')->get('default_scheme');
+  return Drupal::config('system.file')->get('default_scheme');
 }
 
 /**
@@ -385,7 +386,7 @@ function file_stream_wrapper_get_instance_by_uri($uri) {
  * @param $scheme
  *   If the stream was "public://target", "public" would be the scheme.
  *
- * @return
+ * @return \Drupal\Core\StreamWrapper\StreamWrapperInterface
  *   Returns a new stream wrapper object appropriate for the given $scheme.
  *   For example, for the public scheme a stream wrapper object
  *   (Drupal\Core\StreamWrapper\PublicStream).
@@ -514,7 +515,7 @@ function file_prepare_directory(&$directory, $options = FILE_MODIFY_PERMISSIONS)
  */
 function file_ensure_htaccess() {
   file_save_htaccess('public://', FALSE);
-  $private_path = config('system.file')->get('path.private');
+  $private_path = Drupal::config('system.file')->get('path.private');
   if (!empty($private_path)) {
     file_save_htaccess('private://', TRUE);
   }
@@ -801,7 +802,7 @@ function file_munge_filename($filename, $extensions, $alerts = TRUE) {
   $original = $filename;
 
   // Allow potentially insecure uploads for very savvy users and admin
-  if (!config('system.file')->get('allow_insecure_uploads')) {
+  if (!Drupal::config('system.file')->get('allow_insecure_uploads')) {
     // Remove any null bytes. See http://php.net/manual/en/security.filesystem.nullbytes.php
     $filename = str_replace(chr(0), '', $filename);
 
@@ -1271,13 +1272,13 @@ function drupal_chmod($uri, $mode = NULL) {
     // that the octal permission numbers can be expressed as integers or strings
     // and will be converted correctly in both cases.
     if (is_dir($uri)) {
-      $mode = octdec(config('system.file')->get('chmod.directory'));
+      $mode = octdec(Drupal::config('system.file')->get('chmod.directory'));
       if (!$mode) {
         $mode = 0775;
       }
     }
     else {
-      $mode = octdec(config('system.file')->get('chmod.file'));
+      $mode = octdec(Drupal::config('system.file')->get('chmod.file'));
       if (!$mode) {
         $mode = 0664;
       }
@@ -1455,7 +1456,7 @@ function drupal_mkdir($uri, $mode = NULL, $recursive = FALSE, $context = NULL) {
     $mode = FALSE;
     // During early update there's no container.
     if (is_object(Drupal::getContainer())) {
-      $mode = octdec(config('system.file')->get('chmod.directory'));
+      $mode = octdec(Drupal::config('system.file')->get('chmod.directory'));
     }
     if (!$mode) {
       $mode = 0775;
@@ -1475,8 +1476,19 @@ function drupal_mkdir($uri, $mode = NULL, $recursive = FALSE, $context = NULL) {
     $uri = str_replace('/', DIRECTORY_SEPARATOR, $uri);
     // Determine the components of the path.
     $components = explode(DIRECTORY_SEPARATOR, $uri);
+    // If the filepath is absolute the first component will be empty as there
+    // will be nothing before the first slash.
+    if ($components[0] == '') {
+      $recursive_path = DIRECTORY_SEPARATOR;
+      // Get rid of the empty first component.
+      array_shift($components);
+    }
+    else {
+      $recursive_path = '';
+    }
+    // Don't handle the top-level directory in this loop.
     array_pop($components);
-    $recursive_path = '';
+    // Create each component if necessary.
     foreach ($components as $component) {
       $recursive_path .= $component;
 
@@ -1596,14 +1608,14 @@ function drupal_tempnam($directory, $prefix) {
  *   A string containing the path to the temporary directory.
  */
 function file_directory_temp() {
-  $config = config('system.file');
+  $config = Drupal::config('system.file');
   $temporary_directory = $config->get('path.temporary');
   if (empty($temporary_directory)) {
     $temporary_directory = file_directory_os_temp();
 
     if (empty($temporary_directory)) {
       // If no directory has been found default to 'files/tmp'.
-      $temporary_directory = variable_get('file_public_path', conf_path() . '/files') . '/tmp';
+      $temporary_directory = PublicStream::basePath() . '/tmp';
 
       // Windows accepts paths with either slash (/) or backslash (\), but will
       // not accept a path which contains both a slash and a backslash. Since

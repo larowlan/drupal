@@ -8,12 +8,52 @@
 namespace Drupal\block;
 
 use Drupal\Core\Entity\EntityFormController;
+use Drupal\Core\Entity\EntityManager;
+use Drupal\Core\Entity\Query\QueryFactory;
 use Drupal\Core\Language\Language;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides form controller for block instance forms.
  */
 class BlockFormController extends EntityFormController {
+
+  /**
+   * The block storage controller.
+   *
+   * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+   */
+  protected $storageController;
+
+  /**
+   * The entity query factory.
+   *
+   * @var \Drupal\Core\Entity\Query\QueryFactory
+   */
+  protected $entityQueryFactory;
+
+  /**
+   * Constructs a BlockFormController object.
+   *
+   * @param \Drupal\Core\Entity\EntityManager $entity_manager
+   *   The entity manager.
+   * @param \Drupal\Core\Entity\Query\QueryFactory $entity_query_factory
+   *   The entity query factory.
+   */
+  public function __construct(EntityManager $entity_manager, QueryFactory $entity_query_factory) {
+    $this->storageController = $entity_manager->getStorageController('block');
+    $this->entityQueryFactory = $entity_query_factory;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('plugin.manager.entity'),
+      $container->get('entity.query')
+    );
+  }
 
   /**
    * Overrides \Drupal\Core\Entity\EntityFormController::form().
@@ -25,14 +65,19 @@ class BlockFormController extends EntityFormController {
       '#type' => 'value',
       '#value' => $entity->id(),
     );
-    $form['settings'] = $entity->getPlugin()->form(array(), $form_state);
+    $form['settings'] = $entity->getPlugin()->buildConfigurationForm(array(), $form_state);
+
+    // If creating a new block, calculate a safe default machine name.
+    if ($entity->isNew()) {
+      $machine_default = $this->getUniqueMachineName($entity);
+    }
 
     $form['machine_name'] = array(
       '#type' => 'machine_name',
       '#title' => t('Machine name'),
       '#maxlength' => 64,
-      '#description' => t('A unique name to save this block configuration. Must be alpha-numeric and be underscore separated.'),
-      '#default_value' => $entity->id(),
+      '#description' => t('A unique name for this block instance. Must be alpha-numeric and underscore separated.'),
+      '#default_value' => !$entity->isNew() ? $entity->id() : $machine_default,
       '#machine_name' => array(
         'exists' => 'block_load',
         'replace_pattern' => '[^a-z0-9_.]+',
@@ -208,7 +253,7 @@ class BlockFormController extends EntityFormController {
       'values' => &$form_state['values']['settings']
     );
     // Call the plugin validate handler.
-    $entity->getPlugin()->validate($form, $settings);
+    $entity->getPlugin()->validateConfigurationForm($form, $settings);
   }
 
   /**
@@ -224,14 +269,54 @@ class BlockFormController extends EntityFormController {
       'values' => &$form_state['values']['settings']
     );
     // Call the plugin submit handler.
-    $entity->getPlugin()->submit($form, $settings);
+    $entity->getPlugin()->submitConfigurationForm($form, $settings);
 
     // Save the settings of the plugin.
     $entity->save();
 
     drupal_set_message(t('The block configuration has been saved.'));
     cache_invalidate_tags(array('content' => TRUE));
-    $form_state['redirect'] = 'admin/structure/block/list/block_plugin_ui:' . $entity->get('theme');
+    $form_state['redirect'] = 'admin/structure/block/list/' . $entity->get('theme');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function delete(array $form, array &$form_state) {
+    parent::delete($form, $form_state);
+    $form_state['redirect'] = 'admin/structure/block/manage/' . $this->entity->id() . '/delete';
+  }
+
+  /**
+   * Generates a unique machine name for a block.
+   *
+   * @param \Drupal\block\BlockInterface $block
+   *   The block entity.
+   *
+   * @return string
+   *   Returns the unique name.
+   */
+  public function getUniqueMachineName(BlockInterface $block) {
+    $suggestion = $block->getPlugin()->getMachineNameSuggestion();
+
+    // Get all the blocks which starts with the suggested machine name.
+    $query = $this->entityQueryFactory->get('block');
+    $query->condition('id', $suggestion, 'CONTAINS');
+    $block_ids = $query->execute();
+
+    $block_ids = array_map(function ($block_id) {
+      $parts = explode('.', $block_id);
+      return end($parts);
+    }, $block_ids);
+
+    // Iterate through potential IDs until we get a new one. E.g.
+    // 'plugin', 'plugin_2', 'plugin_3'...
+    $count = 1;
+    $machine_default = $suggestion;
+    while (in_array($machine_default, $block_ids)) {
+      $machine_default = $suggestion . '_' . ++$count;
+    }
+    return $machine_default;
   }
 
 }

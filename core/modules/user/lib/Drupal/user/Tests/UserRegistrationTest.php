@@ -28,7 +28,7 @@ class UserRegistrationTest extends WebTestBase {
   }
 
   function testRegistrationWithEmailVerification() {
-    $config = config('user.settings');
+    $config = \Drupal::config('user.settings');
     // Require e-mail verification.
     $config->set('verify_mail', TRUE)->save();
 
@@ -61,7 +61,7 @@ class UserRegistrationTest extends WebTestBase {
   }
 
   function testRegistrationWithoutEmailVerification() {
-    $config = config('user.settings');
+    $config = \Drupal::config('user.settings');
     // Don't require e-mail verification and allow registration by site visitors
     // without administrator approval.
     $config
@@ -126,7 +126,7 @@ class UserRegistrationTest extends WebTestBase {
   function testRegistrationEmailDuplicates() {
     // Don't require e-mail verification and allow registration by site visitors
     // without administrator approval.
-    config('user.settings')
+    \Drupal::config('user.settings')
       ->set('verify_mail', FALSE)
       ->set('register', USER_REGISTER_VISITORS)
       ->save();
@@ -152,15 +152,15 @@ class UserRegistrationTest extends WebTestBase {
   function testRegistrationDefaultValues() {
     // Don't require e-mail verification and allow registration by site visitors
     // without administrator approval.
-    $config_user_settings = config('user.settings')
+    $config_user_settings = \Drupal::config('user.settings')
       ->set('verify_mail', FALSE)
       ->set('register', USER_REGISTER_VISITORS)
       ->save();
 
     // Set the default timezone to Brussels.
-    $config_system_timezone = config('system.timezone')
-      ->set('user.configurable', 1)
-      ->set('default', 'Europe/Brussels')
+    $config_system_date = \Drupal::config('system.date')
+      ->set('timezone.user.configurable', 1)
+      ->set('timezone.default', 'Europe/Brussels')
       ->save();
 
     // Check that the account information options are not displayed
@@ -184,7 +184,7 @@ class UserRegistrationTest extends WebTestBase {
     $this->assertEqual($new_user->getSignature(), '', 'Correct signature field.');
     $this->assertTrue(($new_user->getCreatedTime() > REQUEST_TIME - 20 ), 'Correct creation time.');
     $this->assertEqual($new_user->isActive(), $config_user_settings->get('register') == USER_REGISTER_VISITORS ? 1 : 0, 'Correct status field.');
-    $this->assertEqual($new_user->getTimezone(), $config_system_timezone->get('default'), 'Correct time zone field.');
+    $this->assertEqual($new_user->getTimezone(), $config_system_date->get('timezone.default'), 'Correct time zone field.');
     $this->assertEqual($new_user->langcode->value, language_default()->id, 'Correct language field.');
     $this->assertEqual($new_user->preferred_langcode->value, language_default()->id, 'Correct preferred language field.');
     $this->assertEqual($new_user->init->value, $mail, 'Correct init field.');

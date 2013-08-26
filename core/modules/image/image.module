@@ -6,11 +6,10 @@
  */
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\field\Plugin\Core\Entity\Field;
-use Drupal\field\Plugin\Core\Entity\FieldInstance;
-use Drupal\file\Plugin\Core\Entity\File;
-use Drupal\image\ImageStyleInterface;
-use Drupal\image\Plugin\Core\Entity\ImageStyle;
+use Drupal\field\Entity\Field;
+use Drupal\field\Entity\FieldInstance;
+use Drupal\file\Entity\File;
+use Drupal\image\Entity\ImageStyle;
 use Drupal\field\FieldInterface;
 use Drupal\field\FieldInstanceInterface;
 
@@ -150,6 +149,18 @@ function image_theme() {
   return array(
     // Theme functions in image.module.
     'image_style' => array(
+      // HTML 4 and XHTML 1.0 always require an alt attribute. The HTML 5 draft
+      // allows the alt attribute to be omitted in some cases. Therefore,
+      // default the alt attribute to an empty string, but allow code calling
+      // theme('image_style') to pass explicit NULL for it to be omitted.
+      // Usually, neither omission nor an empty string satisfies accessibility
+      // requirements, so it is strongly encouraged for code calling
+      // theme('image_style') to pass a meaningful value for the alt variable.
+      // - http://www.w3.org/TR/REC-html40/struct/objects.html#h-13.8
+      // - http://www.w3.org/TR/xhtml1/dtds.html
+      // - http://dev.w3.org/html5/spec/Overview.html#alt
+      // The title attribute is optional in all cases, so it is omitted by
+      // default.
       'variables' => array(
         'style_name' => NULL,
         'uri' => NULL,
@@ -216,25 +227,6 @@ function image_permission() {
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
- */
-function image_form_system_file_system_settings_alter(&$form, &$form_state) {
-  $form['#submit'][] = 'image_system_file_system_settings_submit';
-}
-
-/**
- * Form submission handler for system_file_system_settings().
- *
- * Adds a menu rebuild after the public file path has been changed, so that the
- * menu router item depending on that file path will be regenerated.
- */
-function image_system_file_system_settings_submit($form, &$form_state) {
-  if ($form['file_public_path']['#default_value'] !== $form_state['values']['file_public_path']) {
-    Drupal::state()->set('menu_rebuild_needed', TRUE);
-  }
-}
-
-/**
  * Implements hook_file_download().
  *
  * Control the access to files underneath the styles directory.
@@ -256,15 +248,16 @@ function image_file_download($uri) {
     $original_uri = file_uri_scheme($uri) . '://' . implode('/', $args);
 
     // Check that the file exists and is an image.
-    if ($info = image_get_info($uri)) {
+    $image = Drupal::service('image.factory')->get($uri);
+    if ($image->getExtension()) {
       // Check the permissions of the original to grant access to this image.
-      $headers = module_invoke_all('file_download', $original_uri);
+      $headers = Drupal::moduleHandler()->invokeAll('file_download', array($original_uri));
       // Confirm there's at least one module granting access and none denying access.
       if (!empty($headers) && !in_array(-1, $headers)) {
         return array(
           // Send headers describing the image's size, and MIME-type...
-          'Content-Type' => $info['mime_type'],
-          'Content-Length' => $info['file_size'],
+          'Content-Type' => $image->getMimeType(),
+          'Content-Length' => $image->getFileSize(),
           // By not explicitly setting them here, this uses normal Drupal
           // Expires, Cache-Control and ETag headers to prevent proxy or
           // browser caching of private images.
@@ -362,7 +355,16 @@ function image_style_options($include_empty = TRUE) {
  *     'public://images/image.jpg'.
  *   - width: The width of the source image (if known).
  *   - height: The height of the source image (if known).
- *   - alt: The alternative text for text-based browsers.
+ *   - alt: The alternative text for text-based browsers. HTML 4 and XHTML 1.0
+ *     always require an alt attribute. The HTML 5 draft allows the alt
+ *     attribute to be omitted in some cases. Therefore, this variable defaults
+ *     to an empty string, but can be set to NULL for the attribute to be
+ *     omitted. Usually, neither omission nor an empty string satisfies
+ *     accessibility requirements, so it is strongly encouraged for code calling
+ *     theme('image_style') to pass a meaningful value for this variable.
+ *     - http://www.w3.org/TR/REC-html40/struct/objects.html#h-13.8
+ *     - http://www.w3.org/TR/xhtml1/dtds.html
+ *     - http://dev.w3.org/html5/spec/Overview.html#alt
  *   - title: The title text is displayed when the image is hovered in some
  *     popular browsers.
  *   - attributes: Associative array of attributes to be placed in the img tag.
@@ -393,10 +395,10 @@ function theme_image_style($variables) {
     '#uri' => $style->buildUrl($variables['uri']),
   );
 
-  if (isset($variables['alt'])) {
+  if (isset($variables['alt']) || array_key_exists('alt', $variables)) {
     $image['#alt'] = $variables['alt'];
   }
-  if (isset($variables['title'])) {
+  if (isset($variables['title']) || array_key_exists('title', $variables)) {
     $image['#title'] = $variables['title'];
   }
 

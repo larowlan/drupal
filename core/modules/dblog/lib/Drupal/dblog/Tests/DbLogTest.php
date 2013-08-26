@@ -90,7 +90,7 @@ class DbLogTest extends WebTestBase {
     $this->assertResponse(200);
 
     // Check row limit variable.
-    $current_limit = config('dblog.settings')->get('row_limit');
+    $current_limit = \Drupal::config('dblog.settings')->get('row_limit');
     $this->assertTrue($current_limit == $row_limit, format_string('[Cache] Row limit variable of @count equals row limit of @limit', array('@count' => $current_limit, '@limit' => $row_limit)));
   }
 
@@ -187,7 +187,8 @@ class DbLogTest extends WebTestBase {
     }
 
     // View the database log event page.
-    $this->drupalGet('admin/reports/event/1');
+    $wid = db_query('SELECT MIN(wid) FROM {watchdog}')->fetchField();
+    $this->drupalGet('admin/reports/event/' . $wid);
     $this->assertResponse($response);
     if ($response == 200) {
       $this->assertText(t('Details'), 'DBLog event node was displayed');
@@ -350,13 +351,13 @@ class DbLogTest extends WebTestBase {
     $this->drupalGet('admin/reports/access-denied');
     $this->assertResponse(200);
     // Verify that the 'access denied' event was recorded.
-    $this->assertText(t('admin/reports/dblog'), 'DBLog event was recorded: [access denied]');
+    $this->assertText('admin/reports/dblog', 'DBLog event was recorded: [access denied]');
 
     // View the database log page-not-found report page.
     $this->drupalGet('admin/reports/page-not-found');
     $this->assertResponse(200);
     // Verify that the 'page not found' event was recorded.
-    $this->assertText(t('node/@nid', array('@nid' => $node->id())), 'DBLog event was recorded: [page not found]');
+    $this->assertText('node/' . $node->id(), 'DBLog event was recorded: [page not found]');
   }
 
   /**

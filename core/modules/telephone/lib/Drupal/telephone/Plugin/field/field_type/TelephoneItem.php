@@ -10,7 +10,7 @@ namespace Drupal\telephone\Plugin\field\field_type;
 use Drupal\Core\Entity\Annotation\FieldType;
 use Drupal\Core\Annotation\Translation;
 use Drupal\field\Plugin\Type\FieldType\ConfigFieldItemBase;
-use Drupal\field\Plugin\Core\Entity\Field;
+use Drupal\field\FieldInterface;
 
 /**
  * Plugin implementation of the 'telephone' field type.
@@ -35,7 +35,7 @@ class TelephoneItem extends ConfigFieldItemBase {
   /**
    * {@inheritdoc}
    */
-  public static function schema(Field $field) {
+  public static function schema(FieldInterface $field) {
     return array(
       'columns' => array(
         'value' => array(
@@ -80,7 +80,7 @@ class TelephoneItem extends ConfigFieldItemBase {
       'value' => array(
         'Length' => array(
           'max' => $max_length,
-          'maxMessage' => t('%name: the telephone number may not be longer than @max characters.', array('%name' => $this->getInstance()->label, '@max' => $max_length)),
+          'maxMessage' => t('%name: the telephone number may not be longer than @max characters.', array('%name' => $this->getFieldDefinition()->getFieldLabel(), '@max' => $max_length)),
         )
       ),
     ));

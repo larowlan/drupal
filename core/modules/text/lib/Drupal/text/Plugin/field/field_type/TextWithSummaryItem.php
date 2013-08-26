@@ -9,7 +9,7 @@ namespace Drupal\text\Plugin\field\field_type;
 
 use Drupal\Core\Entity\Annotation\FieldType;
 use Drupal\Core\Annotation\Translation;
-use Drupal\field\Plugin\Core\Entity\Field;
+use Drupal\field\FieldInterface;
 
 /**
  * Plugin implementation of the 'text_with_summary' field type.
@@ -63,7 +63,7 @@ class TextWithSummaryItem extends TextItemBase {
   /**
    * {@inheritdoc}
    */
-  public static function schema(Field $field) {
+  public static function schema(FieldInterface $field) {
     return array(
       'columns' => array(
         'value' => array(
@@ -107,11 +107,12 @@ class TextWithSummaryItem extends TextItemBase {
    */
   public function instanceSettingsForm(array $form, array &$form_state) {
     $element = array();
+    $settings = $this->getFieldSettings();
 
     $element['text_processing'] = array(
       '#type' => 'radios',
       '#title' => t('Text processing'),
-      '#default_value' => $this->getInstance()->settings['text_processing'],
+      '#default_value' => $settings['text_processing'],
       '#options' => array(
         t('Plain text'),
         t('Filtered text (user selects text format)'),
@@ -120,7 +121,7 @@ class TextWithSummaryItem extends TextItemBase {
     $element['display_summary'] = array(
       '#type' => 'checkbox',
       '#title' => t('Summary input'),
-      '#default_value' => $this->getInstance()->settings['display_summary'],
+      '#default_value' => $settings['display_summary'],
       '#description' => t('This allows authors to input an explicit summary, to be displayed instead of the automatically trimmed text when using the "Summary or trimmed" display type.'),
     );
 

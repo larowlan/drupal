@@ -8,7 +8,7 @@
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Drupal\block\Plugin\Core\Entity\Block;
+use Drupal\block\Entity\Block;
 use Drupal\Core\Session\AccountInterface;
 
 /**
@@ -22,20 +22,6 @@ function overlay_help($path, $arg) {
       $output .= '<p>' . t('The Overlay module makes the administration pages on your site display in a JavaScript overlay of the page you were viewing when you clicked the administrative link, instead of replacing the page in your browser window. Use the close link on the overlay to return to the page you were viewing when you clicked the link. For more information, see the online handbook entry for <a href="@overlay">Overlay module</a>.', array('@overlay' => 'http://drupal.org/documentation/modules/overlay')) . '</p>';
       return $output;
   }
-}
-
-/**
- * Implements hook_menu()
- */
-function overlay_menu() {
-  $items['overlay-ajax/%'] = array(
-    'title' => '',
-    'page callback' => 'overlay_ajax_render_region',
-    'page arguments' => array(1),
-    'access arguments' => array('access overlay'),
-    'type' => MENU_CALLBACK,
-  );
-  return $items;
 }
 
 /**
@@ -481,14 +467,14 @@ function overlay_set_mode($mode = NULL) {
       drupal_add_library('overlay', 'drupal.overlay.parent');
 
       // Allow modules to act upon overlay events.
-      module_invoke_all('overlay_parent_initialize');
+      Drupal::moduleHandler()->invokeAll('overlay_parent_initialize');
       break;
 
     case 'child':
       drupal_add_library('overlay', 'drupal.overlay.child');
 
       // Allow modules to act upon overlay events.
-      module_invoke_all('overlay_child_initialize');
+      Drupal::moduleHandler()->invokeAll('overlay_child_initialize');
       break;
   }
   return $overlay_mode;
@@ -501,13 +487,13 @@ function overlay_overlay_parent_initialize() {
   // Let the client side know which paths are administrative.
   $paths = path_get_admin_paths();
   foreach ($paths as &$type) {
-    $type = str_replace('<front>', config('system.site')->get('page.front'), $type);
+    $type = str_replace('<front>', Drupal::config('system.site')->get('page.front'), $type);
   }
   drupal_add_js(array('overlay' => array('paths' => $paths)), 'setting');
   $path_prefixes = array();
   if (module_exists('language')) {
     language_negotiation_include();
-    if (config('language.negotiation')->get('url.source') == LANGUAGE_NEGOTIATION_URL_PREFIX) {
+    if (Drupal::config('language.negotiation')->get('url.source') == LANGUAGE_NEGOTIATION_URL_PREFIX) {
       // Skip the empty string indicating the default language. We always accept
       // paths without a prefix.
       $path_prefixes = language_negotiation_url_prefixes();
@@ -842,18 +828,4 @@ function overlay_trigger_refresh() {
     drupal_add_js(array('overlayChild' => array('refreshPage' => TRUE)), array('type' => 'setting'));
     unset($_SESSION['overlay_refresh_parent']);
   }
-}
-
-/**
- * Prints the markup obtained by rendering a single region of the page.
- *
- * This function is intended to be called via Ajax.
- *
- * @param $region
- *   The name of the page region to render.
- *
- * @see Drupal.overlay.refreshRegions()
- */
-function overlay_ajax_render_region($region) {
-  return new Response(overlay_render_region($region));
 }

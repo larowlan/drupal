@@ -6,8 +6,8 @@
  */
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\entity\Plugin\Core\Entity\EntityDisplay;
-use Drupal\taxonomy\Plugin\Core\Entity\Term;
+use Drupal\node\NodeInterface;
+use Drupal\taxonomy\Entity\Term;
 
 /**
  * Implements hook_help().
@@ -237,7 +237,7 @@ function forum_entity_info(&$info) {
  */
 function forum_entity_bundle_info_alter(&$bundles) {
   // Take over URI construction for taxonomy terms that are forums.
-  if ($vid = config('forum.settings')->get('vocabulary')) {
+  if ($vid = Drupal::config('forum.settings')->get('vocabulary')) {
     if (isset($bundles['taxonomy_term'][$vid])) {
       $bundles['taxonomy_term'][$vid]['uri_callback'] = 'forum_uri';
     }
@@ -264,7 +264,7 @@ function forum_uri($forum) {
  */
 function _forum_node_check_node_type(EntityInterface $node) {
   // Fetch information about the forum field.
-  $instance = field_info_instance('node', 'taxonomy_forums', $node->type);
+  $instance = field_info_instance('node', 'taxonomy_forums', $node->getType());
   return !empty($instance);
 }
 
@@ -280,7 +280,7 @@ function forum_node_validate(EntityInterface $node, $form) {
     // vocabulary is selected, not a "container" term.
     if (!empty($node->taxonomy_forums[$langcode])) {
       // Extract the node's proper topic ID.
-      $containers = config('forum.settings')->get('containers');
+      $containers = Drupal::config('forum.settings')->get('containers');
       foreach ($node->taxonomy_forums[$langcode] as $delta => $item) {
         // If no term was selected (e.g. when no terms exist yet), remove the
         // item.
@@ -341,7 +341,7 @@ function forum_node_update(EntityInterface $node) {
       if (!empty($node->forum_tid)) {
         db_update('forum')
           ->fields(array('tid' => $node->forum_tid))
-          ->condition('vid', $node->vid)
+          ->condition('vid', $node->getRevisionId())
           ->execute();
       }
       // The node is removed from the forum.
@@ -356,7 +356,7 @@ function forum_node_update(EntityInterface $node) {
         db_insert('forum')
           ->fields(array(
             'tid' => $node->forum_tid,
-            'vid' => $node->vid,
+            'vid' => $node->getRevisionId(),
             'nid' => $node->id(),
           ))
           ->execute();
@@ -367,12 +367,12 @@ function forum_node_update(EntityInterface $node) {
     if (!empty($node->shadow)) {
       db_delete('forum')
         ->condition('nid', $node->id())
-        ->condition('vid', $node->vid)
+        ->condition('vid', $node->getRevisionId())
         ->execute();
       db_insert('forum')
         ->fields(array(
           'nid' => $node->id(),
-          'vid' => $node->vid,
+          'vid' => $node->getRevisionId(),
           'tid' => $node->forum_tid,
         ))
         ->execute();
@@ -389,7 +389,7 @@ function forum_node_insert(EntityInterface $node) {
       $nid = db_insert('forum')
         ->fields(array(
           'tid' => $node->forum_tid,
-          'vid' => $node->vid,
+          'vid' => $node->getRevisionId(),
           'nid' => $node->id(),
         ))
         ->execute();
@@ -418,7 +418,7 @@ function forum_node_load($nodes) {
   $node_vids = array();
   foreach ($nodes as $node) {
     if (_forum_node_check_node_type($node)) {
-      $node_vids[] = $node->vid;
+      $node_vids[] = $node->getRevisionId();
     }
   }
   if (!empty($node_vids)) {
@@ -450,7 +450,7 @@ function forum_permission() {
  */
 function forum_taxonomy_term_delete(Term $term) {
   // For containers, remove the tid from the forum_containers variable.
-  $config = config('forum.settings');
+  $config = Drupal::config('forum.settings');
   $containers = $config->get('containers');
   $key = array_search($term->id(), $containers);
   if ($key !== FALSE) {
@@ -501,18 +501,18 @@ function forum_comment_delete($comment) {
  * Implements hook_field_storage_pre_insert().
  */
 function forum_field_storage_pre_insert(EntityInterface $entity, &$skip_fields) {
-  if ($entity->entityType() == 'node' && $entity->status && _forum_node_check_node_type($entity)) {
+  if ($entity->entityType() == 'node' && $entity->isPublished() && _forum_node_check_node_type($entity)) {
     $query = db_insert('forum_index')->fields(array('nid', 'title', 'tid', 'sticky', 'created', 'comment_count', 'last_comment_timestamp'));
     foreach ($entity->getTranslationLanguages() as $langcode => $language) {
       $translation = $entity->getTranslation($langcode);
       $query->values(array(
         'nid' => $entity->id(),
-        'title' => $translation->title->value,
+        'title' => $translation->label(),
         'tid' => $translation->taxonomy_forums->target_id,
-        'sticky' => $entity->sticky,
-        'created' => $entity->created,
+        'sticky' => (int) $entity->isSticky(),
+        'created' => $entity->getCreatedTime(),
         'comment_count' => 0,
-        'last_comment_timestamp' => $entity->created,
+        'last_comment_timestamp' => $entity->getCreatedTime(),
       ));
     }
     $query->execute();
@@ -528,26 +528,27 @@ function forum_field_storage_pre_update(EntityInterface $entity, &$skip_fields) 
   if ($entity->entityType() == 'node' && _forum_node_check_node_type($entity)) {
 
     // If the node is published, update the forum index.
-    if ($entity->status) {
+    if ($entity->isPublished()) {
 
       // We don't maintain data for old revisions, so clear all previous values
       // from the table. Since this hook runs once per field, per object, make
       // sure we only wipe values once.
-      if (!isset($first_call[$entity->nid])) {
-        $first_call[$entity->nid] = FALSE;
+      if (!isset($first_call[$entity->id()])) {
+        $first_call[$entity->id()] = FALSE;
         db_delete('forum_index')->condition('nid', $entity->id())->execute();
       }
       $query = db_insert('forum_index')->fields(array('nid', 'title', 'tid', 'sticky', 'created', 'comment_count', 'last_comment_timestamp'));
-      foreach ($entity->taxonomy_forums as $language) {
-        foreach ($language as $item) {
+      foreach ($entity->getTranslationLanguages() as $langcode => $language) {
+        $translation = $entity->getTranslation($langcode);
+        foreach ($translation->taxonomy_forums as $item) {
           $query->values(array(
-            'nid' => $entity->nid,
-            'title' => $entity->title,
-            'tid' => $item['target_id'],
-            'sticky' => $entity->sticky,
-            'created' => $entity->created,
+            'nid' => $entity->id(),
+            'title' => $translation->label(),
+            'tid' => $item->target_id,
+            'sticky' => (int) $entity->isSticky(),
+            'created' => $entity->getCreatedTime(),
             'comment_count' => 0,
-            'last_comment_timestamp' => $entity->created,
+            'last_comment_timestamp' => $entity->getCreatedTime(),
           ));
         }
       }
@@ -569,7 +570,7 @@ function forum_field_storage_pre_update(EntityInterface $entity, &$skip_fields) 
  * Implements hook_form_BASE_FORM_ID_alter().
  */
 function forum_form_taxonomy_vocabulary_form_alter(&$form, &$form_state, $form_id) {
-  $vid = config('forum.settings')->get('vocabulary');
+  $vid = Drupal::config('forum.settings')->get('vocabulary');
   $vocabulary = $form_state['controller']->getEntity();
   if ($vid == $vocabulary->id()) {
     $form['help_forum_vocab'] = array(
@@ -591,7 +592,7 @@ function forum_form_taxonomy_vocabulary_form_alter(&$form, &$form_state, $form_i
  * Implements hook_form_FORM_ID_alter() for taxonomy_term_form().
  */
 function forum_form_taxonomy_term_form_alter(&$form, &$form_state, $form_id) {
-  $vid = config('forum.settings')->get('vocabulary');
+  $vid = Drupal::config('forum.settings')->get('vocabulary');
   if (isset($form['vid']['#value']) && $form['vid']['#value'] == $vid) {
     // Hide multiple parents select from forum terms.
     $form['relations']['parent']['#access'] = FALSE;
@@ -673,7 +674,7 @@ function forum_forum_load($tid = NULL) {
     return $cache[$tid];
   }
 
-  $config = config('forum.settings');
+  $config = Drupal::config('forum.settings');
   $vid = $config->get('vocabulary');
 
   // Load and validate the parent term.
@@ -988,7 +989,7 @@ function template_preprocess_forums(&$variables) {
       $variables['forums'] = array();
     }
 
-    if ($variables['tid'] && array_search($variables['tid'], config('forum.settings')->get('containers')) === FALSE) {
+    if ($variables['tid'] && array_search($variables['tid'], Drupal::config('forum.settings')->get('containers')) === FALSE) {
       $variables['topics'] = array(
         '#theme' => 'forum_topic_list',
         '#tid' => $variables['tid'],
@@ -1065,7 +1066,8 @@ function template_preprocess_forum_list(&$variables) {
       }
       $variables['forums'][$id]->old_topics = $forum->num_topics - $variables['forums'][$id]->new_topics;
     }
-    $variables['forums'][$id]->last_reply = theme('forum_submitted', array('topic' => $forum->last_post));
+    $forum_submitted = array('#theme' => 'forum_submitted', '#topic' => $forum->last_post);
+    $variables['forums'][$id]->last_reply = drupal_render($forum_submitted);
   }
 
   $variables['pager'] = array(
@@ -1108,7 +1110,7 @@ function template_preprocess_forum_topic_list(&$variables) {
         '#new_posts' => $topic->new,
         '#num_posts' => $topic->comment_count,
         '#comment_mode' => $topic->comment_mode,
-        '#sticky' => $topic->sticky,
+        '#sticky' => $topic->isSticky(),
         '#first_new' => $topic->first_new,
       );
       $variables['topics'][$id]->zebra = $row % 2 == 0 ? 'odd' : 'even';
@@ -1119,16 +1121,21 @@ function template_preprocess_forum_topic_list(&$variables) {
       // them is a shadow copy.
       if ($variables['tid'] != $topic->forum_tid) {
         $variables['topics'][$id]->moved = TRUE;
-        $variables['topics'][$id]->title = check_plain($topic->title);
+        $variables['topics'][$id]->title = check_plain($topic->getTitle());
         $variables['topics'][$id]->message = l(t('This topic has been moved'), "forum/$topic->forum_tid");
       }
       else {
         $variables['topics'][$id]->moved = FALSE;
-        $variables['topics'][$id]->title = l($topic->title, 'node/' . $topic->id());
+        $variables['topics'][$id]->title = l($topic->getTitle(), 'node/' . $topic->id());
         $variables['topics'][$id]->message = '';
       }
-      $variables['topics'][$id]->created = theme('forum_submitted', array('topic' => $topic));
-      $variables['topics'][$id]->last_reply = theme('forum_submitted', array('topic' => isset($topic->last_reply) ? $topic->last_reply : NULL));
+      $forum_submitted = array('#theme' => 'forum_submitted', '#topic' => $topic);
+      $variables['topics'][$id]->created = drupal_render($forum_submitted);
+      $forum_submitted = array(
+        '#theme' => 'forum_submitted',
+        '#topic' => isset($topic->last_reply) ? $topic->last_reply : NULL,
+      );
+      $variables['topics'][$id]->last_reply = drupal_render($forum_submitted);
 
       $variables['topics'][$id]->new_text = '';
       $variables['topics'][$id]->new_url = '';
@@ -1167,7 +1174,7 @@ function template_preprocess_forum_topic_list(&$variables) {
  *   - first_new: Indicates whether this is the first topic with new posts.
  */
 function template_preprocess_forum_icon(&$variables) {
-  $variables['hot_threshold'] = config('forum.settings')->get('topics.hot_threshold');
+  $variables['hot_threshold'] = Drupal::config('forum.settings')->get('topics.hot_threshold');
 
   if ($variables['num_posts'] > $variables['hot_threshold']) {
     $icon_status_class = $variables['new_posts'] ? 'hot-new' : 'hot';
@@ -1206,7 +1213,11 @@ function template_preprocess_forum_icon(&$variables) {
  *   - topic: The topic object.
  */
 function template_preprocess_forum_submitted(&$variables) {
-  $variables['author'] = isset($variables['topic']->uid) ? theme('username', array('account' => user_load($variables['topic']->uid))) : '';
+  $variables['author'] = '';
+  if (isset($variables['topic']->uid)) {
+    $username = array('#theme' => 'username', '#account' => user_load($variables['topic']->uid));
+    $variables['author'] = drupal_render($username);
+  }
   $variables['time'] = isset($variables['topic']->created) ? format_interval(REQUEST_TIME - $variables['topic']->created) : '';
 }
 

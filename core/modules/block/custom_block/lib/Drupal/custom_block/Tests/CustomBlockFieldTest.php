@@ -25,21 +25,21 @@ class CustomBlockFieldTest extends CustomBlockTestBase {
   /**
    * The created field.
    *
-   * @var \Drupal\field\Plugin\Core\Entity\Field
+   * @var \Drupal\field\Entity\Field
    */
   protected $field;
 
   /**
    * The created instance.
    *
-   * @var \Drupal\field\Plugin\Core\Entity\FieldInstance
+   * @var \Drupal\field\Entity\FieldInstance
    */
   protected $instance;
 
   /**
    * The block type.
    *
-   * @var \Drupal\custom_block\Plugin\Core\Entity\CustomBlockType
+   * @var \Drupal\custom_block\Entity\CustomBlockType
    */
   protected $blockType;
 
@@ -99,13 +99,15 @@ class CustomBlockFieldTest extends CustomBlockTestBase {
       $this->field['field_name'] . '[und][0][title]' => 'Example.com'
     );
     $this->drupalPost(NULL, $edit, t('Save'));
+    $block = entity_load('custom_block', 1);
+    $url = 'admin/structure/block/add/custom_block:' . $block->uuid() . '/' . \Drupal::config('system.theme')->get('default');
     // Place the block.
     $instance = array(
       'machine_name' => drupal_strtolower($edit['info']),
       'settings[label]' => $edit['info'],
       'region' => 'sidebar_first',
     );
-    $this->drupalPost(NULL, $instance, t('Save block'));
+    $this->drupalPost($url, $instance, t('Save block'));
     // Navigate to home page.
     $this->drupalGet('<front>');
     $this->assertLinkByHref('http://example.com');

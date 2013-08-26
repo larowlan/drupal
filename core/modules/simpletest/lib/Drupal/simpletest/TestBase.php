@@ -17,6 +17,7 @@ use Drupal\Core\Database\ConnectionNotDefinedException;
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Language\Language;
+use Drupal\Core\StreamWrapper\PublicStream;
 use ReflectionMethod;
 use ReflectionObject;
 
@@ -702,13 +703,13 @@ abstract class TestBase {
    */
   public function run(array $methods = array()) {
     TestServiceProvider::$currentTest = $this;
-    $simpletest_config = config('simpletest.settings');
+    $simpletest_config = \Drupal::config('simpletest.settings');
 
     $class = get_class($this);
     if ($simpletest_config->get('verbose')) {
       // Initialize verbose debugging.
       $this->verbose = TRUE;
-      $this->verboseDirectory = variable_get('file_public_path', conf_path() . '/files') . '/simpletest/verbose';
+      $this->verboseDirectory = PublicStream::basePath() . '/simpletest/verbose';
       $this->verboseDirectoryUrl = file_create_url($this->verboseDirectory);
       if (file_prepare_directory($this->verboseDirectory, FILE_CREATE_DIRECTORY) && !file_exists($this->verboseDirectory . '/.htaccess')) {
         file_put_contents($this->verboseDirectory . '/.htaccess', "<IfModule mod_expires.c>\nExpiresActive Off\n</IfModule>\n");
@@ -888,7 +889,9 @@ abstract class TestBase {
     $this->originalTheme = isset($GLOBALS['theme']) ? $GLOBALS['theme'] : NULL;
 
     // Save further contextual information.
-    $this->originalFileDirectory = variable_get('file_public_path', conf_path() . '/files');
+    // Use the original files directory to avoid nesting it within an existing
+    // simpletest directory if a test is executed within a test.
+    $this->originalFileDirectory = settings()->get('file_public_path', conf_path() . '/files');
     $this->originalProfile = drupal_get_profile();
     $this->originalUser = isset($user) ? clone $user : NULL;
 
@@ -981,7 +984,7 @@ abstract class TestBase {
   }
 
   /**
-   * Rebuild drupal_container().
+   * Rebuild Drupal::getContainer().
    *
    * Use this to build a new kernel and service container. For example, when the
    * list of enabled modules is changed via the internal browser, in which case
@@ -992,16 +995,18 @@ abstract class TestBase {
    * @see TestBase::tearDown()
    *
    * @todo Fix http://drupal.org/node/1708692 so that module enable/disable
-   *   changes are immediately reflected in drupal_container(). Until then,
+   *   changes are immediately reflected in Drupal::getContainer(). Until then,
    *   tests can invoke this workaround when requiring services from newly
    *   enabled modules to be immediately available in the same request.
    */
   protected function rebuildContainer() {
     $this->kernel = new DrupalKernel('testing', drupal_classloader(), FALSE);
     $this->kernel->boot();
-    // DrupalKernel replaces the container in drupal_container() with a
+    // DrupalKernel replaces the container in Drupal::getContainer() with a
     // different object, so we need to replace the instance on this test class.
-    $this->container = drupal_container();
+    $this->container = \Drupal::getContainer();
+    // The global $user is set in TestBase::prepareEnvironment().
+    $this->container->get('request')->attributes->set('_account', $GLOBALS['user']);
   }
 
   /**
@@ -1115,6 +1120,8 @@ abstract class TestBase {
         E_USER_WARNING => 'User warning',
         E_USER_NOTICE => 'User notice',
         E_RECOVERABLE_ERROR => 'Recoverable error',
+        E_DEPRECATED => 'Deprecated',
+        E_USER_DEPRECATED => 'User deprecated',
       );
 
       $backtrace = debug_backtrace();

@@ -30,7 +30,7 @@ class BlockTest extends BlockTestBase {
     // Create a random title for the block.
     $title = $this->randomName(8);
     // Enable a standard block.
-    $default_theme = config('system.theme')->get('default');
+    $default_theme = \Drupal::config('system.theme')->get('default');
     $edit = array(
       'machine_name' => strtolower($this->randomName(8)),
       'region' => 'sidebar_first',
@@ -71,7 +71,7 @@ class BlockTest extends BlockTestBase {
     // Create a random title for the block.
     $title = $this->randomName(8);
     // Enable a standard block.
-    $default_theme = config('system.theme')->get('default');
+    $default_theme = \Drupal::config('system.theme')->get('default');
     $edit = array(
       'machine_name' => strtolower($this->randomName(8)),
       'region' => 'sidebar_first',
@@ -104,7 +104,7 @@ class BlockTest extends BlockTestBase {
     $block['id'] = 'system_powered_by_block';
     $block['settings[label]'] = $this->randomName(8);
     $block['machine_name'] = strtolower($this->randomName(8));
-    $block['theme'] = config('system.theme')->get('default');
+    $block['theme'] = \Drupal::config('system.theme')->get('default');
     $block['region'] = 'header';
 
     // Set block title to confirm that interface works and override any custom titles.
@@ -135,6 +135,13 @@ class BlockTest extends BlockTestBase {
     // is my_block_instance_name.
     $xpath = $this->buildXPathQuery('//div[@id=:id]/*', array(':id' => 'block-' . strtr(strtolower($block['machine_name']), '-', '_')));
     $this->assertNoFieldByXPath($xpath, FALSE, 'Block found in no regions.');
+
+    // Test deleting the block from the edit form.
+    $this->drupalGet('admin/structure/block/manage/' . $block['theme'] . '.' . $block['machine_name']);
+    $this->drupalPost(NULL, array(), t('Delete'));
+    $this->assertRaw(t('Are you sure you want to delete the block %name?', array('%name' => $block['settings[label]'])));
+    $this->drupalPost(NULL, array(), t('Delete'));
+    $this->assertRaw(t('The block %name has been removed.', array('%name' => $block['settings[label]'])));
   }
 
   /**
@@ -182,7 +189,7 @@ class BlockTest extends BlockTestBase {
    */
   function moveBlockToRegion(array $block, $region) {
     // Set the created block to a specific region.
-    $block += array('theme' => config('system.theme')->get('default'));
+    $block += array('theme' => \Drupal::config('system.theme')->get('default'));
     $edit = array();
     $edit['blocks[' . $block['theme'] . '.' . $block['machine_name'] . '][region]'] = $region;
     $this->drupalPost('admin/structure/block', $edit, t('Save blocks'));
@@ -216,7 +223,7 @@ class BlockTest extends BlockTestBase {
     $block = array();
     $block['id'] = 'test_cache';
     $block['machine_name'] = strtolower($this->randomName(8));
-    $block['theme'] = config('system.theme')->get('default');
+    $block['theme'] = \Drupal::config('system.theme')->get('default');
     $block['region'] = 'header';
     $block = $this->drupalPlaceBlock('test_cache', array('region' => 'header'));
 
@@ -225,7 +232,7 @@ class BlockTest extends BlockTestBase {
     $this->assertEqual($settings['cache'], DRUPAL_CACHE_PER_ROLE, 'Test block cache mode defaults to DRUPAL_CACHE_PER_ROLE.');
 
     // Disable caching for this block.
-    $block->getPlugin()->setConfig('cache', DRUPAL_NO_CACHE);
+    $block->getPlugin()->setConfigurationValue('cache', DRUPAL_NO_CACHE);
     $block->save();
     // Flushing all caches should call _block_rehash().
     $this->resetAll();
@@ -274,7 +281,7 @@ class BlockTest extends BlockTestBase {
     }
 
     // Ensure that the disabled module's block plugin is no longer available.
-    $this->drupalGet('admin/structure/block/list/block_plugin_ui:' . config('system.theme')->get('default') . '/add');
+    $this->drupalGet('admin/structure/block/list/' . \Drupal::config('system.theme')->get('default'));
     $this->assertNoText(t('Test block caching'));
 
     // Confirm that the block is no longer displayed on the front page.

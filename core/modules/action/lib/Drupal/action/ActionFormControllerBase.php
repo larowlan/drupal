@@ -7,17 +7,15 @@
 
 namespace Drupal\action;
 
-use Drupal\Core\Entity\EntityControllerInterface;
 use Drupal\Core\Entity\EntityFormController;
-use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Action\ConfigurableActionInterface;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Plugin\PluginFormInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a base form controller for action forms.
  */
-abstract class ActionFormControllerBase extends EntityFormController implements EntityControllerInterface {
+abstract class ActionFormControllerBase extends EntityFormController {
 
   /**
    * The action plugin being configured.
@@ -36,24 +34,19 @@ abstract class ActionFormControllerBase extends EntityFormController implements 
   /**
    * Constructs a new action form.
    *
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface
-   *   The module handler service.
    * @param \Drupal\Core\Entity\EntityStorageControllerInterface $storage_controller
    *   The action storage controller.
    */
-  public function __construct(ModuleHandlerInterface $module_handler, EntityStorageControllerInterface $storage_controller) {
-    parent::__construct($module_handler);
-
+  public function __construct(EntityStorageControllerInterface $storage_controller) {
     $this->storageController = $storage_controller;
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function createInstance(ContainerInterface $container, $entity_type, array $entity_info) {
+  public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('module_handler'),
-      $container->get('plugin.manager.entity')->getStorageController($entity_type)
+      $container->get('plugin.manager.entity')->getStorageController('action')
     );
   }
 
@@ -97,8 +90,8 @@ abstract class ActionFormControllerBase extends EntityFormController implements 
       '#value' => $this->entity->getType(),
     );
 
-    if ($this->plugin instanceof ConfigurableActionInterface) {
-      $form += $this->plugin->form($form, $form_state);
+    if ($this->plugin instanceof PluginFormInterface) {
+      $form += $this->plugin->buildConfigurationForm($form, $form_state);
     }
 
     return parent::form($form, $form_state);
@@ -133,8 +126,8 @@ abstract class ActionFormControllerBase extends EntityFormController implements 
   public function validate(array $form, array &$form_state) {
     parent::validate($form, $form_state);
 
-    if ($this->plugin instanceof ConfigurableActionInterface) {
-      $this->plugin->validate($form, $form_state);
+    if ($this->plugin instanceof PluginFormInterface) {
+      $this->plugin->validateConfigurationForm($form, $form_state);
     }
   }
 
@@ -144,8 +137,8 @@ abstract class ActionFormControllerBase extends EntityFormController implements 
   public function submit(array $form, array &$form_state) {
     parent::submit($form, $form_state);
 
-    if ($this->plugin instanceof ConfigurableActionInterface) {
-      $this->plugin->submit($form, $form_state);
+    if ($this->plugin instanceof PluginFormInterface) {
+      $this->plugin->submitConfigurationForm($form, $form_state);
     }
     return $this->entity;
   }

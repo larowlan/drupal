@@ -20,8 +20,8 @@ use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\node\NodeTypeInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Template\Attribute;
-use Drupal\entity\Plugin\Core\Entity\EntityDisplay;
-use Drupal\file\Plugin\Core\Entity\File;
+use Drupal\entity\Entity\EntityDisplay;
+use Drupal\file\Entity\File;
 use Drupal\user\UserInterface;
 
 /**
@@ -329,7 +329,7 @@ function node_type_get_names() {
   $config_names = config_get_storage_names_with_prefix('node.type.');
   $names = array();
   foreach ($config_names as $config_name) {
-    $config = config($config_name);
+    $config = Drupal::config($config_name);
     $names[$config->get('type')] = $config->get('name');
   }
   cache()->set($cid, $names, CacheBackendInterface::CACHE_PERMANENT, array(
@@ -537,8 +537,8 @@ function node_load_multiple(array $nids = NULL, $reset = FALSE) {
  *   (optional) Whether to reset the node_load_multiple() cache. Defaults to
  *   FALSE.
  *
- * @return \Drupal\node\Node|null
- *   A fully-populated node entity or NULL if the node is not found.
+ * @return \Drupal\node\NodeInterface|null
+ *   A fully-populated node entity, or NULL if the node is not found.
  */
 function node_load($nid = NULL, $reset = FALSE) {
   $entity = entity_load('node', $nid, $reset);
@@ -548,11 +548,11 @@ function node_load($nid = NULL, $reset = FALSE) {
 /**
  * Loads a node revision from the database.
  *
- * @param int $nid
+ * @param int $vid
  *   The node revision id.
  *
- * @return \Drupal\node\Node|null
- *   A fully-populated node entity or NULL if the node is not found.
+ * @return \Drupal\node\NodeInterface|null
+ *   A fully-populated node entity, or NULL if the node is not found.
  */
 function node_revision_load($vid = NULL) {
   return entity_revision_load('node', $vid);
@@ -693,7 +693,7 @@ function template_preprocess_node(&$variables) {
   //   http://drupal.org/node/1941286.
   $username = array(
     '#theme' => 'username',
-    '#account' => user_load($node->uid),
+    '#account' => $node->getAuthor(),
     '#link_options' => array('attributes' => array('rel' => 'author')),
   );
   $variables['name'] = drupal_render($username);
@@ -807,7 +807,7 @@ function node_permission() {
   );
 
   // Generate standard node permissions for all applicable node types.
-  foreach (node_permissions_get_configured_types() as $name => $type) {
+  foreach (node_permissions_get_configured_types() as $type) {
     $perms += node_list_permissions($type);
   }
 
@@ -821,7 +821,7 @@ function node_permission() {
  *   A query object that has been extended with the Search DB Extender.
  */
 function _node_rankings(SelectExtender $query) {
-  if ($ranking = module_invoke_all('ranking')) {
+  if ($ranking = Drupal::moduleHandler()->invokeAll('ranking')) {
     $tables = &$query->getTables();
     foreach ($ranking as $rank => $values) {
       if ($node_rank = variable_get('node_rank_' . $rank, 0)) {
@@ -888,7 +888,7 @@ function node_search_admin() {
 
   // Note: reversed to reflect that higher number = higher ranking.
   $options = drupal_map_assoc(range(0, 10));
-  foreach (module_invoke_all('ranking') as $var => $values) {
+  foreach (Drupal::moduleHandler()->invokeAll('ranking') as $var => $values) {
     $form['content_ranking']['factors']['node_rank_' . $var] = array(
       '#title' => $values['title'],
       '#type' => 'select',
@@ -945,13 +945,13 @@ function node_search_execute($keys = NULL, $conditions = NULL) {
     // Fetch comments for snippet.
     $node->rendered .= ' ' . module_invoke('comment', 'node_update_index', $node, $item->langcode);
 
-    $extra = module_invoke_all('node_search_result', $node, $item->langcode);
+    $extra = Drupal::moduleHandler()->invokeAll('node_search_result', array($node, $item->langcode));
 
     $language = language_load($item->langcode);
     $uri = $node->uri();
     $username = array(
       '#theme' => 'username',
-      '#account' => user_load($node->uid),
+      '#account' => $node->getAuthor(),
     );
     $results[] = array(
       'link' => url($uri['path'], array_merge($uri['options'], array('absolute' => TRUE, 'language' => $language))),
@@ -1489,7 +1489,7 @@ function node_modules_uninstalled($modules) {
   // Remove module-specific settings from all node types.
   $config_names = config_get_storage_names_with_prefix('node.type.');
   foreach ($config_names as $config_name) {
-    $config = config($config_name);
+    $config = Drupal::config($config_name);
     $changed = FALSE;
     foreach ($modules as $module) {
       if ($config->get('settings.' . $module)) {
@@ -1572,7 +1572,7 @@ function node_block_access($block) {
 function node_feed($nids = FALSE, $channel = array()) {
   global $base_url;
   $language_content = language(Language::TYPE_CONTENT);
-  $rss_config = config('system.rss');
+  $rss_config = Drupal::config('system.rss');
 
   if ($nids === FALSE) {
     $nids = db_select('node_field_data', 'n')
@@ -1624,7 +1624,7 @@ function node_feed($nids = FALSE, $channel = array()) {
 
   $channel_defaults = array(
     'version'     => '2.0',
-    'title'       => config('system.site')->get('name'),
+    'title'       => Drupal::config('system.site')->get('name'),
     'link'        => $base_url,
     'description' => $rss_config->get('channel.description'),
     'language'    => $language_content->id
@@ -1711,7 +1711,7 @@ function node_page_view(EntityInterface $node) {
  * Implements hook_update_index().
  */
 function node_update_index() {
-  $limit = (int) config('search.settings')->get('index.cron_limit');
+  $limit = (int) Drupal::config('search.settings')->get('index.cron_limit');
 
   $result = db_query_range("SELECT n.nid FROM {node} n LEFT JOIN {search_dataset} d ON d.type = 'node' AND d.sid = n.nid WHERE d.sid IS NULL OR d.reindex <> 0 ORDER BY d.reindex ASC, n.nid ASC", 0, $limit, array(), array('target' => 'slave'));
   $nids = $result->fetchCol();
@@ -1756,7 +1756,7 @@ function _node_index_node(EntityInterface $node) {
     $text = '<h1>' . check_plain($node->label($language->id)) . '</h1>' . $node->rendered;
 
     // Fetch extra data normally not visible.
-    $extra = module_invoke_all('node_update_index', $node, $language->id);
+    $extra = Drupal::moduleHandler()->invokeAll('node_update_index', array($node, $language->id));
     foreach ($extra as $t) {
       $text .= $t;
     }
@@ -1914,9 +1914,9 @@ function node_form_system_site_information_settings_form_alter(&$form, &$form_st
   $form['front_page']['default_nodes_main'] = array(
     '#type' => 'select',
     '#title' => t('Number of posts on front page'),
-    '#default_value' => config('node.settings')->get('items_per_page'),
+    '#default_value' => Drupal::config('node.settings')->get('items_per_page'),
     '#options' => drupal_map_assoc(array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30)),
-    '#access' => (config('system.site')->get('page.front') == 'node'),
+    '#access' => (Drupal::config('system.site')->get('page.front') == 'node'),
     '#description' => t('The maximum number of posts displayed on overview pages such as the front page.'),
   );
   $form['#submit'][] = 'node_form_system_site_information_settings_form_submit';
@@ -1928,7 +1928,7 @@ function node_form_system_site_information_settings_form_alter(&$form, &$form_st
  * @see node_form_system_site_information_settings_form_alter()
  */
 function node_form_system_site_information_settings_form_submit($form, &$form_state) {
-  config('node.settings')
+  Drupal::config('node.settings')
     ->set('items_per_page', $form_state['values']['default_nodes_main'])
     ->save();
 }
@@ -2185,7 +2185,7 @@ function node_access_grants($op, $account = NULL) {
   }
 
   // Fetch node access grants from other modules.
-  $grants = module_invoke_all('node_grants', $account, $op);
+  $grants = Drupal::moduleHandler()->invokeAll('node_grants', array($account, $op));
   // Allow modules to alter the assigned grants.
   drupal_alter('node_grants', $grants, $account, $op);
 
@@ -2263,9 +2263,6 @@ function node_query_node_access_alter(AlterableInterface $query) {
   }
   if (!$op = $query->getMetaData('op')) {
     $op = 'view';
-  }
-  if (!$langcode = $query->getMetaData('langcode')) {
-    $langcode = FALSE;
   }
 
   // If $account can bypass node access, or there are no node access modules,
@@ -2521,7 +2518,7 @@ function node_modules_disabled($modules) {
     // check whether a hook implementation function exists and do not invoke it.
     // Node access also needs to be rebuilt if language module is disabled to
     // remove any language-specific grants.
-    if (!node_access_needs_rebuild() && (module_hook($module, 'node_grants') || $module == 'language')) {
+    if (!node_access_needs_rebuild() && (Drupal::moduleHandler()->implementsHook($module, 'node_grants') || $module == 'language')) {
       node_access_needs_rebuild(TRUE);
     }
   }
@@ -2609,6 +2606,6 @@ function node_library_info() {
  */
 function node_system_info_alter(&$info, $file, $type) {
   if ($type == 'module' && $file->name == 'translation') {
-    $info['hidden'] = !module_exists('translation') && config('system.module.disabled')->get('translation') === NULL;
+    $info['hidden'] = !module_exists('translation') && Drupal::config('system.module.disabled')->get('translation') === NULL;
   }
 }

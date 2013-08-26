@@ -8,7 +8,7 @@
 namespace Drupal\editor\Form;
 
 use Drupal\Core\Form\FormInterface;
-use Drupal\filter\Plugin\Core\Entity\FilterFormat;
+use Drupal\filter\Entity\FilterFormat;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\editor\Ajax\EditorDialogSave;
@@ -29,7 +29,7 @@ class EditorLinkDialog implements FormInterface {
   /**
    * {@inheritdoc}
    *
-   * @param \Drupal\filter\Plugin\Core\Entity\FilterFormat $filter_format
+   * @param \Drupal\filter\Entity\FilterFormat $filter_format
    *   The filter format for which this dialog corresponds.
    */
   public function buildForm(array $form, array &$form_state, FilterFormat $filter_format = NULL) {
@@ -89,8 +89,9 @@ class EditorLinkDialog implements FormInterface {
 
     if (form_get_errors()) {
       unset($form['#prefix'], $form['#suffix']);
+      $status_messages = array('#theme' => 'status_messages');
       $output = drupal_render($form);
-      $output = '<div>' . theme('status_messages') . $output . '</div>';
+      $output = '<div>' . drupal_render($status_messages) . $output . '</div>';
       $response->addCommand(new HtmlCommand('#editor-link-dialog-form', $output));
     }
     else {

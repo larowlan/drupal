@@ -9,14 +9,10 @@ use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Uuid\Uuid;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Language\Language;
+use Drupal\Core\StreamWrapper\PublicStream;
 
 /**
- * Test and report Drupal installation requirements.
- *
- * @param $phase
- *   The current system installation phase.
- * @return
- *   An array of system requirements.
+ * Implements hook_requirements().
  */
 function system_requirements($phase) {
   global $base_url;
@@ -264,7 +260,7 @@ function system_requirements($phase) {
 
   // Report cron status.
   if ($phase == 'runtime') {
-    $cron_config = config('system.cron');
+    $cron_config = Drupal::config('system.cron');
     // Cron warning threshold defaults to two days.
     $threshold_warning = $cron_config->get('threshold.requirements_warning');
     // Cron error threshold defaults to two weeks.
@@ -305,9 +301,9 @@ function system_requirements($phase) {
     );
   }
   if ($phase != 'install') {
-    $filesystem_config = config('system.file');
+    $filesystem_config = Drupal::config('system.file');
     $directories = array(
-      variable_get('file_public_path', conf_path() . '/files'),
+      PublicStream::basePath(),
       // By default no private files directory is configured. For private files
       // to be secure the admin needs to provide a path outside the webroot.
       $filesystem_config->get('path.private'),
@@ -320,8 +316,8 @@ function system_requirements($phase) {
   if ($phase == 'install') {
     global $conf;
     $directories = array();
-    if (!empty($conf['file_public_path'])) {
-      $directories[] = $conf['file_public_path'];
+    if ($file_public_path = settings()->get('file_public_path')) {
+      $directories[] = $file_public_path;
     }
     else {
       // If we are installing Drupal, the settings.php file might not exist yet
@@ -527,7 +523,7 @@ function system_install() {
   // Enable and set the default theme. Can't use theme_enable() this early in
   // installation.
   config_install_default_config('theme', 'stark');
-  config('system.theme')
+  Drupal::config('system.theme')
     ->set('default', 'stark')
     ->save();
 
@@ -1431,7 +1427,7 @@ function system_update_8013() {
 function system_update_8014() {
   // Not using update_variables_to_config(), since the only value is
   // 'error_level', which needs to be mapped to a new value.
-  $config = config('system.logging');
+  $config = Drupal::config('system.logging');
   $error_level = db_query("SELECT value FROM {variable} WHERE name = 'error_level'")->fetchField();
   if ($error_level !== FALSE) {
     $error_level = unserialize($error_level);
@@ -1801,12 +1797,9 @@ function system_update_8038() {
     'site_default_country' => 'country.default',
     'date_first_day' => 'first_day',
     'date_default_timezone' => 'timezone.default',
-  ));
-  update_variables_to_config('system.timezone', array(
-    'date_default_timezone' => 'default',
-    'configurable_timezones' => 'user.configurable',
-    'empty_timezone_message' => 'user.warn',
-    'user_default_timezone' => 'user.default',
+    'configurable_timezones' => 'timezone.user.configurable',
+    'empty_timezone_message' => 'timezone.user.warn',
+    'user_default_timezone' => 'timezone.user.default',
   ));
 }
 
@@ -1889,7 +1882,7 @@ function system_update_8045() {
   if (!empty($date_formats)) {
     foreach ($date_formats as $type => $format) {
       // Set name and locked properties.
-      $config = config("system.date_format.$type")
+      $config = Drupal::config("system.date_format.$type")
         ->set('id', $type)
         ->set('label', $format['title'])
         ->set('locked', $format['locked'])
@@ -1934,7 +1927,7 @@ function system_update_8046() {
   update_install_default_config('module', 'views.view.user_admin_people', 'user');
   update_install_default_config('module', 'views.view.content', 'node');
 
-  $front_page = config('system.site')->get('page.front') ?: 'node';
+  $front_page = Drupal::config('system.site')->get('page.front') ?: 'node';
   if ($front_page == 'node') {
     // This imports the node frontpage view.
     update_install_default_config('module', 'views.view.frontpage', 'node');
@@ -2181,7 +2174,7 @@ function system_update_8056() {
   foreach ($entity_view_modes as $entity_type => $view_modes) {
     foreach ($view_modes as $key => $name) {
       $status = in_array($key, array('teaser', 'compact'));
-      config("entity.view_mode.$entity_type.$key")
+      Drupal::config("entity.view_mode.$entity_type.$key")
         ->set('id', "$entity_type.$key")
         ->set('label', $name)
         ->set('targetEntityType', $entity_type)
@@ -2205,7 +2198,7 @@ function system_update_8057() {
         $action['aid'] = $action['callback'] . '_' . $action['aid'];
       }
       $configuration = unserialize($action['parameters']) ?: array();
-      config('action.action.' . $action['aid'])
+      Drupal::config('action.action.' . $action['aid'])
         ->set('id', $action['aid'])
         ->set('label', $action['label'])
         ->set('status', '1')
@@ -2247,6 +2240,15 @@ function system_update_8059() {
     'language_content' => 'configurable.language_content',
     'language_url' => 'configurable.language_content',
   ));
+}
+
+/**
+ * Move the file_public_path variable to settings.
+ */
+function system_upgrade_8060() {
+  if ($path = update_variable_get('file_public_path')) {
+    drupal_rewrite_settings(array('settings' => array('file_public_path' => $path)));
+  }
 }
 
 /**

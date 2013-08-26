@@ -159,7 +159,7 @@ class LanguageUILanguageNegotiationTest extends WebTestBase {
     $this->runTest($test);
 
     // An invalid language is selected.
-    config('language.negotiation')->set('selected_langcode', NULL)->save();
+    \Drupal::config('language.negotiation')->set('selected_langcode', NULL)->save();
     $test = array(
       'language_negotiation' => array(LANGUAGE_NEGOTIATION_SELECTED),
       'path' => 'admin/config',
@@ -171,7 +171,7 @@ class LanguageUILanguageNegotiationTest extends WebTestBase {
     $this->runTest($test);
 
     // No selected language is available.
-    config('language.negotiation')->set('selected_langcode', $langcode_unknown)->save();
+    \Drupal::config('language.negotiation')->set('selected_langcode', $langcode_unknown)->save();
     $test = array(
       'language_negotiation' => array(LANGUAGE_NEGOTIATION_SELECTED),
       'path' => 'admin/config',
@@ -367,7 +367,7 @@ class LanguageUILanguageNegotiationTest extends WebTestBase {
       language_negotiation_set(Language::TYPE_INTERFACE, $method_weights);
     }
     if (!empty($test['language_negotiation_url_part'])) {
-      config('language.negotiation')
+      \Drupal::config('language.negotiation')
         ->set('url.source', $test['language_negotiation_url_part'])
         ->save();
     }
@@ -423,7 +423,7 @@ class LanguageUILanguageNegotiationTest extends WebTestBase {
     $this->assertTrue($fields[0] == $languages[$langcode_browser_fallback]->name, 'The browser language is the URL active language');
 
     // Check that URLs are rewritten using the given browser language.
-    $fields = $this->xpath('//p[@id="site-name"]/strong/a[@rel="home" and @href=:url]', $args);
+    $fields = $this->xpath('//strong[@class="site-name"]/a[@rel="home" and @href=:url]', $args);
     $this->assertTrue($fields[0] == 'Drupal', 'URLs are rewritten using the browser language.');
   }
 

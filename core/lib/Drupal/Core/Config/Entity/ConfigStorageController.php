@@ -351,17 +351,17 @@ class ConfigStorageController extends EntityStorageControllerBase {
 
     $entity_class = $this->entityInfo['class'];
     $entity_class::preDelete($this, $entities);
-    foreach ($entities as $id => $entity) {
+    foreach ($entities as $entity) {
       $this->invokeHook('predelete', $entity);
     }
 
-    foreach ($entities as $id => $entity) {
+    foreach ($entities as $entity) {
       $config = $this->configFactory->get($this->getConfigPrefix() . $entity->id());
       $config->delete();
     }
 
     $entity_class::postDelete($this, $entities);
-    foreach ($entities as $id => $entity) {
+    foreach ($entities as $entity) {
       $this->invokeHook('delete', $entity);
     }
   }
@@ -400,6 +400,11 @@ class ConfigStorageController extends EntityStorageControllerBase {
       // - The object needs to be renamed/copied in ConfigFactory and reloaded.
       // - All instances of the object need to be renamed.
       $this->configFactory->rename($prefix . $id, $prefix . $entity->id());
+    }
+
+    // Build an ID if none is set.
+    if (!isset($entity->{$this->idKey})) {
+      $entity->{$this->idKey} = $entity->id();
     }
 
     $entity->preSave($this);

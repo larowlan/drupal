@@ -29,7 +29,7 @@ class ViewExecutable {
   /**
    * The config entity in which the view is stored.
    *
-   * @var Drupal\views\Plugin\Core\Entity\View
+   * @var Drupal\views\Entity\View
    */
   public $storage;
 
@@ -203,7 +203,7 @@ class ViewExecutable {
    * An array containing Drupal\views\Plugin\views\display\DisplayPluginBase
    * objects.
    *
-   * @var array
+   * @var \Drupal\views\DisplayBag
    */
   public $displayHandlers;
 
@@ -570,7 +570,7 @@ class ViewExecutable {
     // Fill our input either from $_GET or from something previously set on the
     // view.
     if (empty($this->exposed_input)) {
-      $this->exposed_input = drupal_container()->get('request')->query->all();
+      $this->exposed_input = \Drupal::request()->query->all();
       // unset items that are definitely not our input:
       foreach (array('page', 'q') as $key) {
         if (isset($this->exposed_input[$key])) {
@@ -1127,7 +1127,7 @@ class ViewExecutable {
       $exposed_form->query();
     }
 
-    if (config('views.settings')->get('sql_signature')) {
+    if (\Drupal::config('views.settings')->get('sql_signature')) {
       $this->query->addSignature($this);
     }
 
@@ -1278,7 +1278,7 @@ class ViewExecutable {
     }
 
     drupal_theme_initialize();
-    $config = config('views.settings');
+    $config = \Drupal::config('views.settings');
 
     $exposed_form = $this->display_handler->getPlugin('exposed_form');
     $exposed_form->preRender($this->result);
@@ -1714,7 +1714,7 @@ class ViewExecutable {
       foreach ($this->build_info['breadcrumb'] as $path => $title) {
         // Check to see if the frontpage is in the breadcrumb trail; if it
         // is, we'll remove that from the actual breadcrumb later.
-        if ($path == config('system.site')->get('page.front')) {
+        if ($path == \Drupal::config('system.site')->get('page.front')) {
           $base = FALSE;
           $title = t('Home');
         }

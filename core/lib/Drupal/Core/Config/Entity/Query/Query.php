@@ -9,7 +9,6 @@ namespace Drupal\Core\Config\Entity\Query;
 
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Entity\EntityManager;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Entity\Query\QueryBase;
 use Drupal\Core\Entity\Query\QueryInterface;
 
@@ -52,13 +51,6 @@ class Query extends QueryBase implements QueryInterface {
   }
 
   /**
-   * Implements \Drupal\Core\Entity\Query\QueryInterface::conditionGroupFactory().
-   */
-  public function conditionGroupFactory($conjunction = 'AND') {
-    return new Condition($conjunction);
-  }
-
-  /**
    * Overrides \Drupal\Core\Entity\Query\QueryBase::condition().
    *
    * Additional to the syntax defined in the QueryInterface you can use
@@ -88,7 +80,7 @@ class Query extends QueryBase implements QueryInterface {
     $names = $this->configStorage->listAll($prefix);
     $configs = array();
     foreach ($names as $name) {
-      $configs[substr($name, $prefix_length)] = config($name)->get();
+      $configs[substr($name, $prefix_length)] = \Drupal::config($name)->get();
     }
 
     $result = $this->condition->compile($configs);

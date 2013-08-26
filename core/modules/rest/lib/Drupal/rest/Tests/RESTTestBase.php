@@ -33,6 +33,8 @@ abstract class RESTTestBase extends WebTestBase {
     parent::setUp();
     $this->defaultFormat = 'hal_json';
     $this->defaultMimeType = 'application/hal+json';
+    // Create a test content type for node testing.
+    $this->drupalCreateContentType(array('name' => 'resttest', 'type' => 'resttest'));
   }
 
   /**
@@ -61,6 +63,7 @@ abstract class RESTTestBase extends WebTestBase {
         $options = isset($body) ? array('absolute' => TRUE, 'query' => $body) : array('absolute' => TRUE);
         $curl_options = array(
           CURLOPT_HTTPGET => TRUE,
+          CURLOPT_CUSTOMREQUEST => 'GET',
           CURLOPT_URL => url($url, $options),
           CURLOPT_NOBODY => FALSE,
           CURLOPT_HTTPHEADER => array('Accept: ' . $mime_type),
@@ -166,7 +169,7 @@ abstract class RESTTestBase extends WebTestBase {
           'field_test_text' => array(0 => array('value' => $this->randomString())),
         );
       case 'node':
-        return array('title' => $this->randomString(), 'type' => $this->randomString());
+        return array('title' => $this->randomString(), 'type' => 'resttest');
       case 'node_type':
         return array(
           'type' => 'article',
@@ -189,10 +192,12 @@ abstract class RESTTestBase extends WebTestBase {
    *   The HTTP method to enable, e.g. GET, POST etc.
    * @param string $format
    *   (Optional) The serialization format, e.g. hal_json.
+   * @param array $auth
+   *   (Optional) The list of valid authentication methods.
    */
-  protected function enableService($resource_type, $method = 'GET', $format = NULL) {
+  protected function enableService($resource_type, $method = 'GET', $format = NULL, $auth = array()) {
     // Enable REST API for this entity type.
-    $config = config('rest.settings');
+    $config = \Drupal::config('rest.settings');
     $settings = array();
     if ($resource_type) {
       if ($format) {
@@ -202,11 +207,15 @@ abstract class RESTTestBase extends WebTestBase {
         $settings[$resource_type][$method] = array();
       }
     }
+    if (is_array($auth) && !empty($auth)) {
+      $settings[$resource_type][$method]['supported_auth'] = $auth;
+    }
+
     $config->set('resources', $settings);
     $config->save();
 
     // Rebuild routing cache, so that the REST API paths are available.
-    drupal_container()->get('router.builder')->rebuild();
+    $this->container->get('router.builder')->rebuild();
     // Reset the Simpletest permission cache, so that the new resource
     // permissions get picked up.
     drupal_static_reset('checkPermissions');
@@ -269,6 +278,17 @@ abstract class RESTTestBase extends WebTestBase {
           case 'update':
           case 'delete':
             return array('administer entity_test content');
+        }
+      case 'node':
+        switch ($operation) {
+          case 'view':
+            return array('access content');
+          case 'create':
+            return array('create resttest content');
+          case 'update':
+            return array('edit any resttest content');
+          case 'delete':
+            return array('delete any resttest content');
         }
     }
   }

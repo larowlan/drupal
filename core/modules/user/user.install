@@ -494,7 +494,7 @@ function user_update_8004() {
     '2' => 'visitors_admin_approval',
   );
 
-  $config = config('user.settings');
+  $config = Drupal::config('user.settings');
   $user_register = $config->get('register');
   $user_cancel_method = $config->get('cancel_method');
 
@@ -664,6 +664,47 @@ function user_update_8011() {
     'settings' => array(
       'uri_scheme' => 'public',
       'default_image' => FALSE,
+    ),
+    'schema' => array(
+      'columns' => array(
+        'target_id' => array(
+          'description' => 'The ID of the target entity.',
+          'type' => 'int',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+        ),
+        'alt' => array(
+          'description' => "Alternative image text, for the image's 'alt' attribute.",
+          'type' => 'varchar',
+          'length' => 512,
+          'not null' => FALSE,
+        ),
+        'title' => array(
+          'description' => "Image title text, for the image's 'title' attribute.",
+          'type' => 'varchar',
+          'length' => 1024,
+          'not null' => FALSE,
+        ),
+        'width' => array(
+          'description' => 'The width of the image in pixels.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+        ),
+        'height' => array(
+          'description' => 'The height of the image in pixels.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+        ),
+      ),
+      'indexes' => array(
+        'target_id' => array('target_id'),
+      ),
+      'foreign keys' => array(
+        'target_id' => array(
+          'table' => 'file_managed',
+          'columns' => array('target_id' => 'fid'),
+        ),
+      ),
     ),
   );
   _update_8003_field_create_field($field);
@@ -985,7 +1026,7 @@ function user_update_8017() {
     ->fetchAll();
 
   foreach ($roles as $role) {
-    config('user.role.' . $role->rid)
+    Drupal::config('user.role.' . $role->rid)
       ->set('id', $role->rid)
       ->set('uuid', $uuid->generate())
       ->set('label', $role->name)
@@ -1068,7 +1109,7 @@ function user_update_8019() {
     }
   }
   foreach ($new_permissions as $rid => $permissions) {
-    config("user.role.$rid")
+    Drupal::config("user.role.$rid")
       ->set('permissions', $permissions)
       ->save();
   }
@@ -1080,7 +1121,7 @@ function user_update_8019() {
 function user_update_8020() {
   $uuid = new Uuid();
 
-  config("entity.form_mode.user.register")
+  Drupal::config("entity.form_mode.user.register")
     ->set('id', "user.register")
     ->set('uuid', $uuid->generate())
     ->set('label', 'Register')

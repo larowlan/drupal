@@ -49,7 +49,7 @@ class Username extends FieldPluginBase {
     parent::buildOptionsForm($form, $form_state);
   }
 
-  function render_link($data, ResultRow $values) {
+  protected function renderLink($data, ResultRow $values) {
     if (!empty($this->options['link_to_user'])) {
       $account = entity_create('user', array());
       $account->uid = $this->getValue($values, 'uid');
@@ -66,9 +66,12 @@ class Username extends FieldPluginBase {
     }
   }
 
-  public function render($values) {
+  /**
+   * {@inheritdoc}
+   */
+  public function render(ResultRow $values) {
     $value = $this->getValue($values);
-    return $this->render_link($this->sanitizeValue($value), $values);
+    return $this->renderLink($this->sanitizeValue($value), $values);
   }
 
 }

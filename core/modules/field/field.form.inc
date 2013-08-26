@@ -95,6 +95,17 @@ function theme_field_multiple_value_form($variables) {
 }
 
 /**
+ * Callback for usort() within theme_field_multiple_value_form().
+ *
+ * Sorts using ['_weight']['#value']
+ */
+function _field_sort_items_value_helper($a, $b) {
+  $a_weight = (is_array($a) && isset($a['_weight']['#value']) ? $a['_weight']['#value'] : 0);
+  $b_weight = (is_array($b) && isset($b['_weight']['#value']) ? $b['_weight']['#value'] : 0);
+  return $a_weight - $b_weight;
+}
+
+/**
  * After-build callback for field elements in a form.
  *
  * This stores the final location of the field within the form structure so that
@@ -129,8 +140,8 @@ function field_form_element_after_build($element, &$form_state) {
  * This handler is run regardless of whether JS is enabled or not. It makes
  * changes to the form state. If the button was clicked with JS disabled, then
  * the page is reloaded with the complete rebuilt form. If the button was
- * clicked with JS enabled, then ajax_form_callback() calls field_add_more_js()
- * to return just the changed part of the form.
+ * clicked with JS enabled, then Drupal\system\FormAjaxController::content()
+ * calls field_add_more_js() to return just the changed part of the form.
  */
 function field_add_more_submit($form, &$form_state) {
   $button = $form_state['triggering_element'];

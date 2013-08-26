@@ -39,7 +39,7 @@ class JavaScriptTest extends DrupalUnitTestBase {
     parent::setUp();
 
     // Disable preprocessing
-    $config = config('system.performance');
+    $config = \Drupal::config('system.performance');
     $this->preprocess_js = $config->get('js.preprocess');
     $config->set('js.preprocess', 0);
     $config->save();
@@ -51,7 +51,7 @@ class JavaScriptTest extends DrupalUnitTestBase {
 
   function tearDown() {
     // Restore configured value for JavaScript preprocessing.
-    $config = config('system.performance');
+    $config = \Drupal::config('system.performance');
     $config->set('js.preprocess', $this->preprocess_js);
     $config->save();
     parent::tearDown();
@@ -120,7 +120,7 @@ class JavaScriptTest extends DrupalUnitTestBase {
    */
   function testAggregatedAttributes() {
     // Enable aggregation.
-    config('system.performance')->set('js.preprocess', 1)->save();
+    \Drupal::config('system.performance')->set('js.preprocess', 1)->save();
 
     $default_query_string = variable_get('css_js_query_string', '0');
 
@@ -327,7 +327,7 @@ class JavaScriptTest extends DrupalUnitTestBase {
     // Now ensure that with aggregation on, one file is made for the
     // 'every_page' files, and one file is made for the others.
     drupal_static_reset('drupal_add_js');
-    $config = config('system.performance');
+    $config = \Drupal::config('system.performance');
     $config->set('js.preprocess', 1);
     $config->save();
     drupal_add_library('system', 'drupal');
@@ -349,7 +349,7 @@ class JavaScriptTest extends DrupalUnitTestBase {
    */
   function testAggregationOrder() {
     // Enable JavaScript aggregation.
-    config('system.performance')->set('js.preprocess', 1)->save();
+    \Drupal::config('system.performance')->set('js.preprocess', 1)->save();
     drupal_static_reset('drupal_add_js');
 
     // Add two JavaScript files to the current request and build the cache.
@@ -480,9 +480,10 @@ class JavaScriptTest extends DrupalUnitTestBase {
     $this->assertTrue(strpos($styles, 'core/assets/vendor/farbtastic/farbtastic.css'), 'Stylesheet of library was added to the page.');
 
     $result = drupal_add_library('common_test', 'shorthand.plugin');
-    $path = drupal_get_path('module', 'common_test') . '/js/shorthand.js';
+    $path = drupal_get_path('module', 'common_test') . '/js/shorthand.js?v=0.8.3.37';
     $scripts = drupal_get_js();
     $this->assertTrue(strpos($scripts, $path), 'JavaScript specified in hook_library_info() using shorthand format (without any options) was added to the page.');
+    $this->assertEqual(substr_count($scripts, 'shorthand.js'), 1, 'Shorthand JavaScript file only added once.');
   }
 
   /**

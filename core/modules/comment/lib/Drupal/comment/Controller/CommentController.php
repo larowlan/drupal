@@ -8,9 +8,9 @@
 namespace Drupal\comment\Controller;
 
 use Drupal\comment\CommentInterface;
-use Drupal\comment\Plugin\Core\Entity\Comment;
+use Drupal\comment\Entity\Comment;
 use Drupal\Core\Controller\ControllerInterface;
-use Drupal\Core\Routing\PathBasedGeneratorInterface;
+use Drupal\Core\Routing\UrlGeneratorInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,14 +21,14 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 /**
  * Controller for the comment entity.
  *
- * @see \Drupal\comment\Plugin\Core\Entity\Comment.
+ * @see \Drupal\comment\Entity\Comment.
  */
 class CommentController implements ControllerInterface {
 
   /**
    * The url generator service.
    *
-   * @var \Drupal\Core\Routing\PathBasedGeneratorInterface
+   * @var \Drupal\Core\Routing\UrlGeneratorInterface
    */
   protected $urlGenerator;
 
@@ -42,12 +42,12 @@ class CommentController implements ControllerInterface {
   /**
    * Constructs a CommentController object.
    *
-   * @param \Drupal\Core\Routing\PathBasedGeneratorInterface $url_generator
+   * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
    *   The url generator service.
    * @param \Symfony\Component\HttpKernel\HttpKernelInterface $httpKernel
    *   HTTP kernel to handle requests.
    */
-  public function __construct(PathBasedGeneratorInterface $url_generator, HttpKernelInterface $httpKernel) {
+  public function __construct(UrlGeneratorInterface $url_generator, HttpKernelInterface $httpKernel) {
     $this->urlGenerator = $url_generator;
     $this->httpKernel = $httpKernel;
   }
@@ -121,7 +121,7 @@ class CommentController implements ControllerInterface {
         throw new AccessDeniedHttpException();
       }
       // Find the current display page for this comment.
-      $page = comment_get_display_page($comment->id(), $node->type);
+      $page = comment_get_display_page($comment->id(), $node->getType());
       // @todo: Cleaner sub request handling.
       $redirect_request = Request::create('/node/' . $node->id(), 'GET', $request->query->all(), $request->cookies->all(), array(), $request->server->all());
       $redirect_request->query->set('page', $page);

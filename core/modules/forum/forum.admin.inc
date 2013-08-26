@@ -5,7 +5,7 @@
  * Administrative page callbacks for the Forum module.
  */
 
-use Drupal\taxonomy\Plugin\Core\Entity\Term;
+use Drupal\taxonomy\Entity\Term;
 
 /**
  * Form constructor for the forum overview form.
@@ -18,7 +18,7 @@ use Drupal\taxonomy\Plugin\Core\Entity\Term;
  */
 function forum_overview($form, &$form_state) {
   module_load_include('inc', 'taxonomy', 'taxonomy.admin');
-  $config = config('forum.settings');
+  $config = Drupal::config('forum.settings');
 
   $vid = $config->get('vocabulary');
   $vocabulary = entity_load('taxonomy_vocabulary', $vid);

@@ -9,7 +9,7 @@ namespace Drupal\node;
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityRenderController;
-use Drupal\entity\Plugin\Core\Entity\EntityDisplay;
+use Drupal\entity\Entity\EntityDisplay;
 
 /**
  * Render controller for nodes.
@@ -30,7 +30,7 @@ class NodeRenderController extends EntityRenderController {
 
     parent::buildContent($entities, $displays, $view_mode, $langcode);
 
-    foreach ($entities as $key => $entity) {
+    foreach ($entities as $entity) {
       $bundle = $entity->bundle();
       $display = $displays[$bundle];
 
@@ -49,7 +49,7 @@ class NodeRenderController extends EntityRenderController {
           'title' => t('Read more<span class="visually-hidden"> about @title</span>', array(
             '@title' => $node_title_stripped,
           )),
-          'href' => 'node/' . $entity->nid,
+          'href' => 'node/' . $entity->id(),
           'html' => TRUE,
           'attributes' => array(
             'rel' => 'tag',

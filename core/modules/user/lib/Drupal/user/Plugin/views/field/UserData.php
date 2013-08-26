@@ -9,9 +9,11 @@ namespace Drupal\user\Plugin\views\field;
 
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\Plugin\views\field\FieldPluginBase;
+use Drupal\views\ResultRow;
 use Drupal\views\ViewExecutable;
 use Drupal\user\UserDataInterface;
 use Drupal\Component\Annotation\PluginID;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides access to the user data service.
@@ -32,12 +34,19 @@ class UserData extends FieldPluginBase {
   protected $userData;
 
   /**
-   * Overrides \Drupal\views\Plugin\views\field\FieldPluginBase::init().
+   * {@inheritdoc}
    */
-  public function init(ViewExecutable $view, DisplayPluginBase $display, array &$options = NULL) {
-    parent::init($view, $display, $options);
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, array $plugin_definition) {
+    return new static($configuration, $plugin_id, $plugin_definition, $container->get('user.data'));
+  }
 
-    $this->userData = drupal_container()->get('user.data');
+  /**
+   * Constructs a UserData object.
+   */
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, UserDataInterface $user_data) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+
+    $this->userData = $user_data;
   }
 
   /**
@@ -75,9 +84,9 @@ class UserData extends FieldPluginBase {
   }
 
   /**
-   * Overrides \Drupal\views\Plugin\views\field\FieldPluginBase::render().
+   * {@inheritdoc}
    */
-  public function render($values) {
+  public function render(ResultRow $values) {
     $uid = $this->getValue($values);
     $data = $this->userData->get($this->options['data_module'], $uid, $this->options['data_name']);
 

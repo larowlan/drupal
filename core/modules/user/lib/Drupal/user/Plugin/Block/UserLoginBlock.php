@@ -8,21 +8,19 @@
 namespace Drupal\user\Plugin\Block;
 
 use Drupal\block\BlockBase;
-use Drupal\Component\Annotation\Plugin;
+use Drupal\block\Annotation\Block;
 use Drupal\Core\Annotation\Translation;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\user\Form\UserLoginForm;
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Provides a 'User login' block.
  *
- * @Plugin(
+ * @Block(
  *   id = "user_login_block",
- *   admin_label = @Translation("User login"),
- *   module = "user"
+ *   admin_label = @Translation("User login")
  * )
  */
 class UserLoginBlock extends BlockBase implements ContainerFactoryPluginInterface {
@@ -95,7 +93,7 @@ class UserLoginBlock extends BlockBase implements ContainerFactoryPluginInterfac
     $form['#action'] = url(current_path(), array('query' => drupal_get_destination(), 'external' => FALSE));
     // Build action links.
     $items = array();
-    if (config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY) {
+    if (\Drupal::config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY) {
       $items['create_account'] = l(t('Create new account'), 'user/register', array(
         'attributes' => array(
           'title' => t('Create a new user account.'),

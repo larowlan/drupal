@@ -246,7 +246,7 @@ function locale_theme() {
       'template' => 'locale-translation-last-check',
     ),
     'locale_translation_update_info' => array(
-      'arguments' => array('updates' => array(), 'not_found' => array()),
+      'variables' => array('updates' => array(), 'not_found' => array()),
       'file' => 'locale.pages.inc',
       'template' => 'locale-translation-update-info',
     ),
@@ -363,12 +363,9 @@ function locale_get_plural($count, $langcode = NULL) {
     // $count and statically cache the result for the combination of language
     // and count, since the result will always be identical.
     if (!empty($plural_formulas[$langcode])) {
-      // Plural formulas are stored as an array for 0-199. 100 is the highest
-      // modulo used but storing 0-99 is not enough because below 100 we often
-      // find exceptions (1, 2, etc).
-      $index = $count > 199 ? 100 + ($count % 100) : $count;
-      $plural_indexes[$langcode][$count] = isset($plural_formulas[$langcode]['formula'][$index]) ? $plural_formulas[$langcode]['formula'][$index] : $plural_formulas[$langcode]['formula']['default'];
-
+      // $n is used inside the expression in the eval().
+      $n = $count;
+      $plural_indexes[$langcode][$count] = @eval('return intval(' . $plural_formulas[$langcode]['formula'] . ');');
     }
     // In case there is no plural formula for English (no imported translation
     // for English), use a default formula.
@@ -430,7 +427,7 @@ function locale_cron() {
   // and a translatable language was set.
   // Update tasks are added to the queue here but processed by Drupal's cron
   // using the cron worker defined in locale_queue_info().
-  if ($frequency = config('locale.settings')->get('translation.update_interval_days') && locale_translatable_language_list()) {
+  if ($frequency = Drupal::config('locale.settings')->get('translation.update_interval_days') && locale_translatable_language_list()) {
     module_load_include('translation.inc', 'locale');
     locale_cron_fill_queue();
   }
@@ -522,7 +519,7 @@ function locale_system_update(array $components) {
   // Skip running the translation imports if in the installer,
   // because it would break out of the installer flow. We have
   // built-in support for translation imports in the installer.
-  if (!drupal_installation_attempted() && locale_translatable_language_list() && config('locale.settings')->get('translation.import_enabled')) {
+  if (!drupal_installation_attempted() && locale_translatable_language_list() && Drupal::config('locale.settings')->get('translation.import_enabled')) {
     module_load_include('compare.inc', 'locale');
 
     // Update the list of translatable projects and start the import batch.
@@ -598,7 +595,7 @@ function locale_js_alter(&$javascript) {
 
   $language_interface = language(Language::TYPE_INTERFACE);
 
-  $dir = 'public://' . config('local.settings')->get('javascript.directory');
+  $dir = 'public://' . Drupal::config('local.settings')->get('javascript.directory');
   $parsed = Drupal::state()->get('system.javascript_parsed') ?: array();
   $files = $new_files = FALSE;
 
@@ -699,7 +696,7 @@ function locale_library_info_alter(&$libraries, $module) {
           'ui' => array(
             'datepicker' => array(
               'isRTL' => $language_interface->direction == Language::DIRECTION_RTL,
-              'firstDay' => config('system.date')->get('first_day'),
+              'firstDay' => Drupal::config('system.date')->get('first_day'),
             ),
           ),
         ),
@@ -776,7 +773,7 @@ function locale_form_language_admin_add_form_alter(&$form, &$form_state) {
  * Set a batch for a newly-added language.
  */
 function locale_form_language_admin_add_form_alter_submit($form, $form_state) {
-  if (config('locale.settings')->get('translation.import_enabled')) {
+  if (Drupal::config('locale.settings')->get('translation.import_enabled')) {
     if (empty($form_state['values']['predefined_langcode']) || $form_state['values']['predefined_langcode'] == 'custom') {
       $langcode = $form_state['values']['langcode'];
     }
@@ -838,7 +835,7 @@ function locale_form_system_file_system_settings_alter(&$form, $form_state) {
   $form['translation_path'] = array(
     '#type' => 'textfield',
     '#title' => t('Interface translations directory'),
-    '#default_value' => config('locale.settings')->get('translation.path'),
+    '#default_value' => Drupal::config('locale.settings')->get('translation.path'),
     '#maxlength' => 255,
     '#description' => t('A local file system path where interface translation files will be stored.'),
     '#required' => TRUE,
@@ -863,7 +860,7 @@ function locale_system_file_system_settings_submit(&$form, $form_state) {
     locale_translation_clear_status();
   }
 
-  config('locale.settings')
+  Drupal::config('locale.settings')
     ->set('translation.path', $form_state['values']['translation_path'])
     ->save();
 }
@@ -872,15 +869,15 @@ function locale_system_file_system_settings_submit(&$form, $form_state) {
  * Implements hook_preprocess_HOOK() for node.html.twig.
  */
 function locale_preprocess_node(&$variables) {
-  if ($variables['node']->langcode != Language::LANGCODE_NOT_SPECIFIED) {
+  if ($variables['node']->language()->id != Language::LANGCODE_NOT_SPECIFIED) {
     $language_interface = language(Language::TYPE_INTERFACE);
 
-    $node_language = language_load($variables['node']->langcode);
+    $node_language = $variables['node']->language();
     if ($node_language->id != $language_interface->id) {
       // If the node language was different from the page language, we should
       // add markup to identify the language. Otherwise the page language is
       // inherited.
-      $variables['attributes']['lang'] = $variables['node']->langcode;
+      $variables['attributes']['lang'] = $node_language->id;
       if ($node_language->direction != $language_interface->direction) {
         // If text direction is different form the page's text direction, add
         // direction information as well.
@@ -1098,7 +1095,7 @@ function locale_translation_clear_status() {
  *   when checking or importing translation files, FALSE otherwise.
  */
 function locale_translation_use_remote_source() {
-  return config('locale.settings')->get('translation.use_source') == LOCALE_TRANSLATION_USE_SOURCE_REMOTE_AND_LOCAL;
+  return Drupal::config('locale.settings')->get('translation.use_source') == LOCALE_TRANSLATION_USE_SOURCE_REMOTE_AND_LOCAL;
 }
 
 /**
@@ -1311,7 +1308,7 @@ function _locale_invalidate_js($langcode = NULL) {
  *   The language, the translation file should be (re)created for.
  */
 function _locale_rebuild_js($langcode = NULL) {
-  $config = config('locale.settings');
+  $config = Drupal::config('locale.settings');
   if (!isset($langcode)) {
     $language = language(Language::TYPE_INTERFACE);
   }

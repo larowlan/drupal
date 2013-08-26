@@ -9,6 +9,7 @@ namespace Drupal\Core\Entity;
 
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Component\Utility\String;
 
 /**
  * Provides a generic implementation of an entity list controller.
@@ -91,6 +92,19 @@ class EntityListController implements EntityListControllerInterface, EntityContr
   }
 
   /**
+   * Returns the escaped label of an entity.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity being listed.
+   *
+   * @return string
+   *   The escaped entity label.
+   */
+  protected function getLabel(EntityInterface $entity) {
+    return String::checkPlain($entity->label());
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function getOperations(EntityInterface $entity) {
@@ -126,8 +140,6 @@ class EntityListController implements EntityListControllerInterface, EntityContr
    * @see Drupal\Core\Entity\EntityListController::render()
    */
   public function buildHeader() {
-    $row['label'] = t('Label');
-    $row['id'] = t('Machine name');
     $row['operations'] = t('Operations');
     return $row;
   }
@@ -144,10 +156,7 @@ class EntityListController implements EntityListControllerInterface, EntityContr
    * @see Drupal\Core\Entity\EntityListController::render()
    */
   public function buildRow(EntityInterface $entity) {
-    $row['label'] = $entity->label();
-    $row['id'] = $entity->id();
-    $operations = $this->buildOperations($entity);
-    $row['operations']['data'] = $operations;
+    $row['operations']['data'] = $this->buildOperations($entity);
     return $row;
   }
 

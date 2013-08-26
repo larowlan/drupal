@@ -8,7 +8,7 @@
 namespace Drupal\overlay\EventSubscriber;
 
 use Drupal\Core\ContentNegotiation;
-use Drupal\Core\Routing\PathBasedGeneratorInterface;
+use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\user\UserData;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -38,7 +38,7 @@ class OverlaySubscriber implements EventSubscriberInterface {
   /**
    * The url generator service.
    *
-   * @var \Drupal\Core\Routing\PathBasedGeneratorInterface
+   * @var \Drupal\Core\Routing\UrlGeneratorInterface
    */
   protected $urlGenerator;
 
@@ -49,10 +49,10 @@ class OverlaySubscriber implements EventSubscriberInterface {
    *   The content negotiation service.
    * @param \Drupal\user\UserData $user_data
    *   The user.data service.
-   * @param \Drupal\Core\Routing\PathBasedGeneratorInterface $url_generator
+   * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
    *   The url generator service.
    */
-  public function __construct(ContentNegotiation $negotiation, UserData $user_data, PathBasedGeneratorInterface $url_generator) {
+  public function __construct(ContentNegotiation $negotiation, UserData $user_data, UrlGeneratorInterface $url_generator) {
     $this->negotiation = $negotiation;
     $this->userData = $user_data;
     $this->urlGenerator = $url_generator;
@@ -81,7 +81,7 @@ class OverlaySubscriber implements EventSubscriberInterface {
     $user_data = $this->userData->get('overlay', $user->id(), 'enabled');
     $use_overlay = !isset($user_data) || $user_data;
     if (empty($mode) && user_access('access overlay') && $use_overlay) {
-      $current_path = $request->attributes->get('system_path');
+      $current_path = $request->attributes->get('_system_path');
       // After overlay is enabled on the modules page, redirect to
       // <front>#overlay=admin/modules to actually enable the overlay.
       if (isset($_SESSION['overlay_enable_redirect']) && $_SESSION['overlay_enable_redirect']) {

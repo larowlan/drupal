@@ -24,6 +24,7 @@ use Drupal\views\Plugin\views\display\DisplayPluginBase;
  *   title = @Translation("Block"),
  *   help = @Translation("Display the view as a block."),
  *   theme = "views_view",
+ *   register_theme = FALSE,
  *   uses_hook_block = TRUE,
  *   contextual_links_locations = {"block"},
  *   admin = @Translation("Block")
@@ -243,7 +244,7 @@ class Block extends DisplayPluginBase {
   public function blockForm(ViewsBlock $block, array &$form, array &$form_state) {
     $allow_settings = array_filter($this->getOption('allow'));
 
-    $block_configuration = $block->getConfig();
+    $block_configuration = $block->getConfiguration();
 
     foreach ($allow_settings as $type => $enabled) {
       if (empty($enabled)) {
@@ -253,9 +254,9 @@ class Block extends DisplayPluginBase {
         case 'items_per_page':
           $form['override']['items_per_page'] = array(
             '#type' => 'select',
-            '#title' => t('Items per page'),
+            '#title' => t('Items per block'),
             '#options' => array(
-              'none' => t('Use default settings'),
+              'none' => t('@count (default setting)', array('@count' => $this->getPlugin('pager')->getItemsPerPage())),
               5 => 5,
               10 => 10,
               20 => 20,
@@ -299,7 +300,7 @@ class Block extends DisplayPluginBase {
    */
   public function blockSubmit(ViewsBlock $block, $form, &$form_state) {
     if (isset($form_state['values']['override']['items_per_page'])) {
-      $block->setConfig('items_per_page', $form_state['values']['override']['items_per_page']);
+      $block->setConfigurationValue('items_per_page', $form_state['values']['override']['items_per_page']);
     }
   }
 
@@ -310,7 +311,7 @@ class Block extends DisplayPluginBase {
    *   The block plugin for views displays.
    */
   public function preBlockBuild(ViewsBlock $block) {
-    $config = $block->getConfig();
+    $config = $block->getConfiguration();
     if ($config['items_per_page'] !== 'none') {
       $this->view->setItemsPerPage($config['items_per_page']);
     }

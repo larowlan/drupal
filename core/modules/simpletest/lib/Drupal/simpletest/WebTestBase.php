@@ -16,6 +16,7 @@ use Drupal\Core\Database\ConnectionNotDefinedException;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\UserSession;
+use Drupal\Core\StreamWrapper\PublicStream;
 use PDO;
 use stdClass;
 use DOMDocument;
@@ -237,7 +238,7 @@ abstract class WebTestBase extends TestBase {
    *   - revision: 1. (Backwards-compatible binary flag indicating whether a
    *     new revision should be created; use 1 to specify a new revision.)
    *
-   * @return \Drupal\node\Plugin\Core\Entity\Node
+   * @return \Drupal\node\Entity\Node
    *   The created node entity.
    */
   protected function drupalCreateNode(array $settings = array()) {
@@ -301,7 +302,7 @@ abstract class WebTestBase extends TestBase {
    *   An array of settings to change from the defaults.
    *   Example: 'type' => 'foo'.
    *
-   * @return \Drupal\node\Plugin\Core\Entity\NodeType
+   * @return \Drupal\node\Entity\NodeType
    *   Created content type.
    */
   protected function drupalCreateContentType(array $values = array()) {
@@ -355,7 +356,7 @@ abstract class WebTestBase extends TestBase {
    *   - theme: The default theme.
    *   - visibility: Empty array.
    *
-   * @return \Drupal\block\Plugin\Core\Entity\Block
+   * @return \Drupal\block\Entity\Block
    *   The block entity.
    *
    * @todo
@@ -366,12 +367,14 @@ abstract class WebTestBase extends TestBase {
       'plugin' => $plugin_id,
       'region' => 'sidebar_first',
       'machine_name' => strtolower($this->randomName(8)),
-      'theme' => config('system.theme')->get('default'),
+      'theme' => \Drupal::config('system.theme')->get('default'),
       'label' => $this->randomName(8),
       'visibility' => array(),
+      'weight' => 0,
     );
-    foreach (array('region', 'machine_name', 'theme', 'plugin', 'visibility') as $key) {
+    foreach (array('region', 'machine_name', 'theme', 'plugin', 'visibility', 'weight') as $key) {
       $values[$key] = $settings[$key];
+      // Remove extra values that do not belong in the settings array.
       unset($settings[$key]);
     }
     $values['settings'] = $settings;
@@ -414,7 +417,7 @@ abstract class WebTestBase extends TestBase {
       $original = drupal_get_path('module', 'simpletest') . '/files';
       $files = file_scan_directory($original, '/(html|image|javascript|php|sql)-.*/');
       foreach ($files as $file) {
-        file_unmanaged_copy($file->uri, variable_get('file_public_path', conf_path() . '/files'));
+        file_unmanaged_copy($file->uri, PublicStream::basePath());
       }
 
       $this->generatedTestFiles = TRUE;
@@ -463,7 +466,7 @@ abstract class WebTestBase extends TestBase {
    * @param string $name
    *   The user name.
    *
-   * @return \Drupal\user\Plugin\Core\Entity\User|false
+   * @return \Drupal\user\Entity\User|false
    *   A fully loaded user object with pass_raw property, or FALSE if account
    *   creation fails.
    */
@@ -770,7 +773,7 @@ abstract class WebTestBase extends TestBase {
         NestedArray::setValue($GLOBALS['conf'], array_merge(array($config_base), explode('.', $name)), $value);
       }
     }
-    $GLOBALS['conf']['file_public_path'] = $this->public_files_directory;
+    $this->settingsSet('file_public_path', $this->public_files_directory);
     // Execute the non-interactive installer.
     require_once DRUPAL_ROOT . '/core/includes/install.core.inc';
     $this->settingsSet('cache', array('default' => 'cache.backend.memory'));
@@ -788,7 +791,7 @@ abstract class WebTestBase extends TestBase {
     // Set 'parent_profile' of simpletest to add the parent profile's
     // search path to the child site's search paths.
     // @see drupal_system_listing()
-    config('simpletest.settings')->set('parent_profile', $this->originalProfile)->save();
+    \Drupal::config('simpletest.settings')->set('parent_profile', $this->originalProfile)->save();
 
     // Collect modules to install.
     $class = get_class($this);
@@ -812,16 +815,15 @@ abstract class WebTestBase extends TestBase {
     // Now make sure that the file path configurations are saved. This is done
     // after we install the modules to override default values.
     foreach ($variable_groups as $config_base => $variables) {
-      $config = config($config_base);
+      $config = \Drupal::config($config_base);
       foreach ($variables as $name => $value) {
         $config->set($name, $value);
       }
       $config->save();
     }
-    variable_set('file_public_path', $this->public_files_directory);
 
     // Use the test mail class instead of the default mail handler class.
-    config('system.mail')->set('interface.default', 'Drupal\Core\Mail\VariableLog')->save();
+    \Drupal::config('system.mail')->set('interface.default', 'Drupal\Core\Mail\VariableLog')->save();
 
     drupal_set_time_limit($this->timeLimit);
     // Temporary fix so that when running from run-tests.sh we don't get an
@@ -1402,13 +1404,18 @@ abstract class WebTestBase extends TestBase {
         if (!$edit && ($submit_matches || !isset($submit))) {
           $post_array = $post;
           if ($upload) {
-            // TODO: cURL handles file uploads for us, but the implementation
-            // is broken. This is a less than elegant workaround. Alternatives
-            // are being explored at #253506.
             foreach ($upload as $key => $file) {
               $file = drupal_realpath($file);
               if ($file && is_file($file)) {
-                $post[$key] = '@' . $file;
+                // Use the new CurlFile class for file uploads when using PHP
+                // 5.5.
+                if (class_exists('CurlFile')) {
+                  $post[$key] = curl_file_create($file);
+                }
+                else {
+                  // @todo: Drop support for this when PHP 5.5 is required.
+                  $post[$key] = '@' . $file;
+                }
               }
             }
           }

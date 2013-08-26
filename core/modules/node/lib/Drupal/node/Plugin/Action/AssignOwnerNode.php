@@ -79,7 +79,7 @@ class AssignOwnerNode extends ConfigurableActionBase implements ContainerFactory
   /**
    * {@inheritdoc}
    */
-  public function form(array $form, array &$form_state) {
+  public function buildConfigurationForm(array $form, array &$form_state) {
     $description = t('The username of the user to which you would like to assign ownership.');
     $count = $this->connection->query("SELECT COUNT(*) FROM {users}")->fetchField();
     $owner_name = '';
@@ -107,7 +107,7 @@ class AssignOwnerNode extends ConfigurableActionBase implements ContainerFactory
         '#type' => 'textfield',
         '#title' => t('Username'),
         '#default_value' => $owner_name,
-        '#autocomplete_path' => 'user/autocomplete',
+        '#autocomplete_route_name' => 'user_autocomplete',
         '#size' => '6',
         '#maxlength' => '60',
         '#description' => $description,
@@ -119,7 +119,7 @@ class AssignOwnerNode extends ConfigurableActionBase implements ContainerFactory
   /**
    * {@inheritdoc}
    */
-  public function validate(array &$form, array &$form_state) {
+  public function validateConfigurationForm(array &$form, array &$form_state) {
     $exists = (bool) $this->connection->queryRange('SELECT 1 FROM {users} WHERE name = :name', 0, 1, array(':name' => $form_state['values']['owner_name']))->fetchField();
     if (!$exists) {
       form_set_error('owner_name', t('Enter a valid username.'));
@@ -129,7 +129,7 @@ class AssignOwnerNode extends ConfigurableActionBase implements ContainerFactory
   /**
    * {@inheritdoc}
    */
-  public function submit(array &$form, array &$form_state) {
+  public function submitConfigurationForm(array &$form, array &$form_state) {
     $this->configuration['owner_uid'] = $this->connection->query('SELECT uid from {users} WHERE name = :name', array(':name' => $form_state['values']['owner_name']))->fetchField();
   }
 

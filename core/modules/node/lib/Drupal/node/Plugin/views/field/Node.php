@@ -64,7 +64,7 @@ class Node extends FieldPluginBase {
    *
    * Data should be made XSS safe prior to calling this function.
    */
-  function render_link($data, ResultRow $values) {
+  protected function renderLink($data, ResultRow $values) {
     if (!empty($this->options['link_to_node']) && !empty($this->additional_fields['nid'])) {
       if ($data !== NULL && $data !== '') {
         $this->options['alter']['make_link'] = TRUE;
@@ -87,9 +87,12 @@ class Node extends FieldPluginBase {
     return $data;
   }
 
-  public function render($values) {
+  /**
+   * {@inheritdoc}
+   */
+  public function render(ResultRow $values) {
     $value = $this->getValue($values);
-    return $this->render_link($this->sanitizeValue($value), $values);
+    return $this->renderLink($this->sanitizeValue($value), $values);
   }
 
 }

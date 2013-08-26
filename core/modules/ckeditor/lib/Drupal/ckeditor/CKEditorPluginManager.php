@@ -12,7 +12,7 @@ use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManager;
-use Drupal\editor\Plugin\Core\Entity\Editor;
+use Drupal\editor\Entity\Editor;
 
 /**
  * CKEditor Plugin manager.
@@ -40,7 +40,7 @@ class CKEditorPluginManager extends DefaultPluginManager {
   }
 
   /**
-   * Determines which plug-ins are enabled.
+   * Retrieves enabled plugins' files, keyed by plugin ID.
    *
    * For CKEditor plugins that implement:
    *  - CKEditorPluginButtonsInterface, not CKEditorPluginContextualInterface,
@@ -54,7 +54,7 @@ class CKEditorPluginManager extends DefaultPluginManager {
    * even implicitly loaded (i.e. internal) plugins, then set the optional
    * second parameter.
    *
-   * @param \Drupal\editor\Plugin\Core\Entity\Editor $editor
+   * @param \Drupal\editor\Entity\Editor $editor
    *   A configured text editor object.
    * @param bool $include_internal_plugins
    *   Defaults to FALSE. When set to TRUE, plugins whose isInternal() method
@@ -64,7 +64,7 @@ class CKEditorPluginManager extends DefaultPluginManager {
    *   the Drupal root-relative plugin files as values.
    *   For internal plugins, the value is NULL.
    */
-  public function getEnabledPlugins(Editor $editor, $include_internal_plugins = FALSE) {
+  public function getEnabledPluginFiles(Editor $editor, $include_internal_plugins = FALSE) {
     $plugins = array_keys($this->getDefinitions());
     $toolbar_buttons = array_unique(NestedArray::mergeDeepArray($editor->settings['toolbar']['buttons']));
     $enabled_plugins = array();
@@ -108,16 +108,15 @@ class CKEditorPluginManager extends DefaultPluginManager {
   }
 
   /**
-   * Retrieves all plugins that implement CKEditorPluginButtonsInterface.
+   * Retrieves all available CKEditor buttons, keyed by plugin ID.
    *
    * @return array
-   *   A list of the CKEditor plugins that implement buttons, with the plugin
-   *   IDs as keys and lists of button metadata (as implemented by getButtons())
-   *   as values.
+   *   All availble CKEditor buttons, with plugin IDs as keys and button
+   *   metadata (as implemented by getButtons()) as values.
    *
    * @see CKEditorPluginButtonsInterface::getButtons()
    */
-  public function getButtonsPlugins() {
+  public function getButtons() {
     $plugins = array_keys($this->getDefinitions());
     $buttons_plugins = array();
 
@@ -138,7 +137,7 @@ class CKEditorPluginManager extends DefaultPluginManager {
    *   A reference to an associative array containing the structure of the form.
    * @param array &$form_state
    *   A reference to a keyed array containing the current state of the form.
-   * @param \Drupal\editor\Plugin\Core\Entity\Editor $editor
+   * @param \Drupal\editor\Entity\Editor $editor
    *   A configured text editor object.
    */
   public function injectPluginSettingsForm(array &$form, array &$form_state, Editor $editor) {
