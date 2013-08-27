@@ -480,7 +480,14 @@ function simpletest_test_get_all() {
       foreach ($classes as $class) {
         // Test classes need to implement getInfo() to be valid.
         if (class_exists($class) && method_exists($class, 'getInfo')) {
-          $info = call_user_func(array($class, 'getInfo'));
+          try {
+            $info = call_user_func(array($class, 'getInfo'));
+          }
+          catch (\RuntimeException $e) {
+            // A run time exception indicates that this is an abstract base
+            // class, so we skip it.
+            continue;
+          }
 
           // If this test class requires a non-existing module, skip it.
           if (!empty($info['dependencies'])) {
