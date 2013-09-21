@@ -18,7 +18,6 @@ use Drupal\field\FieldInterface;
 
 require_once __DIR__ . '/field_test.entity.inc';
 require_once __DIR__ . '/field_test.field.inc';
-require_once __DIR__ . '/field_test.storage.inc';
 
 /**
  * Implements hook_permission().
@@ -57,7 +56,7 @@ function field_test_menu() {
  * Implements hook_field_available_languages_alter().
  */
 function field_test_field_available_languages_alter(&$langcodes, $context) {
-  if (Drupal::state()->get('field_test.field_available_languages_alter')) {
+  if (\Drupal::state()->get('field_test.field_available_languages_alter')) {
     // Add an unavailable language code.
     $langcodes[] = 'xx';
     // Remove an available language code.
@@ -70,7 +69,7 @@ function field_test_field_available_languages_alter(&$langcodes, $context) {
  * Implements hook_field_language_alter().
  */
 function field_test_field_language_alter(&$display_langcode, $context) {
-  if (Drupal::state()->get('field_test.language_fallback') ?: TRUE) {
+  if (\Drupal::state()->get('field_test.language_fallback') ?: TRUE) {
     field_language_fallback($display_langcode, $context['entity'], $context['langcode']);
   }
 }
@@ -154,7 +153,8 @@ function field_test_field_attach_view_alter(&$output, $context) {
  * Implements hook_field_widget_form_alter().
  */
 function field_test_field_widget_form_alter(&$element, &$form_state, $context) {
-  switch ($context['field_definition']->getFieldName()) {
+  $field_definition = $context['items']->getFieldDefinition();
+  switch ($field_definition->getFieldName()) {
     case 'alter_test_text':
       drupal_set_message('Field size: ' . $context['widget']->getSetting('size'));
       break;

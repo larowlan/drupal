@@ -45,7 +45,7 @@ class ShortcutSetDeleteForm extends EntityConfirmFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('database'),
-      $container->get('plugin.manager.entity')->getStorageController('shortcut_set')
+      $container->get('entity.manager')->getStorageController('shortcut_set')
     );
   }
 
@@ -59,8 +59,13 @@ class ShortcutSetDeleteForm extends EntityConfirmFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getCancelPath() {
-    return 'admin/config/user-interface/shortcut/manage/' . $this->entity->id();
+  public function getCancelRoute() {
+    return array(
+      'route_name' => 'shortcut.set_customize',
+      'route_parameters' => array(
+        'shortcut_set' => $this->entity->id(),
+      ),
+    );
   }
 
   /**

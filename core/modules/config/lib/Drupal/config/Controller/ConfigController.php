@@ -7,10 +7,9 @@
 
 namespace Drupal\config\Controller;
 
-use Drupal\Core\Controller\ControllerInterface;
-use Drupal\Core\Config\StorageInterface;
 use Drupal\Component\Archiver\ArchiveTar;
-use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Config\StorageInterface;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\system\FileDownloadController;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,7 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Returns responses for config module routes.
  */
-class ConfigController implements ControllerInterface {
+class ConfigController implements ContainerInjectionInterface {
 
   /**
    * The target storage.
@@ -37,7 +36,7 @@ class ConfigController implements ControllerInterface {
   /**
    * The file download controller.
    *
-   * @var \Drupal\Core\Controller\ControllerInterface
+   * @var \Drupal\system\FileDownloadController
    */
   protected $fileDownloadController;
 
@@ -48,7 +47,7 @@ class ConfigController implements ControllerInterface {
     return new static(
       $container->get('config.storage'),
       $container->get('config.storage.staging'),
-      FileDownloadController::create($container)
+      new FileDownloadController()
     );
   }
 
@@ -59,10 +58,10 @@ class ConfigController implements ControllerInterface {
    *   The target storage.
    * @param \Drupal\Core\Config\StorageInterface $source_storage
    *   The source storage
-   * @param \Drupal\Core\Controller\ControllerInterface $file_download_controller
+   * @param \Drupal\system\FileDownloadController $file_download_controller
    *   The file download controller.
    */
-  public function __construct(StorageInterface $target_storage, StorageInterface $source_storage, ControllerInterface $file_download_controller) {
+  public function __construct(StorageInterface $target_storage, StorageInterface $source_storage, FileDownloadController $file_download_controller) {
     $this->targetStorage = $target_storage;
     $this->sourceStorage = $source_storage;
     $this->fileDownloadController = $file_download_controller;

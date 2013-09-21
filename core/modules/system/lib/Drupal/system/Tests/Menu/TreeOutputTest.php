@@ -14,7 +14,7 @@ use Drupal\simpletest\DrupalUnitTestBase;
  */
 class TreeOutputTest extends DrupalUnitTestBase {
 
-  public static $modules = array('system', 'menu_link');
+  public static $modules = array('system', 'menu_link', 'field');
 
   /**
    * Dummy link structure acceptable for menu_tree_output().
@@ -32,14 +32,14 @@ class TreeOutputTest extends DrupalUnitTestBase {
   function setUp() {
     parent::setUp();
 
-    $this->installSchema('system', 'menu_router');
+    $this->installSchema('system', array('router', 'menu_router'));
   }
 
   /**
    * Validate the generation of a proper menu tree output.
    */
   function testMenuTreeData() {
-    $storage_controller = $this->container->get('plugin.manager.entity')->getStorageController('menu_link');
+    $storage_controller = $this->container->get('entity.manager')->getStorageController('menu_link');
     // @todo Prettify this tree buildup code, it's very hard to read.
     $this->tree_data = array(
       '1'=> array(

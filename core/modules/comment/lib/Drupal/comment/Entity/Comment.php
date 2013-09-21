@@ -27,7 +27,8 @@ use Drupal\Core\Language\Language;
  *     "access" = "Drupal\comment\CommentAccessController",
  *     "render" = "Drupal\comment\CommentRenderController",
  *     "form" = {
- *       "default" = "Drupal\comment\CommentFormController"
+ *       "default" = "Drupal\comment\CommentFormController",
+ *       "delete" = "Drupal\comment\Form\DeleteForm"
  *     },
  *     "translation" = "Drupal\comment\CommentTranslationController"
  *   },
@@ -174,13 +175,6 @@ class Comment extends EntityNG implements CommentInterface {
   public $node_type;
 
   /**
-   * The comment 'new' marker for the current user.
-   *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
-   */
-  public $new;
-
-  /**
    * Initialize the object. Invoked upon construction and wake up.
    */
   protected function init() {
@@ -201,7 +195,6 @@ class Comment extends EntityNG implements CommentInterface {
     unset($this->status);
     unset($this->thread);
     unset($this->node_type);
-    unset($this->new);
   }
 
   /**
@@ -215,6 +208,8 @@ class Comment extends EntityNG implements CommentInterface {
    * {@inheritdoc}
    */
   public static function preCreate(EntityStorageControllerInterface $storage_controller, array &$values) {
+    parent::preCreate($storage_controller, $values);
+
     if (empty($values['node_type']) && !empty($values['nid'])) {
       $node = node_load(is_object($values['nid']) ? $values['nid']->value : $values['nid']);
       $values['node_type'] = 'comment_node_' . $node->getType();
@@ -225,6 +220,8 @@ class Comment extends EntityNG implements CommentInterface {
    * {@inheritdoc}
    */
   public function preSave(EntityStorageControllerInterface $storage_controller) {
+    parent::preSave($storage_controller);
+
     global $user;
 
     if (!isset($this->status->value)) {
@@ -314,6 +311,8 @@ class Comment extends EntityNG implements CommentInterface {
    * {@inheritdoc}
    */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
+    parent::postSave($storage_controller, $update);
+
     $this->releaseThreadLock();
     // Update the {node_comment_statistics} table prior to executing the hook.
     $storage_controller->updateNodeStatistics($this->nid->target_id);
@@ -336,10 +335,12 @@ class Comment extends EntityNG implements CommentInterface {
    * {@inheritdoc}
    */
   public static function postDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
+    parent::postDelete($storage_controller, $entities);
+
     $child_cids = $storage_controller->getChildCids($entities);
     entity_delete_multiple('comment', $child_cids);
 
-    foreach ($entities as $id => $entity) {
+    foreach ($entities as $entity) {
       $storage_controller->updateNodeStatistics($entity->nid->target_id);
     }
   }
@@ -348,7 +349,6 @@ class Comment extends EntityNG implements CommentInterface {
    * {@inheritdoc}
    */
   public function permalink() {
-
     $url['path'] = 'node/' . $this->nid->value;
     $url['options'] = array('fragment' => 'comment-' . $this->id());
 
@@ -450,13 +450,14 @@ class Comment extends EntityNG implements CommentInterface {
       'type' => 'string_field',
       'queryable' => FALSE,
     );
-    $properties['new'] = array(
-      'label' => t('Comment new marker'),
-      'description' => t("The comment 'new' marker for the current user (0 read, 1 new, 2 updated)."),
-      'type' => 'integer_field',
-      'computed' => TRUE,
-      'class' => '\Drupal\comment\CommentNewItem',
-    );
     return $properties;
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getChangedTime() {
+    return $this->changed->value;
+  }
+
 }

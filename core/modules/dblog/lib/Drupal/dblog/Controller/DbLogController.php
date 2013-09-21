@@ -10,9 +10,10 @@ namespace Drupal\dblog\Controller;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Xss;
+use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
-use Drupal\Core\Controller\ControllerInterface;
 use Drupal\Core\Datetime\Date;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\user\UserStorageControllerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -20,7 +21,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Returns responses for dblog routes.
  */
-class DbLogController implements ControllerInterface {
+class DbLogController extends ControllerBase implements ContainerInjectionInterface {
 
   /**
    * The database service.
@@ -55,7 +56,7 @@ class DbLogController implements ControllerInterface {
       $container->get('database'),
       $container->get('module_handler'),
       $container->get('date'),
-      $container->get('plugin.manager.entity')->getStorageController('user')
+      $container->get('entity.manager')->getStorageController('user')
     );
   }
 
@@ -176,7 +177,7 @@ class DbLogController implements ControllerInterface {
         if (isset($dblog->wid)) {
           // Truncate link_text to 56 chars of message.
           $log_text = Unicode::truncate(filter_xss($message, array()), 56, TRUE, TRUE);
-          $message = l($log_text, 'admin/reports/event/' . $dblog->wid, array('html' => TRUE));
+          $message = $this->l($log_text, 'dblog.event',  array('event_id' => $dblog->wid), array('html' => TRUE));
         }
       }
       $username = array(
@@ -316,6 +317,30 @@ class DbLogController implements ControllerInterface {
       'where' => $where,
       'args' => $args,
     );
+  }
+
+  /**
+   * @todo Remove dblog_top().
+   */
+  public function pageNotFound() {
+    module_load_include('admin.inc', 'dblog');
+    return dblog_top('page not found');
+  }
+
+  /**
+   * @todo Remove dblog_top().
+   */
+  public function accessDenied() {
+    module_load_include('admin.inc', 'dblog');
+    return dblog_top('access denied');
+  }
+
+  /**
+   * @todo Remove dblog_top().
+   */
+  public function search() {
+    module_load_include('admin.inc', 'dblog');
+    return dblog_top('search');
   }
 
 }

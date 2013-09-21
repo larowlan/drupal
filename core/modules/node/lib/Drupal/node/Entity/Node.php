@@ -11,6 +11,8 @@ use Drupal\Core\Entity\EntityNG;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Entity\Annotation\EntityType;
 use Drupal\Core\Annotation\Translation;
+use Drupal\Core\Language\Language;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\node\NodeInterface;
 
 /**
@@ -77,6 +79,8 @@ class Node extends EntityNG implements NodeInterface {
    * {@inheritdoc}
    */
   public function preSave(EntityStorageControllerInterface $storage_controller) {
+    parent::preSave($storage_controller);
+
     // Before saving the node, set changed and revision times.
     $this->changed->value = REQUEST_TIME;
   }
@@ -85,6 +89,8 @@ class Node extends EntityNG implements NodeInterface {
    * {@inheritdoc}
    */
   public function preSaveRevision(EntityStorageControllerInterface $storage_controller, \stdClass $record) {
+    parent::preSaveRevision($storage_controller, $record);
+
     if ($this->newRevision) {
       // When inserting either a new node or a new node revision, $node->log
       // must be set because {node_field_revision}.log is a text column and
@@ -111,6 +117,8 @@ class Node extends EntityNG implements NodeInterface {
    * {@inheritdoc}
    */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
+    parent::postSave($storage_controller, $update);
+
     // Update the node access table for this node, but only if it is the
     // default revision. There's no need to delete existing records if the node
     // is new.
@@ -123,6 +131,8 @@ class Node extends EntityNG implements NodeInterface {
    * {@inheritdoc}
    */
   public static function preDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
+    parent::preDelete($storage_controller, $entities);
+
     if (module_exists('search')) {
       foreach ($entities as $entity) {
         search_reindex($entity->nid->value, 'node');
@@ -136,6 +146,40 @@ class Node extends EntityNG implements NodeInterface {
   public function getType() {
     return $this->bundle();
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function access($operation = 'view', AccountInterface $account = NULL) {
+    if ($operation == 'create') {
+      return parent::access($operation, $account);
+    }
+
+    return \Drupal::entityManager()
+      ->getAccessController($this->entityType)
+      ->access($this, $operation, $this->prepareLangcode(), $account);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function prepareLangcode() {
+    $langcode = $this->language()->id;
+    // If the Language module is enabled, try to use the language from content
+    // negotiation.
+    if (\Drupal::moduleHandler()->moduleExists('language')) {
+      // Load languages the node exists in.
+      $node_translations = $this->getTranslationLanguages();
+      // Load the language from content negotiation.
+      $content_negotiation_langcode = \Drupal::languageManager()->getLanguage(Language::TYPE_CONTENT)->id;
+      // If there is a translation available, use it.
+      if (isset($node_translations[$content_negotiation_langcode])) {
+        $langcode = $content_negotiation_langcode;
+      }
+    }
+    return $langcode;
+  }
+
 
   /**
    * {@inheritdoc}
@@ -340,7 +384,7 @@ class Node extends EntityNG implements NodeInterface {
       'description' => t('The time that the node was last edited.'),
       'type' => 'integer_field',
       'property_constraints' => array(
-        'value' => array('NodeChanged' => array()),
+        'value' => array('EntityChanged' => array()),
       ),
     );
     $properties['comment'] = array(

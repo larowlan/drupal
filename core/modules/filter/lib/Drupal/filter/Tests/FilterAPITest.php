@@ -107,7 +107,7 @@ class FilterAPITest extends EntityUnitTestBase {
     );
     $this->assertIdentical(
       filter_get_filter_types_by_format('filtered_html'),
-      array(FILTER_TYPE_HTML_RESTRICTOR, FILTER_TYPE_MARKUP_LANGUAGE),
+      array(FILTER_TYPE_MARKUP_LANGUAGE, FILTER_TYPE_HTML_RESTRICTOR),
       'filter_get_filter_types_by_format() works as expected for the filtered_html format.'
     );
 
@@ -198,22 +198,25 @@ class FilterAPITest extends EntityUnitTestBase {
     $this->assertTrue($data instanceof AllowedValuesInterface, 'Typed data object implements \Drupal\Core\TypedData\AllowedValuesInterface');
 
     $filtered_html_user = $this->createUser(array('uid' => 2), array(
-      filter_permission_name(filter_format_load('filtered_html')),
+      entity_load('filter_format', 'filtered_html')->getPermissionName(),
     ));
 
     // Test with anonymous user.
     $user = drupal_anonymous_user();
     $this->container->set('current_user', $user);
 
-    $available_values = $data->getPossibleValues();
-    $this->assertEqual($available_values, array('filtered_html', 'full_html', 'plain_text'));
-    $available_options = $data->getPossibleOptions();
     $expected_available_options = array(
       'filtered_html' => 'Filtered HTML',
       'full_html' => 'Full HTML',
+      'filter_test' => 'Test format',
       'plain_text' => 'Plain text',
     );
+
+    $available_values = $data->getPossibleValues();
+    $this->assertEqual($available_values, array_keys($expected_available_options));
+    $available_options = $data->getPossibleOptions();
     $this->assertEqual($available_options, $expected_available_options);
+
     $allowed_values = $data->getSettableValues($user);
     $this->assertEqual($allowed_values, array('plain_text'));
     $allowed_options = $data->getSettableOptions($user);

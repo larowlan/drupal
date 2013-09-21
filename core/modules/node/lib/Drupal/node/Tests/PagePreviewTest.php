@@ -68,7 +68,8 @@ class PagePreviewTest extends NodeTestBase {
     // Set up a field and instance.
     $this->field_name = drupal_strtolower($this->randomName());
     entity_create('field_entity', array(
-      'field_name' => $this->field_name,
+      'name' => $this->field_name,
+      'entity_type' => 'node',
       'type' => 'taxonomy_term_reference',
       'settings' => array(
         'allowed_values' => array(
@@ -109,17 +110,16 @@ class PagePreviewTest extends NodeTestBase {
    * Checks the node preview functionality.
    */
   function testPagePreview() {
-    $langcode = Language::LANGCODE_NOT_SPECIFIED;
     $title_key = "title";
-    $body_key = "body[$langcode][0][value]";
-    $term_key = "{$this->field_name}[$langcode]";
+    $body_key = 'body[0][value]';
+    $term_key = $this->field_name;
 
     // Fill in node creation form and preview node.
     $edit = array();
     $edit[$title_key] = $this->randomName(8);
     $edit[$body_key] = $this->randomName(16);
     $edit[$term_key] = $this->term->label();
-    $this->drupalPost('node/add/page', $edit, t('Preview'));
+    $this->drupalPostForm('node/add/page', $edit, t('Preview'));
 
     // Check that the preview is displaying the title, body and term.
     $this->assertTitle(t('Preview | Drupal'), 'Basic page title is preview.');
@@ -134,7 +134,7 @@ class PagePreviewTest extends NodeTestBase {
     $this->assertFieldByName($term_key, $edit[$term_key], 'Term field displayed.');
 
     // Save the node.
-    $this->drupalPost('node/add/page', $edit, t('Save'));
+    $this->drupalPostForm('node/add/page', $edit, t('Save'));
     $node = $this->drupalGetNodeByTitle($edit[$title_key]);
 
     // Check the term was displayed on the saved node.
@@ -151,7 +151,7 @@ class PagePreviewTest extends NodeTestBase {
     $newterm1 = $this->randomName(8);
     $newterm2 = $this->randomName(8);
     $edit[$term_key] = $this->term->label() . ', ' . $newterm1 . ', ' . $newterm2;
-    $this->drupalPost('node/' . $node->id() . '/edit', $edit, t('Preview'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Preview'));
     $this->assertRaw('>' . $newterm1 . '<', 'First new term displayed.');
     $this->assertRaw('>' . $newterm2 . '<', 'Second new term displayed.');
     // The first term should be displayed as link, the others not.
@@ -159,14 +159,14 @@ class PagePreviewTest extends NodeTestBase {
     $this->assertNoLink($newterm1);
     $this->assertNoLink($newterm2);
 
-    $this->drupalPost('node/add/page', $edit, t('Save'));
+    $this->drupalPostForm('node/add/page', $edit, t('Save'));
 
     // Check with one more new term, keeping old terms, removing the existing
     // one.
     $edit = array();
     $newterm3 = $this->randomName(8);
     $edit[$term_key] = $newterm1 . ', ' . $newterm3 . ', ' . $newterm2;
-    $this->drupalPost('node/' . $node->id() . '/edit', $edit, t('Preview'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Preview'));
     $this->assertRaw('>' . $newterm1 . '<', 'First existing term displayed.');
     $this->assertRaw('>' . $newterm2 . '<', 'Second existing term displayed.');
     $this->assertRaw('>' . $newterm3 . '<', 'Third new term displayed.');
@@ -174,17 +174,16 @@ class PagePreviewTest extends NodeTestBase {
     $this->assertNoLink($newterm1);
     $this->assertNoLink($newterm2);
     $this->assertNoLink($newterm3);
-    $this->drupalPost('node/add/page', $edit, t('Save'));
+    $this->drupalPostForm('node/add/page', $edit, t('Save'));
   }
 
   /**
    * Checks the node preview functionality, when using revisions.
    */
   function testPagePreviewWithRevisions() {
-    $langcode = Language::LANGCODE_NOT_SPECIFIED;
-    $title_key = "title";
-    $body_key = "body[$langcode][0][value]";
-    $term_key = "{$this->field_name}[$langcode]";
+    $title_key = 'title';
+    $body_key = 'body[0][value]';
+    $term_key = $this->field_name;
     // Force revision on "Basic page" content.
     $this->container->get('config.factory')->get('node.type.page')->set('settings.node.options', array('status', 'revision'))->save();
 
@@ -194,7 +193,7 @@ class PagePreviewTest extends NodeTestBase {
     $edit[$body_key] = $this->randomName(16);
     $edit[$term_key] = $this->term->id();
     $edit['log'] = $this->randomName(32);
-    $this->drupalPost('node/add/page', $edit, t('Preview'));
+    $this->drupalPostForm('node/add/page', $edit, t('Preview'));
 
     // Check that the preview is displaying the title, body and term.
     $this->assertTitle(t('Preview | Drupal'), 'Basic page title is preview.');

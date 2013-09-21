@@ -37,8 +37,8 @@ class StandardTest extends WebTestBase {
     $admin = $this->drupalCreateUser(array('administer blocks'));
     $this->drupalLogin($admin);
     // Configure the block.
-    $this->drupalGet('admin/structure/block/add/system_menu_block:menu-main/bartik');
-    $this->drupalPost(NULL, array(
+    $this->drupalGet('admin/structure/block/add/system_menu_block:main/bartik');
+    $this->drupalPostForm(NULL, array(
       'region' => 'sidebar_first',
       'machine_name' => 'main_navigation',
     ), t('Save block'));

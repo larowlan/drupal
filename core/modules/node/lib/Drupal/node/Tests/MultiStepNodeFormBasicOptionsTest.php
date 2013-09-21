@@ -7,9 +7,6 @@
 
 namespace Drupal\node\Tests;
 
-use Drupal\Core\Language\Language;
-use Drupal\simpletest\WebTestBase;
-
 /**
  * Tests basic options of multi-step node forms.
  */
@@ -41,7 +38,8 @@ class MultiStepNodeFormBasicOptionsTest extends NodeTestBase {
     // Create an unlimited cardinality field.
     $this->field_name = drupal_strtolower($this->randomName());
     entity_create('field_entity', array(
-      'field_name' => $this->field_name,
+      'name' => $this->field_name,
+      'entity_type' => 'node',
       'type' => 'text',
       'cardinality' => -1,
     ))->save();
@@ -62,15 +60,13 @@ class MultiStepNodeFormBasicOptionsTest extends NodeTestBase {
       ))
       ->save();
 
-    $langcode = Language::LANGCODE_NOT_SPECIFIED;
-
     $edit = array(
       'title' => 'a',
       'promote' => FALSE,
       'sticky' => 1,
-      "{$this->field_name}[$langcode][0][value]" => $this->randomString(32),
+      "{$this->field_name}[0][value]" => $this->randomString(32),
     );
-    $this->drupalPost('node/add/page', $edit, t('Add another item'));
+    $this->drupalPostForm('node/add/page', $edit, t('Add another item'));
     $this->assertNoFieldChecked('edit-promote', 'promote stayed unchecked');
     $this->assertFieldChecked('edit-sticky', 'sticky stayed checked');
   }

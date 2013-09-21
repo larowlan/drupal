@@ -161,7 +161,7 @@ function language_types_info() {
   $language_types = &drupal_static(__FUNCTION__);
 
   if (!isset($language_types)) {
-    $language_types = Drupal::moduleHandler()->invokeAll('language_types_info');
+    $language_types = \Drupal::moduleHandler()->invokeAll('language_types_info');
     // Let other modules alter the list of language types.
     drupal_alter('language_types_info', $language_types);
   }
@@ -180,7 +180,7 @@ function language_types_info() {
  *   An array of language type names.
  */
 function language_types_get_configurable() {
-  $configurable = Drupal::config('system.language.types')->get('configurable');
+  $configurable = \Drupal::config('system.language.types')->get('configurable');
   return $configurable ? $configurable : array();
 }
 
@@ -192,7 +192,7 @@ function language_types_get_configurable() {
  */
 function language_types_disable($types) {
   $configurable = language_types_get_configurable();
-  Drupal::config('system.language.types')->set('configurable', array_diff($configurable, $types))->save();
+  \Drupal::config('system.language.types')->set('configurable', array_diff($configurable, $types))->save();
 }
 
 /**
@@ -203,8 +203,9 @@ function language_types_disable($types) {
  */
 function language_types_set(array $configurable_language_types) {
   // Ensure that we are getting the defined language negotiation information. An
-  // invocation of module_enable() or module_disable() could outdate the cached
-  // information.
+  // invocation of \Drupal\Core\Extension\ModuleHandler::install() or
+  // \Drupal\Core\Extension\ModuleHandler::uninstall() could invalidate the
+  // cached information.
   drupal_static_reset('language_types_info');
   drupal_static_reset('language_negotiation_info');
 
@@ -252,7 +253,7 @@ function language_types_set(array $configurable_language_types) {
   }
 
   // Store the language type configuration.
-  $config = Drupal::config('system.language.types');
+  $config = \Drupal::config('system.language.types');
   $config->set('configurable', array_keys(array_filter($language_types)))->save();
   $config->set('all', array_keys($language_types))->save();
 
@@ -343,8 +344,9 @@ function language_negotiation_get_switch_links($type, $path) {
  */
 function language_negotiation_purge() {
   // Ensure that we are getting the defined language negotiation information. An
-  // invocation of module_enable() or module_disable() could outdate the cached
-  // information.
+  // invocation of \Drupal\Core\Extension\ModuleHandler::install() or
+  // \Drupal\Core\Extension\ModuleHandler::uninstall() could invalidate the
+  // cached information.
   drupal_static_reset('language_negotiation_info');
   drupal_static_reset('language_types_info');
 
@@ -413,7 +415,7 @@ function language_negotiation_info() {
 
   if (!isset($negotiation_info)) {
     // Collect all the module-defined language negotiation methods.
-    $negotiation_info = Drupal::moduleHandler()->invokeAll('language_negotiation_info');
+    $negotiation_info = \Drupal::moduleHandler()->invokeAll('language_negotiation_info');
     $languages = language_list();
     $selected_language = $languages[language_from_selected($languages)];
     $description = 'Language based on a selected language. ';
@@ -493,7 +495,7 @@ function language_negotiation_method_invoke($method_id, $method = NULL, $request
   *   A valid language code on success, FALSE otherwise.
   */
 function language_from_selected($languages) {
-  $langcode = (string) Drupal::config('language.negotiation')->get('selected_langcode');
+  $langcode = (string) \Drupal::config('language.negotiation')->get('selected_langcode');
   // Replace the site's default langcode by its real value.
   if ($langcode == 'site_default') {
     $langcode = language_default()->id;

@@ -8,7 +8,7 @@
 namespace Drupal\node\Plugin\views\wizard;
 
 use Drupal\views\Plugin\views\wizard\WizardPluginBase;
-use Drupal\Component\Annotation\Plugin;
+use Drupal\views\Annotation\ViewsWizard;
 use Drupal\Core\Annotation\Translation;
 
 /**
@@ -18,14 +18,12 @@ use Drupal\Core\Annotation\Translation;
 /**
  * Tests creating node views with the wizard.
  *
- * @Plugin(
+ * @ViewsWizard(
  *   id = "node",
- *   module = "node",
  *   base_table = "node",
  *   title = @Translation("Content")
  * )
  */
-
 class Node extends WizardPluginBase {
 
   /**
@@ -109,8 +107,8 @@ class Node extends WizardPluginBase {
       case 'teasers':
         $style_form['row_options']['links'] = array(
           '#type' => 'select',
-          '#title_display' => 'invisible',
           '#title' => t('Should links be displayed below each node'),
+          '#title_display' => 'invisible',
           '#options' => array(
             1 => t('with links (allow users to add comments, etc.)'),
             0 => t('without links'),
@@ -119,8 +117,8 @@ class Node extends WizardPluginBase {
         );
         $style_form['row_options']['comments'] = array(
           '#type' => 'select',
-          '#title_display' => 'invisible',
           '#title' => t('Should comments be displayed below each node'),
+          '#title_display' => 'invisible',
           '#options' => array(
             1 => t('with comments'),
             0 => t('without comments'),
@@ -306,10 +304,14 @@ class Node extends WizardPluginBase {
       $form['displays']['show']['tagged_with'] = array(
         '#type' => 'textfield',
         '#title' => t('tagged with'),
-        '#autocomplete_route_name' => 'taxonomy_autocomplete',
-        '#autocomplete_route_parameters' => array('field_name' => $tag_field_name),
+        '#autocomplete_route_name' => 'taxonomy.autocomplete',
+        '#autocomplete_route_parameters' => array(
+          'entity_type' => $this->entity_type,
+          'field_name' => $tag_field_name,
+        ),
         '#size' => 30,
         '#maxlength' => 1024,
+        '#entity_type' => $this->entity_type,
         '#field_name' => $tag_field_name,
         '#element_validate' => array('views_ui_taxonomy_autocomplete_validate'),
       );

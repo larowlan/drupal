@@ -138,6 +138,9 @@ interface EntityInterface extends IdentifiableInterface, ComplexDataInterface, A
   /**
    * Saves an entity permanently.
    *
+   * When saving existing entities, the entity is assumed to be complete,
+   * partial updates of entities are not supported.
+   *
    * @return
    *   Either SAVED_NEW or SAVED_UPDATED, depending on the operation performed.
    *
@@ -286,26 +289,6 @@ interface EntityInterface extends IdentifiableInterface, ComplexDataInterface, A
    *   An array of exportable properties and their values.
    */
   public function getExportProperties();
-
-  /**
-   * Gets a backward compatibility decorator entity.
-   *
-   * @return \Drupal\Core\Entity\EntityInterface
-   *   The backward compatible entity.
-   *
-   * @see \Drupal\Core\Entity\EntityInterface::getNGEntity()
-   */
-  public function getBCEntity();
-
-  /**
-   * Removes any possible (backward compatibility) decorator in use.
-   *
-   * @return \Drupal\Core\Entity\EntityInterface
-   *   The original, not backward compatible entity object.
-   *
-   * @see \Drupal\Core\Entity\EntityInterface::getBCEntity()
-   */
-  public function getNGEntity();
 
   /**
    * Returns the translation support status.

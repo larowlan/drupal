@@ -54,9 +54,7 @@ class WidgetPluginManager extends DefaultPluginManager {
    *   The 'field type' plugin manager.
    */
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, LanguageManager $language_manager, FieldTypePluginManager $field_type_manager) {
-    $annotation_namespaces = array('Drupal\field\Annotation' => $namespaces['Drupal\field']);
-
-    parent::__construct('Plugin/field/widget', $namespaces, $annotation_namespaces, 'Drupal\field\Annotation\FieldWidget');
+    parent::__construct('Plugin/field/widget', $namespaces, 'Drupal\field\Annotation\FieldWidget');
 
     $this->setCacheBackend($cache_backend, $language_manager, 'field_widget_types');
     $this->alterInfo($module_handler, 'field_widget_info');
@@ -87,12 +85,18 @@ class WidgetPluginManager extends DefaultPluginManager {
    *   A Widget object.
    */
   public function getInstance(array $options) {
+    // Fill in defaults for missing properties.
+    $options += array(
+      'configuration' => array(),
+      'prepare' => TRUE,
+    );
+
     $configuration = $options['configuration'];
     $field_definition = $options['field_definition'];
     $field_type = $field_definition->getFieldType();
 
     // Fill in default configuration if needed.
-    if (!isset($options['prepare']) || $options['prepare'] == TRUE) {
+    if ($options['prepare']) {
       $configuration = $this->prepareConfiguration($field_type, $configuration);
     }
 

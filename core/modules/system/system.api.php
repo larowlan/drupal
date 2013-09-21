@@ -125,7 +125,7 @@ function hook_cron() {
     ':time' => REQUEST_TIME,
     ':never' => AGGREGATOR_CLEAR_NEVER,
   ));
-  $queue = Drupal::queue('aggregator_feeds');
+  $queue = \Drupal::queue('aggregator_feeds');
   foreach ($result as $feed) {
     $queue->createItem($feed);
   }
@@ -1357,14 +1357,14 @@ function hook_mail_alter(&$message) {
       $message['send'] = FALSE;
       return;
     }
-    $message['body'][] = "--\nMail sent out from " . Drupal::config('system.site')->get('name');
+    $message['body'][] = "--\nMail sent out from " . \Drupal::config('system.site')->get('name');
   }
 }
 
 /**
  * Alter the registry of modules implementing a hook.
  *
- * This hook is invoked during Drupal::moduleHandler()->getImplementations().
+ * This hook is invoked during \Drupal::moduleHandler()->getImplementations().
  * A module may implement this hook in order to reorder the implementing
  * modules, which are otherwise ordered by the module's system weight.
  *
@@ -1387,7 +1387,7 @@ function hook_mail_alter(&$message) {
 function hook_module_implements_alter(&$implementations, $hook) {
   if ($hook == 'rdf_mapping') {
     // Move my_module_rdf_mapping() to the end of the list.
-    // Drupal::moduleHandler()->getImplementations()
+    // \Drupal::moduleHandler()->getImplementations()
     // iterates through $implementations with a foreach loop which PHP iterates
     // in the order that the items were added, so to move an item to the end of
     // the array, we remove it and then add it.
@@ -1717,7 +1717,7 @@ function hook_template_preprocess_default_variables_alter(&$variables) {
  */
 function hook_custom_theme() {
   // Allow the user to request a particular theme via a query parameter.
-  return Drupal::request()->query->get('theme');
+  return \Drupal::request()->query->get('theme');
 }
 
 /**
@@ -1775,7 +1775,7 @@ function hook_watchdog(array $log_entry) {
   $to = 'someone@example.com';
   $params = array();
   $params['subject'] = t('[@site_name] @severity_desc: Alert from your web site', array(
-    '@site_name' => Drupal::config('system.site')->get('name'),
+    '@site_name' => \Drupal::config('system.site')->get('name'),
     '@severity_desc' => $severity_list[$log_entry['severity']],
   ));
 
@@ -1841,7 +1841,7 @@ function hook_mail($key, &$message, $params) {
   $account = $params['account'];
   $context = $params['context'];
   $variables = array(
-    '%site_name' => Drupal::config('system.site')->get('name'),
+    '%site_name' => \Drupal::config('system.site')->get('name'),
     '%username' => user_format_name($account),
   );
   if ($context['hook'] == 'taxonomy') {
@@ -1929,26 +1929,12 @@ function hook_rebuild() {
 }
 
 /**
- * Perform necessary actions before modules are installed.
+ * Perform necessary actions before a module is installed.
  *
- * This function allows all modules to react prior to a module being installed.
- *
- * @param $modules
- *   An array of modules about to be installed.
+ * @param string $module
+ *   The name of the module about to be installed.
  */
-function hook_modules_preinstall($modules) {
-  mymodule_cache_clear();
-}
-
-/**
- * Perform necessary actions before modules are enabled.
- *
- * This function allows all modules to react prior to a module being enabled.
- *
- * @param $module
- *   An array of modules about to be enabled.
- */
-function hook_modules_preenable($modules) {
+function hook_module_preinstall($module) {
   mymodule_cache_clear();
 }
 
@@ -1958,14 +1944,13 @@ function hook_modules_preenable($modules) {
  * This function differs from hook_install() in that it gives all other modules
  * a chance to perform actions when a module is installed, whereas
  * hook_install() is only called on the module actually being installed. See
- * module_enable() for a detailed description of the order in which install and
- * enable hooks are invoked.
+ * \Drupal\Core\Extension\ModuleHandler::install() for a detailed description of
+ * the order in which install hooks are invoked.
  *
  * @param $modules
  *   An array of the modules that were installed.
  *
- * @see module_enable()
- * @see hook_modules_enabled()
+ * @see \Drupal\Core\Extension\ModuleHandler::install()
  * @see hook_install()
  */
 function hook_modules_installed($modules) {
@@ -1975,45 +1960,13 @@ function hook_modules_installed($modules) {
 }
 
 /**
- * Perform necessary actions after modules are enabled.
+ * Perform necessary actions before a module is uninstalled.
  *
- * This function differs from hook_enable() in that it gives all other modules a
- * chance to perform actions when modules are enabled, whereas hook_enable() is
- * only called on the module actually being enabled. See module_enable() for a
- * detailed description of the order in which install and enable hooks are
- * invoked.
- *
- * @param $modules
- *   An array of the modules that were enabled.
- *
- * @see hook_enable()
- * @see hook_modules_installed()
- * @see module_enable()
+ * @param string $module
+ *   The name of the module about to be uninstalled.
  */
-function hook_modules_enabled($modules) {
-  if (in_array('lousy_module', $modules)) {
-    drupal_set_message(t('mymodule is not compatible with lousy_module'), 'error');
-    mymodule_disable_functionality();
-  }
-}
-
-/**
- * Perform necessary actions after modules are disabled.
- *
- * This function differs from hook_disable() in that it gives all other modules
- * a chance to perform actions when modules are disabled, whereas hook_disable()
- * is only called on the module actually being disabled.
- *
- * @param $modules
- *   An array of the modules that were disabled.
- *
- * @see hook_disable()
- * @see hook_modules_uninstalled()
- */
-function hook_modules_disabled($modules) {
-  if (in_array('lousy_module', $modules)) {
-    mymodule_enable_functionality();
-  }
+function hook_module_preuninstall($module) {
+  mymodule_cache_clear();
 }
 
 /**
@@ -2150,7 +2103,7 @@ function hook_file_download($uri) {
       return -1;
     }
     else {
-      $image = Drupal::service('image.factory')->get($uri);
+      $image = \Drupal::service('image.factory')->get($uri);
       return array('Content-Type' => $image->getMimeType());
     }
   }
@@ -2277,7 +2230,7 @@ function hook_requirements($phase) {
   if ($phase == 'runtime') {
     $requirements['drupal'] = array(
       'title' => t('Drupal'),
-      'value' => VERSION,
+      'value' => \Drupal::VERSION,
       'severity' => REQUIREMENT_INFO
     );
   }
@@ -2327,9 +2280,9 @@ function hook_requirements($phase) {
  * .module file is needed, it may be loaded with drupal_load().
  *
  * The tables declared by this hook will be automatically created when the
- * module is first enabled, and removed when the module is uninstalled. This
- * happens before hook_install() is invoked, and after hook_uninstall() is
- * invoked, respectively.
+ * module is installed, and removed when the module is uninstalled. This happens
+ * before hook_install() is invoked, and after hook_uninstall() is invoked,
+ * respectively.
  *
  * By declaring the tables used by your module via an implementation of
  * hook_schema(), these tables will be available on all supported database
@@ -2501,11 +2454,10 @@ function hook_query_TAG_alter(Drupal\Core\Database\Query\AlterableInterface $que
  *
  * Implementations of this hook are by convention declared in the module's
  * .install file. The implementation can rely on the .module file being loaded.
- * The hook will only be called the first time a module is enabled or after it
- * is re-enabled after being uninstalled. The module's schema version will be
- * set to the module's greatest numbered update hook. Because of this, any time
- * a hook_update_N() is added to the module, this function needs to be updated
- * to reflect the current version of the database schema.
+ * The hook will only be called when a module is installed. The module's schema
+ * version will be set to the module's greatest numbered update hook. Because of
+ * this, any time a hook_update_N() is added to the module, this function needs
+ * to be updated to reflect the current version of the database schema.
  *
  * See the @link http://drupal.org/node/146843 Schema API documentation @endlink
  * for details on hook_schema and how database tables are defined.
@@ -2519,9 +2471,7 @@ function hook_query_TAG_alter(Drupal\Core\Database\Query\AlterableInterface $que
  * be removed during uninstall should be removed with hook_uninstall().
  *
  * @see hook_schema()
- * @see module_enable()
- * @see hook_enable()
- * @see hook_disable()
+ * @see \Drupal\Core\Extension\ModuleHandler::install()
  * @see hook_uninstall()
  * @see hook_modules_installed()
  */
@@ -2762,35 +2712,6 @@ function hook_update_last_removed() {
  */
 function hook_uninstall() {
   variable_del('upload_file_types');
-}
-
-/**
- * Perform necessary actions after module is enabled.
- *
- * The hook is called every time the module is enabled. It should be
- * implemented in the module's .install file. The implementation can
- * rely on the .module file being loaded.
- *
- * @see module_enable()
- * @see hook_install()
- * @see hook_modules_enabled()
- */
-function hook_enable() {
-  mymodule_cache_rebuild();
-}
-
-/**
- * Perform necessary actions before module is disabled.
- *
- * The hook is called every time the module is disabled. It should be
- * implemented in the module's .install file. The implementation can rely
- * on the .module file being loaded.
- *
- * @see hook_uninstall()
- * @see hook_modules_disabled()
- */
-function hook_disable() {
-  mymodule_cache_rebuild();
 }
 
 /**
@@ -3119,7 +3040,7 @@ function hook_url_outbound_alter(&$path, &$options, $original_path) {
  * @see hook_tokens_alter()
  */
 function hook_tokens($type, $tokens, array $data = array(), array $options = array()) {
-  $token_service = Drupal::token();
+  $token_service = \Drupal::token();
 
   $url_options = array('absolute' => TRUE);
   if (isset($options['langcode'])) {
@@ -3486,6 +3407,56 @@ function hook_filetransfer_info_alter(&$filetransfer_info) {
     unset($filetransfer_info['ftp']);
     // Make sure the SSH option is listed first.
     $filetransfer_info['ssh']['weight'] = -10;
+  }
+}
+
+/**
+ * Alter the parameters for links.
+ *
+ * @param array $variables
+ *   An associative array of variables defining a link. The link may be either a
+ *   "route link" using \Drupal\Core\Utility\LinkGenerator::link(), which is
+ *   exposed as the 'link_generator' service or a link generated by l(). If the
+ *   link is a "route link", 'route_name' will be set, otherwise 'path' will be
+ *   set. The following keys can be altered:
+ *   - text: The link text for the anchor tag as a translated string.
+ *   - url_is_active: Whether or not the link points to the currently active
+ *     URL.
+ *   - path: If this link is being generated by l(), this system path, relative
+ *     path, or external URL will be passed to url() to generate the href
+ *     attribute for this link.
+ *   - route_name: The name of the route to use to generate the link, if
+ *     this is a "route link".
+ *   - parameters: Any parameters needed to render the route path pattern, if
+ *     this is a "route link".
+ *   - options: An associative array of additional options that will be passed
+ *     to either \Drupal\Core\Routing\UrlGenerator::generateFromPath() or
+ *     \Drupal\Core\Routing\UrlGenerator::generateFromRoute() to generate the
+ *     href attribute for this link, and also used when generating the link.
+ *     Defaults to an empty array. It may contain the following elements:
+ *     - 'query': An array of query key/value-pairs (without any URL-encoding) to
+ *       append to the URL.
+ *     - absolute: Whether to force the output to be an absolute link (beginning
+ *       with http:). Useful for links that will be displayed outside the site,
+ *       such as in an RSS feed. Defaults to FALSE.
+ *     - language: An optional language object. May affect the rendering of
+ *       the anchor tag, such as by adding a language prefix to the path.
+ *     - attributes: An associative array of HTML attributes to apply to the
+ *       anchor tag. If element 'class' is included, it must be an array; 'title'
+ *       must be a string; other elements are more flexible, as they just need
+ *       to work as an argument for the constructor of the class
+ *       Drupal\Core\Template\Attribute($options['attributes']).
+ *     - html: Whether or not HTML should be allowed as the link text. If FALSE,
+ *       the text will be run through
+ *       \Drupal\Component\Utility\String::checkPlain() before being output.
+ *
+ * @see \Drupal\Core\Routing\UrlGenerator::generateFromPath()
+ * @see \Drupal\Core\Routing\UrlGenerator::generateFromRoute()
+ */
+function hook_link_alter(&$variables) {
+  // Add a warning to the end of route links to the admin section.
+  if (isset($variables['route_name']) && strpos($variables['route_name'], 'admin') !== FALSE) {
+    $variables['text'] .= ' (Warning!)';
   }
 }
 

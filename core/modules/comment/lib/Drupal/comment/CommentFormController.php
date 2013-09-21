@@ -63,6 +63,11 @@ class CommentFormController extends EntityFormControllerNG {
       $author = $comment->name->value;
       $status = (isset($comment->status->value) ? $comment->status->value : COMMENT_NOT_PUBLISHED);
       $date = (!empty($comment->date) ? $comment->date : DrupalDateTime::createFromTimestamp($comment->created->value));
+      if (empty($form_state['comment_preview'])) {
+        $form['#title'] = t('Edit comment %title', array(
+          '%title' => $comment->subject->value,
+        ));
+      }
     }
     else {
       if ($user->isAuthenticated()) {
@@ -87,7 +92,7 @@ class CommentFormController extends EntityFormControllerNG {
     if ($is_admin) {
       $form['author']['name']['#title'] = t('Authored by');
       $form['author']['name']['#description'] = t('Leave blank for %anonymous.', array('%anonymous' => \Drupal::config('user.settings')->get('anonymous')));
-      $form['author']['name']['#autocomplete_route_name'] = 'user_autocomplete';
+      $form['author']['name']['#autocomplete_route_name'] = 'user.autocomplete';
     }
     elseif ($user->isAuthenticated()) {
       $form['author']['name']['#type'] = 'item';

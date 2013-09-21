@@ -11,7 +11,6 @@ use Drupal\Tests\UnitTestCase;
 use Drupal\views\Views;
 use Drupal\views\Entity\View;
 use Drupal\views\ViewExecutableFactory;
-use Drupal;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 
 class ViewsTest extends UnitTestCase {
@@ -50,9 +49,9 @@ class ViewsTest extends UnitTestCase {
       ->method('getStorageController')
       ->with('view')
       ->will($this->returnValue($view_storage_controller));
-    $container->set('plugin.manager.entity', $entity_manager);
+    $container->set('entity.manager', $entity_manager);
 
-    Drupal::setContainer($container);
+    \Drupal::setContainer($container);
   }
 
   /**

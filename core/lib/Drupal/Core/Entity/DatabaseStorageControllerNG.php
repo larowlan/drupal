@@ -8,8 +8,7 @@
 namespace Drupal\Core\Entity;
 
 use Drupal\Core\Language\Language;
-use PDO;
-
+use Drupal\field\FieldInfo;
 use Drupal\Core\Entity\Query\QueryInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\DatabaseStorageController;
@@ -53,8 +52,8 @@ class DatabaseStorageControllerNG extends DatabaseStorageController {
   /**
    * Overrides DatabaseStorageController::__construct().
    */
-  public function __construct($entity_type, array $entity_info, Connection $database) {
-    parent::__construct($entity_type,$entity_info, $database);
+  public function __construct($entity_type, array $entity_info, Connection $database, FieldInfo $field_info) {
+    parent::__construct($entity_type,$entity_info, $database, $field_info);
     $this->bundleKey = !empty($this->entityInfo['entity_keys']['bundle']) ? $this->entityInfo['entity_keys']['bundle'] : FALSE;
     $this->entityClass = $this->entityInfo['class'];
 
@@ -267,7 +266,7 @@ class DatabaseStorageControllerNG extends DatabaseStorageController {
       // If a revision table is available, we need all the properties of the
       // latest revision. Otherwise we fall back to the data table.
       $table = $this->revisionTable ?: $this->dataTable;
-      $query = $this->database->select($table, 'data', array('fetch' => PDO::FETCH_ASSOC))
+      $query = $this->database->select($table, 'data', array('fetch' => \PDO::FETCH_ASSOC))
         ->fields('data')
         ->condition($this->idKey, array_keys($entities))
         ->orderBy('data.' . $this->idKey);
@@ -331,9 +330,6 @@ class DatabaseStorageControllerNG extends DatabaseStorageController {
   public function save(EntityInterface $entity) {
     $transaction = $this->database->startTransaction();
     try {
-      // Ensure we are dealing with the actual entity.
-      $entity = $entity->getNGEntity();
-
       // Sync the changes made in the fields array to the internal values array.
       $entity->updateOriginalValues();
 
@@ -367,6 +363,7 @@ class DatabaseStorageControllerNG extends DatabaseStorageController {
         $this->resetCache(array($entity->id()));
         $entity->postSave($this, TRUE);
         $this->invokeFieldMethod('update', $entity);
+        $this->saveFieldItems($entity, TRUE);
         $this->invokeHook('update', $entity);
         if ($this->dataTable) {
           $this->invokeTranslationHooks($entity);
@@ -389,6 +386,7 @@ class DatabaseStorageControllerNG extends DatabaseStorageController {
         $entity->enforceIsNew(FALSE);
         $entity->postSave($this, FALSE);
         $this->invokeFieldMethod('insert', $entity);
+        $this->saveFieldItems($entity, FALSE);
         $this->invokeHook('insert', $entity);
       }
 
@@ -571,11 +569,6 @@ class DatabaseStorageControllerNG extends DatabaseStorageController {
       $entity_class = $this->entityClass;
       $entity_class::preDelete($this, $entities);
 
-      // Ensure we are dealing with the actual entities.
-      foreach ($entities as $id => $entity) {
-        $entities[$id] = $entity->getNGEntity();
-      }
-
       foreach ($entities as $entity) {
         $this->invokeHook('predelete', $entity);
       }
@@ -603,6 +596,7 @@ class DatabaseStorageControllerNG extends DatabaseStorageController {
       $entity_class::postDelete($this, $entities);
       foreach ($entities as $entity) {
         $this->invokeFieldMethod('delete', $entity);
+        $this->deleteFieldItems($entity);
         $this->invokeHook('delete', $entity);
       }
       // Ignore slave server temporarily.

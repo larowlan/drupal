@@ -27,6 +27,7 @@ use Drupal\user\UserInterface;
  *     "render" = "Drupal\Core\Entity\EntityRenderController",
  *     "form" = {
  *       "default" = "Drupal\user\ProfileFormController",
+ *       "cancel" = "Drupal\user\Form\UserCancelForm",
  *       "register" = "Drupal\user\RegisterFormController"
  *     },
  *     "translation" = "Drupal\user\ProfileTranslationController"
@@ -60,6 +61,8 @@ class User extends EntityNG implements UserInterface {
    * {@inheritdoc}
    */
   static function preCreate(EntityStorageControllerInterface $storage_controller, array &$values) {
+    parent::preCreate($storage_controller, $values);
+
     if (!isset($values['created'])) {
       $values['created'] = REQUEST_TIME;
     }
@@ -71,6 +74,8 @@ class User extends EntityNG implements UserInterface {
    * {@inheritdoc}
    */
   public function preSave(EntityStorageControllerInterface $storage_controller) {
+    parent::preSave($storage_controller);
+
     // Update the user password if it has changed.
     if ($this->isNew() || ($this->pass->value && $this->pass->value != $this->original->pass->value)) {
       // Allow alternate password hashing schemes.
@@ -101,6 +106,8 @@ class User extends EntityNG implements UserInterface {
    * {@inheritdoc}
    */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
+    parent::postSave($storage_controller, $update);
+
     if ($update) {
       // If the password has been changed, delete all open sessions for the
       // user and recreate the current one.
@@ -141,6 +148,8 @@ class User extends EntityNG implements UserInterface {
    * {@inheritdoc}
    */
   public static function postDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
+    parent::postDelete($storage_controller, $entities);
+
     $uids = array_keys($entities);
     \Drupal::service('user.data')->delete(NULL, $uids);
     $storage_controller->deleteUserRoles($uids);
@@ -446,37 +455,59 @@ class User extends EntityNG implements UserInterface {
       'description' => t('The name of this user'),
       'type' => 'string_field',
       'settings' => array('default_value' => ''),
+      'property_constraints' => array(
+        // No Length contraint here because the UserName constraint also covers
+        // that.
+        'value' => array(
+          'UserName' => array(),
+          'UserNameUnique' => array(),
+        ),
+      ),
     );
     $properties['pass'] = array(
-      'label' => t('Name'),
+      'label' => t('Password'),
       'description' => t('The password of this user (hashed)'),
       'type' => 'string_field',
     );
     $properties['mail'] = array(
-      'label' => t('Name'),
+      'label' => t('E-mail'),
       'description' => t('The e-mail of this user'),
-      'type' => 'string_field',
+      'type' => 'email_field',
       'settings' => array('default_value' => ''),
+      'property_constraints' => array(
+        'value' => array('UserMailUnique' => array()),
+      ),
     );
     $properties['signature'] = array(
-      'label' => t('Name'),
+      'label' => t('Signature'),
       'description' => t('The signature of this user'),
       'type' => 'string_field',
+      'property_constraints' => array(
+        'value' => array('Length' => array('max' => 255)),
+      ),
     );
     $properties['signature_format'] = array(
-      'label' => t('Name'),
+      'label' => t('Signature format'),
       'description' => t('The signature format of this user'),
+      // @todo Convert the type to filter_format once
+      // https://drupal.org/node/1758622 is comitted
       'type' => 'string_field',
     );
     $properties['theme'] = array(
       'label' => t('Theme'),
       'description' => t('The default theme of this user'),
       'type' => 'string_field',
+      'property_constraints' => array(
+        'value' => array('Length' => array('max' => DRUPAL_EXTENSION_NAME_MAX_LENGTH)),
+      ),
     );
     $properties['timezone'] = array(
       'label' => t('Timezone'),
       'description' => t('The timezone of this user'),
       'type' => 'string_field',
+      'property_constraints' => array(
+        'value' => array('Length' => array('max' => 32)),
+      ),
     );
     $properties['status'] = array(
       'label' => t('User status'),
@@ -504,12 +535,14 @@ class User extends EntityNG implements UserInterface {
     $properties['init'] = array(
       'label' => t('Init'),
       'description' => t('The email address used for initial account creation.'),
-      'type' => 'string_field',
+      'type' => 'email_field',
       'settings' => array('default_value' => ''),
     );
     $properties['roles'] = array(
       'label' => t('Roles'),
       'description' => t('The roles the user has.'),
+      // @todo Convert this to entity_reference_field, see
+      // https://drupal.org/node/2044859
       'type' => 'string_field',
     );
     return $properties;

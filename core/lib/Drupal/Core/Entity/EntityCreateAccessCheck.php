@@ -52,7 +52,20 @@ class EntityCreateAccessCheck implements StaticAccessCheckInterface {
    */
   public function access(Route $route, Request $request) {
     list($entity_type, $bundle) = explode(':', $route->getRequirement($this->requirementsKey) . ':');
-    return $this->entityManager->getAccessController($entity_type)->createAccess($bundle);
+
+    // The bundle argument can contain request argument placeholders like
+    // {name}, loop over the raw variables and attempt to replace them in the
+    // bundle name. If a placeholder does not exist, it won't get replaced.
+    if ($bundle && strpos($bundle, '{') !== FALSE) {
+      foreach ($request->get('_raw_variables')->all() as $name => $value) {
+        $bundle = str_replace('{' . $name . '}', $value, $bundle);
+      }
+      // If we were unable to replace all placeholders, deny access.
+      if (strpos($bundle, '{') !== FALSE) {
+        return static::DENY;
+      }
+    }
+    return $this->entityManager->getAccessController($entity_type)->createAccess($bundle) ? static::ALLOW : static::DENY;
   }
 
 }

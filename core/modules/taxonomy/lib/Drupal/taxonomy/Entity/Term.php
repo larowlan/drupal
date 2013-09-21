@@ -148,6 +148,8 @@ class Term extends EntityNG implements TermInterface {
    * {@inheritdoc}
    */
   public static function postDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
+    parent::postDelete($storage_controller, $entities);
+
     // See if any of the term's children are about to be become orphans.
     $orphans = array();
     foreach (array_keys($entities) as $tid) {
@@ -176,7 +178,19 @@ class Term extends EntityNG implements TermInterface {
   /**
    * {@inheritdoc}
    */
+  public function preSave(EntityStorageControllerInterface $storage_controller) {
+    parent::preSave($storage_controller);
+
+    // Before saving the term, set changed time.
+    $this->changed->value = REQUEST_TIME;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
+    parent::preSave($storage_controller, $update);
+
     // Only change the parents if a value is set, keep the existing values if
     // not.
     if (isset($this->parent->value)) {
@@ -241,7 +255,22 @@ class Term extends EntityNG implements TermInterface {
       'settings' => array('default_value' => 0),
       'computed' => TRUE,
     );
+    $properties['changed'] = array(
+      'label' => t('Changed'),
+      'description' => t('The time that the term was last edited.'),
+      'type' => 'integer_field',
+      'property_constraints' => array(
+        'value' => array('EntityChanged' => array()),
+      ),
+    );
     return $properties;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getChangedTime() {
+    return $this->changed->value;
   }
 
 }

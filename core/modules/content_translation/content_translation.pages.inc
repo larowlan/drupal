@@ -14,10 +14,12 @@ use Drupal\Core\Entity\EntityNG;
  *
  * @param \Drupal\Core\Entity\EntityInterface $entity
  *   The entity whose translation overview should be displayed.
+ *
+ * @deprecated Use \Drupal\content_translation\Controller\ContentTranslationController::overview()
  */
 function content_translation_overview(EntityInterface $entity) {
   $controller = content_translation_controller($entity->entityType());
-  $entity_manager = Drupal::entityManager();
+  $entity_manager = \Drupal::entityManager();
   $languages = language_list();
   $original = $entity->getUntranslated()->language()->id;
   $translations = $entity->getTranslationLanguages();
@@ -40,8 +42,7 @@ function content_translation_overview(EntityInterface $entity) {
     // Determine whether the current entity is translatable.
     $translatable = FALSE;
     foreach (field_info_instances($entity->entityType(), $entity->bundle()) as $instance) {
-      $field_name = $instance['field_name'];
-      $field = field_info_field($field_name);
+      $field = $instance->getField();
       if ($field['translatable']) {
         $translatable = TRUE;
         break;
@@ -189,6 +190,8 @@ function _content_translation_get_switch_links($path) {
  *
  * @return array
  *   A processed form array ready to be rendered.
+ *
+ * @deprecated Use \Drupal\content_translation\Controller\ContentTranslationController::add()
  */
 function content_translation_add_page(EntityInterface $entity, Language $source = NULL, Language $target = NULL) {
   $source = !empty($source) ? $source : $entity->language();
@@ -202,7 +205,7 @@ function content_translation_add_page(EntityInterface $entity, Language $source 
   $form_state['content_translation']['target'] = $target;
   $controller = content_translation_controller($entity->entityType());
   $form_state['content_translation']['translation_form'] = !$entity->access('update');
-  return Drupal::entityManager()->getForm($entity, $operation, $form_state);
+  return \Drupal::entityManager()->getForm($entity, $operation, $form_state);
 }
 
 /**
@@ -216,6 +219,8 @@ function content_translation_add_page(EntityInterface $entity, Language $source 
  *
  * @return array
  *   A processed form array ready to be rendered.
+ *
+ * @deprecated Use \Drupal\content_translation\Controller\ContentTranslationController::edit()
  */
 function content_translation_edit_page(EntityInterface $entity, Language $language = NULL) {
   $language = !empty($language) ? $language : language(Language::TYPE_CONTENT);
@@ -223,7 +228,7 @@ function content_translation_edit_page(EntityInterface $entity, Language $langua
   $operation = isset($info['default_operation']) ? $info['default_operation'] : 'default';
   $form_state['langcode'] = $language->id;
   $form_state['content_translation']['translation_form'] = TRUE;
-  return Drupal::entityManager()->getForm($entity, $operation, $form_state);
+  return \Drupal::entityManager()->getForm($entity, $operation, $form_state);
 }
 
 /**
@@ -237,27 +242,14 @@ function content_translation_edit_page(EntityInterface $entity, Language $langua
  *   The language to be used as target.
  */
 function content_translation_prepare_translation(EntityInterface $entity, Language $source, Language $target) {
-  // @todo Unify field and property handling.
-  $entity = $entity->getNGEntity();
-  if ($entity instanceof EntityNG) {
-    $source_translation = $entity->getTranslation($source->id);
-    $entity->addTranslation($target->id, $source_translation->getPropertyValues());
-  }
-  else {
-    $instances = field_info_instances($entity->entityType(), $entity->bundle());
-    foreach ($instances as $field_name => $instance) {
-      $field = field_info_field($field_name);
-      if (!empty($field['translatable'])) {
-        $value = $entity->get($field_name);
-        $value[$target->id] = isset($value[$source->id]) ? $value[$source->id] : array();
-        $entity->set($field_name, $value);
-      }
-    }
-  }
+  $source_translation = $entity->getTranslation($source->id);
+  $entity->addTranslation($target->id, $source_translation->getPropertyValues());
 }
 
 /**
  * Form constructor for the translation deletion confirmation.
+ *
+ * @deprecated Use \Drupal\content_translation\Form\ContentTranslationForm::deleteTranslation()
  */
 function content_translation_delete_confirm(array $form, array $form_state, EntityInterface $entity, Language $language) {
   $langcode = $language->id;
@@ -288,7 +280,7 @@ function content_translation_delete_confirm_submit(array $form, array &$form_sta
   // @todo This should be taken care of by the Path module.
   if (module_exists('path')) {
     $conditions = array('source' => $controller->getViewPath($entity), 'langcode' => $language->id);
-    Drupal::service('path.crud')->delete($conditions);
+    \Drupal::service('path.crud')->delete($conditions);
   }
 
   $form_state['redirect'] = $controller->getBasePath($entity) . '/translations';

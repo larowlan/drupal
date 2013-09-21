@@ -21,7 +21,6 @@ class TelephoneFieldTest extends WebTestBase {
    */
   public static $modules = array(
     'field',
-    'field_sql_storage',
     'node',
     'telephone'
   );
@@ -54,7 +53,8 @@ class TelephoneFieldTest extends WebTestBase {
 
     // Add the telepone field to the article content type.
     entity_create('field_entity', array(
-      'field_name' => 'field_telephone',
+      'name' => 'field_telephone',
+      'entity_type' => 'node',
       'type' => 'telephone',
     ))->save();
     entity_create('field_instance', array(
@@ -82,25 +82,25 @@ class TelephoneFieldTest extends WebTestBase {
 
     // Display creation form.
     $this->drupalGet('node/add/article');
-    $this->assertFieldByName("field_telephone[und][0][value]", '', 'Widget found.');
+    $this->assertFieldByName("field_telephone[0][value]", '', 'Widget found.');
     $this->assertRaw('placeholder="123-456-7890"');
 
     // Test basic entery of telephone field.
     $edit = array(
       "title" => $this->randomName(),
-      "field_telephone[und][0][value]" => "123456789",
+      "field_telephone[0][value]" => "123456789",
     );
 
-    $this->drupalPost(NULL, $edit, t('Save'));
+    $this->drupalPostForm(NULL, $edit, t('Save'));
     $this->assertRaw('<a href="tel:123456789">', 'A telephone link is provided on the article node page.');
 
     // Add number with a space in it. Need to ensure it is stripped on output.
     $edit = array(
       "title" => $this->randomName(),
-      "field_telephone[und][0][value]" => "1234 56789",
+      "field_telephone[0][value]" => "1234 56789",
     );
 
-    $this->drupalPost('node/add/article', $edit, t('Save'));
+    $this->drupalPostForm('node/add/article', $edit, t('Save'));
     $this->assertRaw('<a href="tel:123456789">', 'Telephone link is output with whitespace removed.');
   }
 }

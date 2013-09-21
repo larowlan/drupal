@@ -36,12 +36,13 @@ class EntityReferenceAutoCreateTest extends WebTestBase {
     $this->referenced_type = $referenced->type;
 
     entity_create('field_entity', array(
+      'name' => 'test_field',
+      'entity_type' => 'node',
       'translatable' => FALSE,
       'entity_types' => array(),
       'settings' => array(
         'target_type' => 'node',
       ),
-      'field_name' => 'test_field',
       'type' => 'entity_reference',
       'cardinality' => FIELD_CARDINALITY_UNLIMITED,
     ))->save();
@@ -95,9 +96,9 @@ class EntityReferenceAutoCreateTest extends WebTestBase {
 
     $edit = array(
       'title' => $this->randomName(),
-      'test_field[und][0][target_id]' => $new_title,
+      'test_field[0][target_id]' => $new_title,
     );
-    $this->drupalPost("node/add/$this->referencing_type", $edit, 'Save');
+    $this->drupalPostForm("node/add/$this->referencing_type", $edit, 'Save');
 
     // Assert referenced node was created.
     $query = clone $base_query;

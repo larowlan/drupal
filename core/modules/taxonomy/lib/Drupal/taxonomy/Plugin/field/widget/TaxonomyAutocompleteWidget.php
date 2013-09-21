@@ -23,7 +23,7 @@ use Drupal\field\Plugin\Type\Widget\WidgetBase;
  *   },
  *   settings = {
  *     "size" = "60",
- *     "autocomplete_route_name" = "taxonomy_autocomplete",
+ *     "autocomplete_route_name" = "taxonomy.autocomplete",
  *     "placeholder" = ""
  *   },
  *   multiple_values = TRUE
@@ -65,7 +65,7 @@ class TaxonomyAutocompleteWidget extends WidgetBase {
   /**
    * {@inheritdoc}
    */
-  public function formElement(FieldInterface $items, $delta, array $element, $langcode, array &$form, array &$form_state) {
+  public function formElement(FieldInterface $items, $delta, array $element, array &$form, array &$form_state) {
     $tags = array();
     foreach ($items as $item) {
       $tags[$item->target_id] = isset($item->taxonomy_term) ? $item->taxonomy_term : entity_load('taxonomy_term', $item->target_id);
@@ -74,7 +74,10 @@ class TaxonomyAutocompleteWidget extends WidgetBase {
       '#type' => 'textfield',
       '#default_value' => taxonomy_implode_tags($tags),
       '#autocomplete_route_name' => $this->getSetting('autocomplete_route_name'),
-      '#autocomplete_route_parameters' => array('field_name' => $this->fieldDefinition->getFieldName()),
+      '#autocomplete_route_parameters' => array(
+        'entity_type' => $items->getEntity()->entityType(),
+        'field_name' => $this->fieldDefinition->getFieldName(),
+      ),
       '#size' => $this->getSetting('size'),
       '#placeholder' => $this->getSetting('placeholder'),
       '#maxlength' => 1024,

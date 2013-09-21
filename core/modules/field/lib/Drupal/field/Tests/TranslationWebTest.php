@@ -33,7 +33,7 @@ class TranslationWebTest extends FieldTestBase {
    *
    * @var string
    */
-  protected $entity_type = 'test_entity';
+  protected $entity_type = 'entity_test_rev';
 
   /**
    * The field to use in this test.
@@ -62,16 +62,15 @@ class TranslationWebTest extends FieldTestBase {
 
     $this->field_name = drupal_strtolower($this->randomName() . '_field_name');
 
-    $this->entity_type = 'entity_test_rev';
-
     $field = array(
-      'field_name' => $this->field_name,
+      'name' => $this->field_name,
+      'entity_type' => $this->entity_type,
       'type' => 'test_field',
       'cardinality' => 4,
       'translatable' => TRUE,
     );
     entity_create('field_entity', $field)->save();
-    $this->field = field_read_field($this->field_name);
+    $this->field = field_read_field($this->entity_type, $this->field_name);
 
     $instance = array(
       'field_name' => $this->field_name,
@@ -117,14 +116,13 @@ class TranslationWebTest extends FieldTestBase {
     $entity->save();
 
     // Create a new revision.
-    $langcode = $entity->language()->id;
     $edit = array(
       'user_id' => 1,
       'name' => $this->randomName(),
-      "{$field_name}[$langcode][0][value]" => $entity->{$field_name}->value,
+      "{$field_name}[0][value]" => $entity->{$field_name}->value,
       'revision' => TRUE,
     );
-    $this->drupalPost($this->entity_type . '/manage/' . $entity->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm($this->entity_type . '/manage/' . $entity->id() . '/edit', $edit, t('Save'));
 
     // Check translation revisions.
     $this->checkTranslationRevisions($entity->id(), $entity->getRevisionId(), $available_langcodes);

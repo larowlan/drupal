@@ -7,14 +7,15 @@
 
 namespace Drupal\views_test_data\Plugin\views\display_extender;
 
-use Drupal\views\Plugin\views\display_extender\DisplayExtenderPluginBase;
+use Drupal\views\Annotation\ViewsDisplayExtender;
 use Drupal\Component\Annotation\Plugin;
 use Drupal\Core\Annotation\Translation;
+use Drupal\views\Plugin\views\display_extender\DisplayExtenderPluginBase;
 
 /**
  * Defines a display extender test plugin.
  *
- * @Plugin(
+ * @ViewsDisplayExtender(
  *   id = "display_extender_test",
  *   title = @Translation("Display extender test")
  * )
@@ -68,6 +69,7 @@ class DisplayExtenderTest extends DisplayExtenderPluginBase {
       case 'test_extender_test_option':
         $form['#title'] .= t('Test option');
         $form['test_extender_test_option'] = array(
+          '#title' => t('Test option'),
           '#type' => 'textfield',
           '#description' => t('This is a textfield for test_option.'),
           '#default_value' => $this->displayHandler->getOption('test_extender_test_option'),

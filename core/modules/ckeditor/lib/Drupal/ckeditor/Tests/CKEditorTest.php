@@ -309,6 +309,41 @@ class CKEditorTest extends DrupalUnitTestBase {
     $this->assertIdentical($expected, $stylescombo_plugin->getConfig($editor), '"StylesCombo" plugin configuration built correctly for customized toolbar.');
   }
 
+  /**
+   * Tests language list availability in CKEditor.
+   */
+  function testLanguages() {
+    // Get CKEditor supported language codes and spot-check.
+    $this->enableModules(array('language'));
+    config_install_default_config('module', 'language');
+    $langcodes = $this->ckeditor->getLangcodes();
+
+    // Language codes transformed with browser mappings.
+    $this->assertTrue($langcodes['pt-pt'] == 'pt', '"pt" properly resolved');
+    $this->assertTrue($langcodes['zh-hans'] == 'zh-cn', '"zh-hans" properly resolved');
+
+    // Language code both in Drupal and CKEditor.
+    $this->assertTrue($langcodes['gl'] == 'gl', '"gl" properly resolved');
+
+    // Language codes only in CKEditor.
+    $this->assertTrue($langcodes['en-au'] == 'en-au', '"en-au" properly resolved');
+    $this->assertTrue($langcodes['sr-latn'] == 'sr-latn', '"sr-latn" properly resolved');
+  }
+
+  /**
+   * Tests that CKEditor plugins participate in JS translation.
+   */
+  function testJSTranslation() {
+    $this->enableModules(array('locale'));
+    $this->installSchema('locale', 'locales_source');
+    $this->installSchema('locale', 'locales_location');
+    $editor = entity_load('editor', 'filtered_html');
+    $this->ckeditor->getJSSettings($editor);
+    $localeStorage = $this->container->get('locale.storage');
+    $string = $localeStorage->findString(array('source' => 'Image Properties', 'context' => ''));
+    $this->assertTrue(!empty($string), 'String from JavaScript file saved.');
+  }
+
   protected function getDefaultInternalConfig() {
     return array(
       'customConfig' => '',

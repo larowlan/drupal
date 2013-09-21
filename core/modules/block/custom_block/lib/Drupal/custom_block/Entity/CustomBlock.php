@@ -29,13 +29,14 @@ use Drupal\custom_block\CustomBlockInterface;
  *     "form" = {
  *       "add" = "Drupal\custom_block\CustomBlockFormController",
  *       "edit" = "Drupal\custom_block\CustomBlockFormController",
+ *       "delete" = "Drupal\custom_block\Form\CustomBlockDeleteForm",
  *       "default" = "Drupal\custom_block\CustomBlockFormController"
  *     },
  *     "translation" = "Drupal\custom_block\CustomBlockTranslationController"
  *   },
  *   base_table = "custom_block",
  *   revision_table = "custom_block_revision",
- *   route_base_path = "admin/structure/custom-blocks/manage/{bundle}",
+ *   route_base_path = "admin/structure/block/custom-blocks/manage/{bundle}",
  *   menu_base_path = "block/%custom_block",
  *   menu_edit_path = "block/%custom_block",
  *   fieldable = TRUE,
@@ -189,7 +190,19 @@ class CustomBlock extends EntityNG implements CustomBlockInterface {
   /**
    * {@inheritdoc}
    */
+  public function preSave(EntityStorageControllerInterface $storage_controller) {
+    parent::preSave($storage_controller);
+
+    // Before saving the custom block, set changed time.
+    $this->changed->value = REQUEST_TIME;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
+    parent::postSave($storage_controller, $update);
+
     // Invalidate the block cache to update custom block-based derivatives.
     \Drupal::service('plugin.manager.block')->clearCachedDefinitions();
   }
@@ -205,6 +218,8 @@ class CustomBlock extends EntityNG implements CustomBlockInterface {
    * {@inheritdoc}
    */
   public function preSaveRevision(EntityStorageControllerInterface $storage_controller, \stdClass $record) {
+    parent::preSaveRevision($storage_controller, $record);
+
     if ($this->isNewRevision()) {
       // When inserting either a new custom block or a new custom_block
       // revision, $entity->log must be set because {block_custom_revision}.log
@@ -257,7 +272,7 @@ class CustomBlock extends EntityNG implements CustomBlockInterface {
     );
     $properties['langcode'] = array(
       'label' => t('Language code'),
-      'description' => t('The comment language code.'),
+      'description' => t('The custom block language code.'),
       'type' => 'language_field',
     );
     $properties['info'] = array(
@@ -275,7 +290,22 @@ class CustomBlock extends EntityNG implements CustomBlockInterface {
       'description' => t('The revision log message.'),
       'type' => 'string_field',
     );
+    $properties['changed'] = array(
+      'label' => t('Changed'),
+      'description' => t('The time that the custom block was last edited.'),
+      'type' => 'integer_field',
+      'property_constraints' => array(
+        'value' => array('EntityChanged' => array()),
+      ),
+    );
     return $properties;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getChangedTime() {
+    return $this->get('changed')->value;
   }
 
 }

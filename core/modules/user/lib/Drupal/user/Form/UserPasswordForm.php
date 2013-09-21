@@ -51,7 +51,7 @@ class UserPasswordForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('plugin.manager.entity')->getStorageController('user'),
+      $container->get('entity.manager')->getStorageController('user'),
       $container->get('language_manager')
     );
   }
@@ -84,7 +84,7 @@ class UserPasswordForm extends FormBase {
       ),
     );
     // Allow logged in users to request this also.
-    $user = $this->getCurrentUser();
+    $user = $this->currentUser();
     if ($user->isAuthenticated()) {
       $form['name']['#type'] = 'value';
       $form['name']['#value'] = $user->getEmail();

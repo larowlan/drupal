@@ -9,9 +9,7 @@ namespace Drupal\taxonomy\Plugin\field\formatter;
 
 use Drupal\field\Annotation\FieldFormatter;
 use Drupal\Core\Annotation\Translation;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\Field\FieldInterface;
-use Drupal\field\Plugin\Type\Formatter\FormatterBase;
 use Drupal\taxonomy\Plugin\field\formatter\TaxonomyFormatterBase;
 
 /**
@@ -30,7 +28,7 @@ class LinkFormatter extends TaxonomyFormatterBase {
   /**
    * {@inheritdoc}
    */
-  public function viewElements(EntityInterface $entity, $langcode, FieldInterface $items) {
+  public function viewElements(FieldInterface $items) {
     $elements = array();
 
     // Terms without target_id do not exist yet, theme such terms as just their
@@ -50,6 +48,14 @@ class LinkFormatter extends TaxonomyFormatterBase {
           '#href' => $uri['path'],
           '#options' => $uri['options'],
         );
+
+        if (!empty($item->_attributes)) {
+          $elements[$delta]['#options'] += array('attributes' => array());
+          $elements[$delta]['#options']['attributes'] += $item->_attributes;
+          // Unset field item attributes since they have been included in the
+          // formatter output and should not be rendered in the field template.
+          unset($item->_attributes);
+        }
       }
     }
 

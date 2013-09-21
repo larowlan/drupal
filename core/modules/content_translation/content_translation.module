@@ -149,8 +149,7 @@ function content_translation_menu() {
 
       $items["$path/translations"] = array(
         'title' => 'Translate',
-        'page callback' => 'content_translation_overview',
-        'page arguments' => array($entity_position),
+        'route_name' => "content_translation.translation_overview_$entity_type",
         'type' => MENU_LOCAL_TASK,
         'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
         'weight' => 2,
@@ -169,41 +168,30 @@ function content_translation_menu() {
       $args = array($entity_position, $language_position, $language_position + 1);
       $items["$path/translations/add/%language/%language"] = array(
         'title' => 'Add',
-        'page callback' => 'content_translation_add_page',
-        'page arguments' => $args,
-        'access callback' => 'content_translation_add_access',
-        'access arguments' => $args,
-        'type' => MENU_LOCAL_TASK,
+        'route_name' => "content_translation.translation_add_$entity_type",
         'weight' => 1,
-      ) + $item;
+      );
 
       // Edit translation callback.
       $args = array($entity_position, $language_position);
       $items["$path/translations/edit/%language"] = array(
         'title' => 'Edit',
-        'page callback' => 'content_translation_edit_page',
-        'page arguments' => $args,
-        'access callback' => 'content_translation_edit_access',
-        'access arguments' => $args,
-        'type' => MENU_LOCAL_TASK,
+        'route_name' => "content_translation.translation_edit_$entity_type",
         'weight' => 1,
-      ) + $item;
+      );
 
       // Delete translation callback.
       $items["$path/translations/delete/%language"] = array(
         'title' => 'Delete',
-        'page callback' => 'drupal_get_form',
-        'page arguments' => array('content_translation_delete_confirm', $entity_position, $language_position),
-        'access callback' => 'content_translation_delete_access',
-        'access arguments' => $args,
+        'route_name' => "content_translation.delete_$entity_type",
       ) + $item;
     }
   }
 
-  $items['admin/config/regional/content_translation/translatable/%'] = array(
+  $items['admin/config/regional/content_translation/translatable/%/%'] = array(
     'title' => 'Confirm change in translatability.',
     'description' => 'Confirm page for changing field translatability.',
-    'route_name' => 'content_translation_translatable',
+    'route_name' => 'content_translation.translatable',
   );
 
   return $items;
@@ -356,7 +344,7 @@ function content_translation_library_info() {
   $path = drupal_get_path('module', 'content_translation');
   $libraries['drupal.content_translation.admin'] = array(
     'title' => 'Content translation UI',
-    'version' => VERSION,
+    'version' => \Drupal::VERSION,
     'js' => array(
       $path . '/content_translation.admin.js' => array(),
     ),
@@ -413,7 +401,7 @@ function content_translation_get_config_key($entity_type, $bundle, $setting) {
  */
 function content_translation_get_config($entity_type, $bundle, $setting) {
   $key = content_translation_get_config_key($entity_type, $bundle, $setting);
-  return Drupal::config('content_translation.settings')->get($key);
+  return \Drupal::config('content_translation.settings')->get($key);
 }
 
 /**
@@ -430,7 +418,7 @@ function content_translation_get_config($entity_type, $bundle, $setting) {
  */
 function content_translation_set_config($entity_type, $bundle, $setting, $value) {
   $key = content_translation_get_config_key($entity_type, $bundle, $setting);
-  return Drupal::config('content_translation.settings')->set($key, $value)->save();
+  return \Drupal::config('content_translation.settings')->set($key, $value)->save();
 }
 
 /**
@@ -610,19 +598,9 @@ function content_translation_form_alter(array &$form, array &$form_state) {
     // Handle fields shared between translations when there is at least one
     // translation available or a new one is being created.
     if (!$entity->isNew() && (!isset($translations[$form_langcode]) || count($translations) > 1)) {
-      $entity = $entity->getNGEntity();
-      if ($entity instanceof EntityNG) {
-        foreach ($entity->getPropertyDefinitions() as $property_name => $definition) {
-          if (isset($form[$property_name])) {
-            $form[$property_name]['#multilingual'] = !empty($definition['translatable']);
-          }
-        }
-      }
-      else {
-        foreach (field_info_instances($entity->entityType(), $entity->bundle()) as $instance) {
-          $field_name = $instance['field_name'];
-          $field = field_info_field($field_name);
-          $form[$field_name]['#multilingual'] = !empty($field['translatable']);
+      foreach ($entity->getPropertyDefinitions() as $property_name => $definition) {
+        if (isset($form[$property_name])) {
+          $form[$property_name]['#multilingual'] = !empty($definition['translatable']);
         }
       }
     }
@@ -647,18 +625,7 @@ function content_translation_field_language_alter(&$display_language, $context) 
 
     foreach ($entity->translation as $langcode => $translation) {
       if ($langcode == $context['langcode'] || !content_translation_view_access($entity, $langcode)) {
-        // Unset unaccessible field translations: if the field is untranslatable
-        // unsetting a language different from Language::LANGCODE_NOT_SPECIFIED has no
-        // effect.
-        foreach ($instances as $instance) {
-          // @todo BC entities have the same value accessibile both with the
-          //   entity language and with Language::LANGCODE_DEFAULT. We need need to unset
-          //   both until we remove the BC layer.
-          if ($langcode == $entity_langcode) {
-            unset($entity->{$instance['field_name']}[Language::LANGCODE_DEFAULT]);
-          }
-          unset($entity->{$instance['field_name']}[$langcode]);
-        }
+        $entity->removeTranslation($langcode);
       }
     }
 
@@ -808,6 +775,7 @@ function content_translation_field_extra_fields() {
  */
 function content_translation_form_field_ui_field_edit_form_alter(array &$form, array &$form_state, $form_id) {
   $field = $form['#field'];
+  $entity_type = $field['entity_type'];
   $field_name = $field['field_name'];
   $translatable = $field['translatable'];
   $label = t('Field translation');
@@ -821,7 +789,7 @@ function content_translation_form_field_ui_field_edit_form_alter(array &$form, a
         '#type' => 'link',
         '#prefix' => t('This field has data in existing content.') . ' ',
         '#title' => !$translatable ? t('Enable translation') : t('Disable translation'),
-        '#href' => 'admin/config/regional/content_translation/translatable/' . $field_name,
+        '#href' => "admin/config/regional/content_translation/translatable/$entity_type/$field_name",
         '#options' => array('query' => drupal_get_destination()),
         '#access' => user_access('administer content translation'),
       ),
@@ -870,8 +838,8 @@ function content_translation_entity_presave(EntityInterface $entity) {
   if ($entity->isTranslatable()) {
     // @todo Avoid using request attributes once translation metadata become
     //   regular fields.
-    $attributes = Drupal::request()->attributes;
-    Drupal::service('content_translation.synchronizer')->synchronizeFields($entity, $entity->language()->id, $attributes->get('source_langcode'));
+    $attributes = \Drupal::request()->attributes;
+    \Drupal::service('content_translation.synchronizer')->synchronizeFields($entity, $entity->language()->id, $attributes->get('source_langcode'));
   }
 }
 
@@ -1022,7 +990,7 @@ function content_translation_save_settings($settings) {
         // Store whether fields have translation enabled or not.
         if (!empty($bundle_settings['columns'])) {
           foreach ($bundle_settings['columns'] as $field_name => $column_settings) {
-            $field = field_info_field($field_name);
+            $field = field_info_field($entity_type, $field_name);
             $instance = field_info_instance($entity_type, $field_name, $bundle);
             if ($field['translatable']) {
               $instance['settings']['translation_sync'] = $column_settings;

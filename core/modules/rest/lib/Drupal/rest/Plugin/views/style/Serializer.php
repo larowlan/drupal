@@ -10,7 +10,7 @@ namespace Drupal\rest\Plugin\views\style;
 use Drupal\views\ViewExecutable;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\Plugin\views\style\StylePluginBase;
-use Drupal\Component\Annotation\Plugin;
+use Drupal\views\Annotation\ViewsStyle;
 use Drupal\Core\Annotation\Translation;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -20,9 +20,8 @@ use Symfony\Component\Serializer\SerializerInterface;
  *
  * @ingroup views_style_plugins
  *
- * @Plugin(
+ * @ViewsStyle(
  *   id = "serializer",
- *   module = "rest",
  *   title = @Translation("Serializer"),
  *   help = @Translation("Serializes views row data using the Serializer component."),
  *   display_types = {"data"}

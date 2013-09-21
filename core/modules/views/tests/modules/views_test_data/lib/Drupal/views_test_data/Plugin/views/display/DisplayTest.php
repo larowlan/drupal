@@ -8,15 +8,16 @@
 namespace Drupal\views_test_data\Plugin\views\display;
 
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
-use Drupal\Component\Annotation\Plugin;
+use Drupal\views\Annotation\ViewsDisplay;
 use Drupal\Core\Annotation\Translation;
 
 /**
  * Defines a Display test plugin.
  *
- * @Plugin(
+ * @ViewsDisplay(
  *   id = "display_test",
  *   title = @Translation("Display test"),
+ *   help = @Translation("Defines a display test plugin."),
  *   theme = "views_view",
  *   register_theme = FALSE,
  *   contextual_links_locations = {"view"}
@@ -81,6 +82,7 @@ class DisplayTest extends DisplayPluginBase {
       case 'test_option':
         $form['#title'] .= t('Test option');
         $form['test_option'] = array(
+          '#title' => t('Test option'),
           '#type' => 'textfield',
           '#description' => t('This is a textfield for test_option.'),
           '#default_value' => $this->getOption('test_option'),

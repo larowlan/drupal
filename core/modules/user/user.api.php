@@ -50,9 +50,8 @@ function hook_user_load($users) {
 /**
  * Act before user deletion.
  *
- * This hook is invoked from user_delete_multiple() before
- * field_attach_delete() is called and before the user is actually removed from
- * the database.
+ * This hook is invoked from user_delete_multiple() before field values are
+ * deleted and before the user is actually removed from the database.
  *
  * Modules should additionally implement hook_user_cancel() to process stored
  * user data for other account cancellation methods.
@@ -72,8 +71,8 @@ function hook_user_predelete($account) {
 /**
  * Respond to user deletion.
  *
- * This hook is invoked from user_delete_multiple() after field_attach_delete()
- * has been called and after the user has been removed from the database.
+ * This hook is invoked from user_delete_multiple() after field values are
+ * deleted and after the user has been removed from the database.
  *
  * Modules should additionally implement hook_user_cancel() to process stored
  * user data for other account cancellation methods.
@@ -284,7 +283,7 @@ function hook_user_update($account) {
  *   The user object on which the operation was just performed.
  */
 function hook_user_login($account) {
-  $config = Drupal::config('system.date');
+  $config = \Drupal::config('system.date');
   // If the user has a NULL time zone, notify them to set a time zone.
   if (!$account->getTimezone() && $config->get('timezone.user.configurable') && $config->get('timezone.user.warn')) {
     drupal_set_message(t('Configure your <a href="@user-edit">account time zone setting</a>.', array('@user-edit' => url("user/" . $account->id() . "/edit", array('query' => drupal_get_destination(), 'fragment' => 'edit-timezone')))));

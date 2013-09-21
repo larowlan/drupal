@@ -7,7 +7,7 @@
 
 namespace Drupal\views_test_data\Plugin\views\style;
 
-use Drupal\Component\Annotation\Plugin;
+use Drupal\views\Annotation\ViewsStyle;
 use Drupal\Core\Annotation\Translation;
 use Drupal\views\Plugin\views\style\StylePluginBase;
 
@@ -16,9 +16,8 @@ use Drupal\views\Plugin\views\style\StylePluginBase;
  *
  * @ingroup views_style_plugins
  *
- * @Plugin(
+ * @ViewsStyle(
  *   id = "test_template_style",
- *   module = "views_test_data",
  *   title = @Translation("Test style template plugin"),
  *   help = @Translation("Provides a generic style template test plugin."),
  *   theme = "views_view_style_template_test",

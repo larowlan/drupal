@@ -8,7 +8,7 @@
 namespace Drupal\views\Plugin\views\display;
 
 use Drupal\views\ViewExecutable;
-use Drupal\Component\Annotation\Plugin;
+use Drupal\views\Annotation\ViewsDisplay;
 use Drupal\Core\Annotation\Translation;
 
 /**
@@ -20,7 +20,7 @@ use Drupal\Core\Annotation\Translation;
  *
  * @ingroup views_display_plugins
  *
- * @Plugin(
+ * @ViewsDisplay(
  *   id = "attachment",
  *   title = @Translation("Attachment"),
  *   help = @Translation("Attachments added to other displays to achieve multiple views in the same view."),
@@ -185,6 +185,7 @@ class Attachment extends DisplayPluginBase {
       case 'attachment_position':
         $form['#title'] .= t('Position');
         $form['attachment_position'] = array(
+          '#title' => t('Position'),
           '#type' => 'radios',
           '#description' => t('Attach before or after the parent display?'),
           '#options' => $this->attachmentPositions(),
@@ -200,6 +201,7 @@ class Attachment extends DisplayPluginBase {
           }
         }
         $form['displays'] = array(
+          '#title' => t('Displays'),
           '#type' => 'checkboxes',
           '#description' => t('Select which display or displays this should attach to.'),
           '#options' => $displays,

@@ -42,15 +42,14 @@ class CommentUninstallTest extends WebTestBase {
    */
   function testCommentUninstallWithField() {
     // Ensure that the field exists before uninstallation.
-    $field = field_info_field('comment_body');
+    $field = field_info_field('comment', 'comment_body');
     $this->assertNotNull($field, 'The comment_body field exists.');
 
     // Uninstall the comment module which should trigger field deletion.
-    $this->container->get('module_handler')->disable(array('comment'));
     $this->container->get('module_handler')->uninstall(array('comment'));
 
     // Check that the field is now deleted.
-    $field = field_info_field('comment_body');
+    $field = field_info_field('comment', 'comment_body');
     $this->assertNull($field, 'The comment_body field has been deleted.');
   }
 
@@ -60,17 +59,16 @@ class CommentUninstallTest extends WebTestBase {
    */
   function testCommentUninstallWithoutField() {
     // Manually delete the comment_body field before module uninstallation.
-    $field = field_info_field('comment_body');
+    $field = field_info_field('comment', 'comment_body');
     $this->assertNotNull($field, 'The comment_body field exists.');
     $field->delete();
 
     // Check that the field is now deleted.
-    $field = field_info_field('comment_body');
+    $field = field_info_field('comment', 'comment_body');
     $this->assertNull($field, 'The comment_body field has been deleted.');
 
     // Ensure that uninstallation succeeds even if the field has already been
     // deleted manually beforehand.
-    $this->container->get('module_handler')->disable(array('comment'));
     $this->container->get('module_handler')->uninstall(array('comment'));
   }
 

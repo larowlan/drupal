@@ -38,7 +38,7 @@ abstract class ImageStyleFormBase extends EntityFormController {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('plugin.manager.entity')->getStorageController('image_style')
+      $container->get('entity.manager')->getStorageController('image_style')
     );
   }
 
@@ -71,15 +71,6 @@ abstract class ImageStyleFormBase extends EntityFormController {
   public function save(array $form, array &$form_state) {
     $form_state['redirect'] = 'admin/config/media/image-styles/manage/' . $this->entity->id();
     return $this->entity->save();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function actions(array $form, array &$form_state) {
-    $actions = parent::actions($form, $form_state);
-    unset($actions['delete']);
-    return $actions;
   }
 
 }

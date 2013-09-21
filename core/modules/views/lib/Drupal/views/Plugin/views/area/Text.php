@@ -35,11 +35,12 @@ class Text extends TokenizeAreaPluginBase {
     parent::buildOptionsForm($form, $form_state);
 
     $form['content'] = array(
+      '#title' => t('Content'),
       '#type' => 'text_format',
       '#default_value' => $this->options['content'],
       '#rows' => 6,
       '#format' => isset($this->options['format']) ? $this->options['format'] : filter_default_format(),
-      '#wysiwyg' => FALSE,
+      '#editor' => FALSE,
     );
   }
 

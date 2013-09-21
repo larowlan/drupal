@@ -42,17 +42,17 @@ class GroupByTest extends UITestBase {
     $edit = array(
       'group_by' => TRUE,
     );
-    $this->drupalPost('admin/structure/views/nojs/display/test_views_groupby_save/default/group_by', $edit, t('Apply'));
+    $this->drupalPostForm('admin/structure/views/nojs/display/test_views_groupby_save/default/group_by', $edit, t('Apply'));
 
     $this->assertLinkByHref($edit_groubpy_url, 0, 'Aggregation link found.');
 
     // Change the groupby type in the UI.
-    $this->drupalPost($edit_groubpy_url, array('options[group_type]' => 'count'), t('Apply'));
+    $this->drupalPostForm($edit_groubpy_url, array('options[group_type]' => 'count'), t('Apply'));
     $this->assertLink('COUNT(Views test: ID) (ID)', 0, 'The count setting is displayed in the UI');
 
-    $this->drupalPost(NULL, array(), t('Save'));
+    $this->drupalPostForm(NULL, array(), t('Save'));
 
-    $view = $this->container->get('plugin.manager.entity')->getStorageController('view')->load('test_views_groupby_save');
+    $view = $this->container->get('entity.manager')->getStorageController('view')->load('test_views_groupby_save');
     $display = $view->getDisplay('default');
     $this->assertTrue($display['display_options']['group_by'], 'The groupby setting was saved on the view.');
     $this->assertEqual($display['display_options']['fields']['id']['group_type'], 'count', 'Count groupby_type was saved on the view.');

@@ -57,7 +57,7 @@ abstract class EntityDisplayModeFormBase extends EntityFormController {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity.query'),
-      $container->get('plugin.manager.entity')
+      $container->get('entity.manager')
     );
   }
 
@@ -82,7 +82,6 @@ abstract class EntityDisplayModeFormBase extends EntityFormController {
 
     $form['id'] = array(
       '#type' => 'machine_name',
-      '#title' => t('Machine-readable name'),
       '#description' => t('A unique machine-readable name. Can only contain lowercase letters, numbers, and underscores.'),
       '#disabled' => !$this->entity->isNew(),
       '#default_value' => $this->entity->id(),

@@ -15,9 +15,6 @@ use Drupal\Core\Database\TransactionCommitFailedException;
 use Drupal\Core\Database\Driver\sqlite\Statement;
 use Drupal\Core\Database\Connection as DatabaseConnection;
 
-use PDO;
-use SplFileInfo;
-
 /**
  * Specific SQLite implementation of DatabaseConnection.
  */
@@ -68,7 +65,7 @@ class Connection extends DatabaseConnection {
   /**
    * Constructs a \Drupal\Core\Database\Driver\sqlite\Connection object.
    */
-  public function __construct(PDO $connection, array $connection_options) {
+  public function __construct(\PDO $connection, array $connection_options) {
     parent::__construct($connection, $connection_options);
 
     // We don't need a specific PDOStatement class here, we simulate it below.
@@ -112,11 +109,11 @@ class Connection extends DatabaseConnection {
       'pdo' => array(),
     );
     $connection_options['pdo'] += array(
-      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
       // Convert numeric values to strings when fetching.
-      PDO::ATTR_STRINGIFY_FETCHES => TRUE,
+      \PDO::ATTR_STRINGIFY_FETCHES => TRUE,
     );
-    $pdo = new PDO('sqlite:' . $connection_options['database'], '', '', $connection_options['pdo']);
+    $pdo = new \PDO('sqlite:' . $connection_options['database'], '', '', $connection_options['pdo']);
 
     // Create functions needed by SQLite.
     $pdo->sqliteCreateFunction('if', array(__CLASS__, 'sqlFunctionIf'));
@@ -128,6 +125,7 @@ class Connection extends DatabaseConnection {
     $pdo->sqliteCreateFunction('substring', array(__CLASS__, 'sqlFunctionSubstring'), 3);
     $pdo->sqliteCreateFunction('substring_index', array(__CLASS__, 'sqlFunctionSubstringIndex'), 3);
     $pdo->sqliteCreateFunction('rand', array(__CLASS__, 'sqlFunctionRand'));
+    $pdo->sqliteCreateFunction('regexp', array(__CLASS__, 'sqlFunctionRegexp'));
 
     // Execute sqlite init_commands.
     if (isset($connection_options['init_commands'])) {
@@ -234,6 +232,15 @@ class Connection extends DatabaseConnection {
       mt_srand($seed);
     }
     return mt_rand() / mt_getrandmax();
+  }
+
+  /**
+   * SQLite compatibility implementation for the REGEXP SQL operator.
+   *
+   * The REGEXP operator is a special syntax for the regexp() user function.
+   */
+  public static function sqlFunctionRegexp($string, $pattern) {
+    return preg_match('#' . str_replace('#', '\#', $pattern) . '#i', $string);
   }
 
   /**

@@ -7,8 +7,6 @@
 
 namespace Drupal\comment\Tests;
 
-use Drupal\Core\Language\Language;
-
 /**
  * Tests the comment module administrative and end-user-facing interfaces.
  */
@@ -26,7 +24,6 @@ class CommentInterfaceTest extends CommentTestBase {
    * Tests the comment interface.
    */
   function testCommentInterface() {
-    $langcode = Language::LANGCODE_NOT_SPECIFIED;
     // Set comments to have subject and preview disabled.
     $this->drupalLogin($this->admin_user);
     $this->setCommentPreview(DRUPAL_DISABLED);
@@ -56,7 +53,7 @@ class CommentInterfaceTest extends CommentTestBase {
     $this->assertTrue($this->commentExists($comment), 'Comment found.');
 
     // Check comment display.
-    $this->drupalGet('node/' . $this->node->id() . '/' . $comment->id());
+    $this->drupalGet('node/' . $this->node->id());
     $this->assertText($subject_text, 'Individual comment subject found.');
     $this->assertText($comment_text, 'Individual comment body found.');
 
@@ -66,8 +63,12 @@ class CommentInterfaceTest extends CommentTestBase {
     $this->setCommentSubject(TRUE);
     $this->setCommentPreview(DRUPAL_OPTIONAL);
 
-    // Test changing the comment author to "Anonymous".
     $this->drupalGet('comment/' . $comment->id() . '/edit');
+    $this->assertTitle(t('Edit comment @title | Drupal', array(
+      '@title' => $comment->subject->value,
+    )));
+
+    // Test changing the comment author to "Anonymous".
     $comment = $this->postComment(NULL, $comment->comment_body->value, $comment->subject->value, array('name' => ''));
     $this->assertTrue(empty($comment->name->value) && $comment->uid->target_id == 0, 'Comment author successfully changed to anonymous.');
 
@@ -144,7 +145,7 @@ class CommentInterfaceTest extends CommentTestBase {
     $this->assertTrue($this->node, 'Article node created.');
     $this->drupalGet('comment/reply/' . $this->node->id());
     $this->assertNoText('This discussion is closed', 'Posting to node with comments enabled');
-    $this->assertField('edit-comment-body-' . $langcode . '-0-value', 'Comment body field found.');
+    $this->assertField('edit-comment-body-0-value', 'Comment body field found.');
 
     // Delete comment and make sure that reply is also removed.
     $this->drupalLogout();

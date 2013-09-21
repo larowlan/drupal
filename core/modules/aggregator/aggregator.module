@@ -92,31 +92,31 @@ function aggregator_menu() {
   $items['admin/config/services/aggregator'] = array(
     'title' => 'Feed aggregator',
     'description' => "Configure which content your site aggregates from other sites, how often it polls them, and how they're categorized.",
-    'route_name' => 'aggregator_admin_overview',
+    'route_name' => 'aggregator.admin_overview',
     'weight' => 10,
   );
   $items['admin/config/services/aggregator/add/feed'] = array(
     'title' => 'Add feed',
-    'route_name' => 'aggregator_feed_add',
+    'route_name' => 'aggregator.feed_add',
     'type' => MENU_LOCAL_ACTION,
   );
   $items['admin/config/services/aggregator/add/category'] = array(
     'title' => 'Add category',
     'type' => MENU_LOCAL_ACTION,
-    'route_name' => 'aggregator_category_add',
+    'route_name' => 'aggregator.category_add',
   );
   $items['admin/config/services/aggregator/add/opml'] = array(
     'title' => 'Import OPML',
     'type' => MENU_LOCAL_ACTION,
-    'route_name' => 'aggregator_opml_add',
+    'route_name' => 'aggregator.opml_add',
   );
   $items['admin/config/services/aggregator/remove/%aggregator_feed'] = array(
     'title' => 'Remove items',
-    'route_name' => 'aggregator_feed_items_delete',
+    'route_name' => 'aggregator.feed_items_delete',
   );
   $items['admin/config/services/aggregator/update/%aggregator_feed'] = array(
     'title' => 'Update items',
-    'route_name' => 'aggregator_feed_refresh',
+    'route_name' => 'aggregator.feed_refresh',
   );
   $items['admin/config/services/aggregator/list'] = array(
     'title' => 'List',
@@ -125,37 +125,27 @@ function aggregator_menu() {
   $items['admin/config/services/aggregator/settings'] = array(
     'title' => 'Settings',
     'description' => 'Configure the behavior of the feed aggregator, including when to discard feed items and how to present feed items and categories.',
-    'route_name' => 'aggregator_admin_settings',
+    'route_name' => 'aggregator.admin_settings',
     'type' => MENU_LOCAL_TASK,
     'weight' => 100,
   );
   $items['aggregator'] = array(
     'title' => 'Feed aggregator',
     'weight' => 5,
-    'route_name' => 'aggregator_page_last',
+    'route_name' => 'aggregator.page_last',
   );
   $items['aggregator/sources'] = array(
     'title' => 'Sources',
-    'route_name' => 'aggregator_sources',
+    'route_name' => 'aggregator.sources',
   );
   $items['aggregator/categories'] = array(
     'title' => 'Categories',
-    'route_name' => 'aggregator_categories',
-  );
-  $items['aggregator/opml'] = array(
-    'title' => 'OPML feed',
-    'page callback' => 'aggregator_page_opml',
-    'access arguments' => array('access news feeds'),
-    'type' => MENU_CALLBACK,
-    'file' => 'aggregator.pages.inc',
+    'route_name' => 'aggregator.categories',
   );
   $items['aggregator/categories/%aggregator_category'] = array(
     'title callback' => '_aggregator_category_title',
     'title arguments' => array(2),
-    'page callback' => 'aggregator_page_category',
-    'page arguments' => array(2),
-    'access arguments' => array('access news feeds'),
-    'file' => 'aggregator.pages.inc',
+    'route_name' => 'aggregator.category_view',
   );
   $items['aggregator/categories/%aggregator_category/view'] = array(
     'title' => 'View',
@@ -163,25 +153,19 @@ function aggregator_menu() {
   );
   $items['aggregator/categories/%aggregator_category/categorize'] = array(
     'title' => 'Categorize',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('aggregator_page_category_form', 2),
-    'access arguments' => array('administer news feeds'),
     'type' => MENU_LOCAL_TASK,
-    'file' => 'aggregator.pages.inc',
+    'route_name' => 'aggregator.categorize_category_form',
   );
   $items['aggregator/categories/%aggregator_category/configure'] = array(
     'title' => 'Configure',
     'type' => MENU_LOCAL_TASK,
     'weight' => 10,
-    'route_name' => 'aggregator_category_edit',
+    'route_name' => 'aggregator.category_edit',
   );
   $items['aggregator/sources/%aggregator_feed'] = array(
     'title callback' => 'entity_page_label',
     'title arguments' => array(2),
-    'page callback' => 'aggregator_page_source',
-    'page arguments' => array(2),
-    'access arguments' => array('access news feeds'),
-    'file' => 'aggregator.pages.inc',
+    'route_name' => 'aggregator.feed_view',
   );
   $items['aggregator/sources/%aggregator_feed/view'] = array(
     'title' => 'View',
@@ -189,37 +173,30 @@ function aggregator_menu() {
   );
   $items['aggregator/sources/%aggregator_feed/categorize'] = array(
     'title' => 'Categorize',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('aggregator_page_source_form', 2),
-    'access arguments' => array('administer news feeds'),
+    'route_name' => 'aggregator.categorize_feed_form',
     'type' => MENU_LOCAL_TASK,
-    'file' => 'aggregator.pages.inc',
   );
   $items['aggregator/sources/%aggregator_feed/configure'] = array(
     'title' => 'Configure',
-    'page callback' => 'entity_get_form',
-    'page arguments' => array(2),
-    'access arguments' => array('administer news feeds'),
+    'route_name' => 'aggregator.feed_configure',
     'type' => MENU_LOCAL_TASK,
     'weight' => 10,
   );
   $items['admin/config/services/aggregator/edit/feed/%aggregator_feed'] = array(
     'title' => 'Edit feed',
-    'page callback' => 'entity_get_form',
-    'page arguments' => array(6),
-    'access arguments' => array('administer news feeds'),
+    'route_name' => 'aggregator.feed_edit',
   );
   $items['admin/config/services/aggregator/delete/feed/%aggregator_feed'] = array(
     'title' => 'Delete feed',
-    'route_name' => 'aggregator_feed_delete',
+    'route_name' => 'aggregator.feed_delete',
   );
   $items['admin/config/services/aggregator/edit/category/%aggregator_category'] = array(
     'title' => 'Edit category',
-    'route_name' => 'aggregator_category_admin_edit',
+    'route_name' => 'aggregator.category_admin_edit',
   );
   $items['admin/config/services/aggregator/delete/category/%aggregator_category'] = array(
     'title' => 'Delete category',
-    'route_name' => 'aggregator_category_delete',
+    'route_name' => 'aggregator.category_delete',
   );
 
   return $items;
@@ -262,7 +239,7 @@ function aggregator_cron() {
     ':time' => REQUEST_TIME,
     ':never' => AGGREGATOR_CLEAR_NEVER
   ));
-  $queue = Drupal::queue('aggregator_feeds');
+  $queue = \Drupal::queue('aggregator_feeds');
   foreach ($result->fetchCol() as $fid) {
     $feed = aggregator_feed_load($fid);
     if ($queue->createItem($feed)) {
@@ -318,7 +295,7 @@ function aggregator_save_category($edit) {
         ->condition('cid', $edit['cid'])
         ->execute();
       // Make sure there is no active block for this category.
-      if (Drupal::moduleHandler()->moduleExists('block')) {
+      if (\Drupal::moduleHandler()->moduleExists('block')) {
         foreach (entity_load_multiple_by_properties('block', array('plugin' => 'aggregator_category_block:' . $edit['cid'])) as $block) {
           $block->delete();
         }
@@ -338,7 +315,7 @@ function aggregator_save_category($edit) {
       ->execute();
     $op = 'insert';
   }
-  if (isset($op) && Drupal::moduleHandler()->moduleExists('menu_link')) {
+  if (isset($op) && \Drupal::moduleHandler()->moduleExists('menu_link')) {
     menu_link_maintain('aggregator', $op, $link_path, $edit['title']);
   }
 }
@@ -353,9 +330,9 @@ function aggregator_refresh(Feed $feed) {
   // Store feed URL to track changes.
   $feed_url = $feed->url->value;
 
-  $config = Drupal::config('aggregator.settings');
+  $config = \Drupal::config('aggregator.settings');
   // Fetch the feed.
-  $fetcher_manager = Drupal::service('plugin.manager.aggregator.fetcher');
+  $fetcher_manager = \Drupal::service('plugin.manager.aggregator.fetcher');
   try {
     $success = $fetcher_manager->createInstance($config->get('fetcher'))->fetch($feed);
   }
@@ -365,7 +342,7 @@ function aggregator_refresh(Feed $feed) {
   }
 
   // Retrieve processor manager now.
-  $processor_manager = Drupal::service('plugin.manager.aggregator.processor');
+  $processor_manager = \Drupal::service('plugin.manager.aggregator.processor');
   // Store instances in an array so we dont have to instantiate new objects.
   $processor_instances = array();
   foreach ($config->get('processors') as $processor) {
@@ -384,7 +361,7 @@ function aggregator_refresh(Feed $feed) {
 
   if ($success && ($feed->hash->value != $hash)) {
     // Parse the feed.
-    $parser_manager = Drupal::service('plugin.manager.aggregator.parser');
+    $parser_manager = \Drupal::service('plugin.manager.aggregator.parser');
     try {
       if ($parser_manager->createInstance($config->get('parser'))->parse($feed)) {
         if (empty($feed->link->value)) {
@@ -455,7 +432,7 @@ function aggregator_feed_load($fid) {
  *   instead.
  */
 function aggregator_category_load($cid) {
-  return Drupal::service('aggregator.category.storage')->load($cid);
+  return \Drupal::service('aggregator.category.storage')->load($cid);
 }
 
 /**
@@ -483,7 +460,7 @@ function theme_aggregator_block_item($variables) {
  *   The filtered content.
  */
 function aggregator_filter_xss($value) {
-  return filter_xss($value, preg_split('/\s+|<|>/', Drupal::config('aggregator.settings')->get('items.allowed_html'), -1, PREG_SPLIT_NO_EMPTY));
+  return filter_xss($value, preg_split('/\s+|<|>/', \Drupal::config('aggregator.settings')->get('items.allowed_html'), -1, PREG_SPLIT_NO_EMPTY));
 }
 
 /**

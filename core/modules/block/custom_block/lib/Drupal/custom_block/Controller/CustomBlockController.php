@@ -8,13 +8,13 @@
 namespace Drupal\custom_block\Controller;
 
 use Drupal\Component\Plugin\PluginManagerInterface;
-use Drupal\Core\Controller\ControllerInterface;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\custom_block\CustomBlockTypeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
-class CustomBlockController implements ControllerInterface {
+class CustomBlockController implements ContainerInjectionInterface {
 
   /**
    * The entity manager.
@@ -41,7 +41,7 @@ class CustomBlockController implements ControllerInterface {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    $entity_manager = $container->get('plugin.manager.entity');
+    $entity_manager = $container->get('entity.manager');
     return new static(
       $entity_manager,
       $entity_manager->getStorageController('custom_block'),
@@ -105,7 +105,7 @@ class CustomBlockController implements ControllerInterface {
     $block = $this->customBlockStorage->create(array(
       'type' => $custom_block_type->id()
     ));
-    if (($theme = $request->attributes->get('theme')) && in_array($theme, array_keys(list_themes()))) {
+    if (($theme = $request->query->get('theme')) && in_array($theme, array_keys(list_themes()))) {
       // We have navigated to this page from the block library and will keep track
       // of the theme for redirecting the user to the configuration page for the
       // newly created block in the given theme.

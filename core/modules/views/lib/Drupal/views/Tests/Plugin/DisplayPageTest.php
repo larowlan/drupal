@@ -33,7 +33,7 @@ class DisplayPageTest extends ViewUnitTestBase {
    *
    * @var array
    */
-  public static $modules = array('system', 'user');
+  public static $modules = array('system', 'user', 'menu_link', 'field');
 
   /**
    * The router dumper to get all routes.
@@ -57,9 +57,8 @@ class DisplayPageTest extends ViewUnitTestBase {
     parent::setUp();
 
     // Setup the needed tables in order to make the drupal router working.
-    $this->installSchema('system', 'router');
-    $this->installSchema('system', 'url_alias');
-    $this->installSchema('system', 'menu_router');
+    $this->installSchema('system', array('router', 'menu_router', 'url_alias'));
+    $this->installSchema('menu_link', 'menu_links');
   }
 
   /**

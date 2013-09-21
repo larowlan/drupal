@@ -1,11 +1,13 @@
 <?php
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\Config;
 use Drupal\Core\Config\ConfigException;
 use Drupal\Core\Config\ConfigInstaller;
+use Drupal\Core\Config\ExtensionInstallStorage;
 use Drupal\Core\Config\FileStorage;
 use Drupal\Core\Config\StorageInterface;
-use Drupal\Core\Config\StorageComparer;
+use Drupal\Core\Config\ExtensionInstallStorageComparer;
 use Symfony\Component\Yaml\Dumper;
 
 /**
@@ -16,25 +18,65 @@ use Symfony\Component\Yaml\Dumper;
 /**
  * Installs the default configuration of a given extension.
  *
+ * When an extension is installed, it searches all the default configuration
+ * directories for all other extensions to locate any configuration with its
+ * name prefix. For example, the Node module provides the frontpage view as a
+ * default configuration file:
+ * core/modules/node/config/views.view.frontpage.yml
+ * When the Views module is installed after the Node module is already enabled,
+ * the frontpage view will be installed.
+ *
+ * Additionally, the default configuration directory for the extension being
+ * installed is searched to discover if it contains default configuration
+ * that is owned by other enabled extensions. So, the frontpage view will also
+ * be installed when the Node module is installed after Views.
+ *
  * @param string $type
  *   The extension type; e.g., 'module' or 'theme'.
  * @param string $name
  *   The name of the module or theme to install default configuration for.
+ *
+ * @see \Drupal\Core\Config\ExtensionInstallStorage
+ * @see \Drupal\Core\Config\ExtensionInstallStorageComparer
+ * @see \Drupal\Core\Config\ConfigInstaller
  */
 function config_install_default_config($type, $name) {
+  // Get all default configuration owned by this extension.
+  $source_storage = new ExtensionInstallStorage();
+  $config_to_install = $source_storage->listAll($name . '.');
+
+  // Work out if this extension provides default configuration for any other
+  // enabled extensions.
   $config_dir = drupal_get_path($type, $name) . '/config';
   if (is_dir($config_dir)) {
-    $source_storage = new FileStorage($config_dir);
-    $storage_comparer = new StorageComparer($source_storage, Drupal::service('config.storage'));
+    $default_storage = new FileStorage($config_dir);
+    $other_module_config = array_filter($default_storage->listAll(),
+      function ($value) use ($name) {
+        return !preg_match('/^' . $name . '\./', $value);
+      }
+    );
+    $enabled_extensions = array_keys(\Drupal::moduleHandler()->getModuleList());
+    $enabled_extensions += array_keys(array_filter(list_themes(), function ($theme) {return $theme->status;}));
+
+    $other_module_config = array_filter($other_module_config, function ($config_name) use ($enabled_extensions) {
+      $provider = Unicode::substr($config_name, 0, strpos($config_name, '.'));
+      return in_array($provider, $enabled_extensions);
+    });
+
+    $config_to_install = array_merge($config_to_install, $other_module_config);
+  }
+  if (!empty($config_to_install)) {
+    $storage_comparer = new ExtensionInstallStorageComparer($source_storage, \Drupal::service('config.storage'));
+    $storage_comparer->setSourceNames($config_to_install);
     // Only import new config. Changed config is from previous enables and
     // should not be overwritten.
     $storage_comparer->addChangelistCreate();
     $installer = new ConfigInstaller(
       $storage_comparer,
-      Drupal::service('event_dispatcher'),
-      Drupal::service('config.factory'),
-      Drupal::entityManager(),
-      Drupal::lock()
+      \Drupal::service('event_dispatcher'),
+      \Drupal::service('config.factory'),
+      \Drupal::entityManager(),
+      \Drupal::lock()
     );
     $installer->import();
   }
@@ -52,7 +94,7 @@ function config_uninstall_default_config($type, $name) {
   $storage = drupal_container()->get('config.storage');
   $config_names = $storage->listAll($name . '.');
   foreach ($config_names as $config_name) {
-    Drupal::config($config_name)->delete();
+    \Drupal::config($config_name)->delete();
   }
 }
 
@@ -84,7 +126,7 @@ function config_get_storage_names_with_prefix($prefix = '') {
  *   A configuration object.
  */
 function config($name) {
-  return Drupal::config($name);
+  return \Drupal::config($name);
 }
 
 /**
@@ -92,7 +134,7 @@ function config($name) {
  *
  * This allows configuration objects to be created using special configuration
  * contexts eg. global override free or locale using a user preferred language.
- * Calling this function affects all subsequent calls to Drupal::config() until
+ * Calling this function affects all subsequent calls to \Drupal::config() until
  * config_context_leave() is called.
  *
  * @see config_context_leave()

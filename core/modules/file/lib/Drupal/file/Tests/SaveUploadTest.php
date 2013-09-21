@@ -55,7 +55,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'file_test_replace' => FILE_EXISTS_REPLACE,
       'files[file_test_upload]' => drupal_realpath($this->image->getFileUri()),
     );
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertRaw(t('You WIN!'), 'Found the success message.');
 
@@ -80,10 +80,9 @@ class SaveUploadTest extends FileManagedTestBase {
     file_test_reset();
 
     // Upload a second file.
-    $max_fid_before = db_query('SELECT MAX(fid) AS fid FROM {file_managed}')->fetchField();
     $image2 = current($this->drupalGetTestFiles('image'));
     $edit = array('files[file_test_upload]' => drupal_realpath($image2->uri));
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertRaw(t('You WIN!'));
     $max_fid_after = db_query('SELECT MAX(fid) AS fid FROM {file_managed}')->fetchField();
@@ -109,7 +108,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'files[file_test_upload]' => $image3_realpath,
       'file_subdir' => $dir,
     );
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertRaw(t('You WIN!'));
     $this->assertTrue(is_file('temporary://' . $dir . '/' . trim(drupal_basename($image3_realpath))));
@@ -130,7 +129,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'extensions' => $extensions,
     );
 
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $message = t('Only files with the following extensions are allowed:') . ' <em class="placeholder">' . $extensions . '</em>';
     $this->assertRaw($message, 'Cannot upload a disallowed extension');
@@ -150,7 +149,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'extensions' => $extensions,
     );
 
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertNoRaw(t('Only files with the following extensions are allowed:'), 'Can upload an allowed extension.');
     $this->assertRaw(t('You WIN!'), 'Found the success message.');
@@ -167,7 +166,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'files[file_test_upload]' => drupal_realpath($this->image->getFileUri()),
       'allow_all_extensions' => TRUE,
     );
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertNoRaw(t('Only files with the following extensions are allowed:'), 'Can upload any extension.');
     $this->assertRaw(t('You WIN!'), 'Found the success message.');
@@ -190,7 +189,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'extensions' => 'php',
     );
 
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $message = t('For security reasons, your upload has been renamed to') . ' <em class="placeholder">' . $this->phpfile->filename . '.txt' . '</em>';
     $this->assertRaw($message, 'Dangerous file was renamed.');
@@ -206,7 +205,7 @@ class SaveUploadTest extends FileManagedTestBase {
     // Reset the hook counters.
     file_test_reset();
 
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertNoRaw(t('For security reasons, your upload has been renamed'), 'Found no security message.');
     $this->assertRaw(t('File name is !filename', array('!filename' => $this->phpfile->filename)), 'Dangerous file was not renamed when insecure uploads is TRUE.');
@@ -240,7 +239,7 @@ class SaveUploadTest extends FileManagedTestBase {
     $munged_filename = substr($munged_filename, 0, strrpos($munged_filename, '.'));
     $munged_filename .= '_.' . $this->image_extension;
 
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertRaw(t('For security reasons, your upload has been renamed'), 'Found security message.');
     $this->assertRaw(t('File name is !filename', array('!filename' => $munged_filename)), 'File was successfully munged.');
@@ -258,7 +257,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'allow_all_extensions' => TRUE,
     );
 
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertNoRaw(t('For security reasons, your upload has been renamed'), 'Found no security message.');
     $this->assertRaw(t('File name is !filename', array('!filename' => $this->image->getFilename())), 'File was not munged when allowing any extension.');
@@ -276,7 +275,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'file_test_replace' => FILE_EXISTS_RENAME,
       'files[file_test_upload]' => drupal_realpath($this->image->getFileUri())
     );
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertRaw(t('You WIN!'), 'Found the success message.');
 
@@ -292,7 +291,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'file_test_replace' => FILE_EXISTS_REPLACE,
       'files[file_test_upload]' => drupal_realpath($this->image->getFileUri())
     );
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertRaw(t('You WIN!'), 'Found the success message.');
 
@@ -308,7 +307,7 @@ class SaveUploadTest extends FileManagedTestBase {
       'file_test_replace' => FILE_EXISTS_ERROR,
       'files[file_test_upload]' => drupal_realpath($this->image->getFileUri())
     );
-    $this->drupalPost('file-test/upload', $edit, t('Submit'));
+    $this->drupalPostForm('file-test/upload', $edit, t('Submit'));
     $this->assertResponse(200, 'Received a 200 response for posted test file.');
     $this->assertRaw(t('Epic upload FAIL!'), 'Found the failure message.');
 
@@ -320,7 +319,7 @@ class SaveUploadTest extends FileManagedTestBase {
    * Test for no failures when not uploading a file.
    */
   function testNoUpload() {
-    $this->drupalPost('file-test/upload', array(), t('Submit'));
+    $this->drupalPostForm('file-test/upload', array(), t('Submit'));
     $this->assertNoRaw(t('Epic upload FAIL!'), 'Failure message not found.');
   }
 }

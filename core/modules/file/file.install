@@ -5,6 +5,7 @@
  * Install, update and uninstall functions for File module.
  */
 
+use Drupal\Core\Entity\DatabaseStorageController;
 use Drupal\field\Entity\Field;
 
 /**
@@ -152,44 +153,6 @@ function file_schema() {
 }
 
 /**
- * Implements hook_field_schema().
- */
-function file_field_schema($field) {
-  return array(
-    'columns' => array(
-      'target_id' => array(
-        'description' => 'The ID of the target entity.',
-        'type' => 'int',
-        'not null' => TRUE,
-        'unsigned' => TRUE,
-      ),
-      'display' => array(
-        'description' => 'Flag to control whether this file should be displayed when viewing content.',
-        'type' => 'int',
-        'size' => 'tiny',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 1,
-      ),
-      'description' => array(
-        'description' => 'A description of the file.',
-        'type' => 'text',
-        'not null' => FALSE,
-      ),
-    ),
-    'indexes' => array(
-      'target_id' => array('target_id'),
-    ),
-    'foreign keys' => array(
-      'target_id' => array(
-        'table' => 'file_managed',
-        'columns' => array('target_id' => 'fid'),
-      ),
-    ),
-  );
-}
-
-/**
  * Implements hook_requirements().
  *
  * Display information about getting upload progress bars working.
@@ -200,7 +163,7 @@ function file_requirements($phase) {
   // Check the server's ability to indicate upload progress.
   if ($phase == 'runtime') {
     $implementation = file_progress_implementation();
-    $server_software = Drupal::request()->server->get('SERVER_SOFTWARE');
+    $server_software = \Drupal::request()->server->get('SERVER_SOFTWARE');
     $apache = strpos($server_software, 'Apache') !== FALSE;
     $fastcgi = strpos($server_software, 'mod_fastcgi') !== FALSE || strpos($server_software, 'mod_fcgi') !== FALSE;
     $description = NULL;
@@ -247,10 +210,10 @@ function file_update_dependencies() {
     'file' => 8001,
   );
 
-  // Convert the 'fid' column of file fields to 'target_id' after fields and
-  // instances have been moved to the config system.
+  // Convert the 'fid' column of file fields to 'target_id' after the field
+  // tables have been reorganized.
   $dependencies['file'][8003] = array(
-    'field' => 8003,
+    'field' => 8006,
   );
   return $dependencies;
 }
@@ -303,40 +266,42 @@ function file_update_8002() {
  */
 function file_update_8003() {
   foreach (config_get_storage_names_with_prefix('field.field.') as $config_name) {
-    $field_config = Drupal::config($config_name);
+    $field_config = \Drupal::config($config_name);
     // Only update file fields that use the default SQL storage.
-    if (in_array($field_config->get('type'), array('file', 'image')) && $field_config->get('storage.type') == 'field_sql_storage') {
+    if (in_array($field_config->get('type'), array('file', 'image'))) {
       $field = new Field($field_config->get());
 
-      $tables = array(
-        _field_sql_storage_tablename($field),
-        _field_sql_storage_revision_tablename($field),
-      );
+      if (db_table_exists(DatabaseStorageController::_fieldTableName($field))) {
+        $tables = array(
+          DatabaseStorageController::_fieldTableName($field),
+          DatabaseStorageController::_fieldRevisionTableName($field),
+        );
 
-      foreach ($tables as $table_name) {
-        // Skip fields which were created during the upgrade process.
-        if (!db_field_exists($table_name, $field->id() . '_fid')) {
-          continue 2;
+        foreach ($tables as $table_name) {
+          // Skip fields which were created during the upgrade process.
+          if (!db_field_exists($table_name, $field->name . '_fid')) {
+            continue 2;
+          }
+
+          db_change_field($table_name, $field->name . '_fid', $field->name . '_target_id', array(
+            'description' => 'The ID of the target entity.',
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+          ));
+
+          // Change the index.
+          db_drop_index($table_name, $field->name . '_fid');
+          db_add_index($table_name, $field->name . '_target_id', array($field->name . '_target_id'));
         }
 
-        db_change_field($table_name, $field->id() . '_fid', $field->id() . '_target_id', array(
-          'description' => 'The ID of the target entity.',
-          'type' => 'int',
-          'unsigned' => TRUE,
-          'not null' => TRUE,
-        ));
-
-        // Change the index.
-        db_drop_index($table_name, $field->id() . '_fid');
-        db_add_index($table_name, $field->id() . '_target_id', array($field->id() . '_target_id'));
+        // Update the indexes in field config as well.
+        $indexes = $field_config->get('indexes');
+        unset($indexes['fid']);
+        $indexes['target_id'] = array('target_id');
+        $field_config->set('indexes', $indexes);
+        $field_config->save();
       }
-
-      // Update the indexes in field config as well.
-      $indexes = $field_config->get('indexes');
-      unset($indexes['fid']);
-      $indexes['target_id'] = array('target_id');
-      $field_config->set('indexes', $indexes);
-      $field_config->save();
     }
   }
 }

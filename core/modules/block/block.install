@@ -35,6 +35,10 @@ function block_update_dependencies() {
   $dependencies['block'][8005] = array(
     'user' => 8016,
   );
+  // Migrate custom blocks after field storage has been reorganized.
+  $dependencies['block'][8008] = array(
+    'field' => 8006,
+  );
   return $dependencies;
 }
 
@@ -180,7 +184,7 @@ function block_update_8005() {
  * Enable the Custom Block module.
  */
 function block_update_8006() {
-  module_enable(array('custom_block'));
+  Drupal::moduleHandler()->install(array('custom_block'));
 }
 
 /**
@@ -202,13 +206,15 @@ function block_update_8007() {
     'info',
     'revision_id',
     'langcode',
-    'type'
+    'type',
+    'changed',
   ));
   $revision_insert = db_insert('custom_block_revision')->fields(array(
     'id',
     'revision_id',
     'log',
-    'info'
+    'info',
+    'changed',
   ));
   foreach ($results as $block) {
     $custom_block = array(
@@ -217,13 +223,15 @@ function block_update_8007() {
       'info' => $block->info,
       'revision_id' => $block->bid,
       'langcode' => Language::LANGCODE_NOT_SPECIFIED,
-      'type' => 'basic'
+      'type' => 'basic',
+      'changed' => REQUEST_TIME,
     );
     $revision = array(
       'id' => $block->bid,
       'revision_id' => $block->bid,
       'info' => $block->info,
-      'log' => 'Initial value from 7.x to 8.x upgrade'
+      'log' => 'Initial value from 7.x to 8.x upgrade',
+      'changed' => REQUEST_TIME,
     );
     $block_insert->values($custom_block);
     $revision_insert->values($revision);
@@ -247,9 +255,9 @@ function block_update_8008() {
 
     // First, create the body field.
     $body_field = array(
-      'id' => 'block_body',
+      'name' => 'block_body',
+      'entity_type' => 'custom_block',
       'type' => 'text_with_summary',
-      'entity_types' => array('custom_block'),
       'module' => 'text',
       'cardinality' => 1,
       'schema' => array(
@@ -283,8 +291,8 @@ function block_update_8008() {
     );
     _update_8003_field_create_field($body_field);
 
+
     $instance = array(
-      'id' => 'custom_block.basic.block_body',
       'entity_type' => 'custom_block',
       'bundle' => 'basic',
       'label' => 'Block body',
@@ -338,7 +346,7 @@ function block_update_8008() {
         );
         // This is a core update and no contrib modules are enabled yet, so
         // we can assume default field storage for a faster update.
-        _update_8000_field_sql_storage_write('custom_block', 'basic', $block->bid, $block->bid, 'block_body', $data);
+        _update_8006_field_write_data_sql('custom_block', 'basic', $block->bid, $block->bid, 'block_body', $data);
 
         $sandbox['last'] = $block->bid;
         $sandbox['count'] += 1;

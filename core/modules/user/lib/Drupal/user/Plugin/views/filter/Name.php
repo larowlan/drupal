@@ -42,7 +42,7 @@ class Name extends InOperator {
       '#title' => t('Usernames'),
       '#description' => t('Enter a comma separated list of user names.'),
       '#default_value' => $default_value,
-      '#autocomplete_route_name' => 'user_autocomplete_anonymous',
+      '#autocomplete_route_name' => 'user.autocomplete_anonymous',
     );
 
     if (!empty($form_state['exposed']) && !isset($form_state['input'][$this->options['expose']['identifier']])) {
@@ -112,7 +112,6 @@ class Name extends InOperator {
     $uids = array();
     $placeholders = array();
     $args = array();
-    $results = array();
     foreach ($values as $value) {
       if (strtolower($value) == 'anonymous') {
         $uids[] = 0;

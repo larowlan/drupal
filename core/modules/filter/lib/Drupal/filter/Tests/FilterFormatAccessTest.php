@@ -7,7 +7,6 @@
 
 namespace Drupal\filter\Tests;
 
-use Drupal\Core\Language\Language;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -86,9 +85,9 @@ class FilterFormatAccessTest extends WebTestBase {
         'format' => drupal_strtolower($this->randomName()),
         'name' => $this->randomName(),
       );
-      $this->drupalPost('admin/config/content/formats/add', $edit, t('Save configuration'));
+      $this->drupalPostForm('admin/config/content/formats/add', $edit, t('Save configuration'));
       $this->resetFilterCaches();
-      $formats[] = filter_format_load($edit['format']);
+      $formats[] = entity_load('filter_format', $edit['format']);
     }
     list($this->allowed_format, $this->second_allowed_format, $this->disallowed_format) = $formats;
     $this->drupalLogout();
@@ -97,8 +96,8 @@ class FilterFormatAccessTest extends WebTestBase {
     $this->web_user = $this->drupalCreateUser(array(
       'create page content',
       'edit any page content',
-      filter_permission_name($this->allowed_format),
-      filter_permission_name($this->second_allowed_format),
+      $this->allowed_format->getPermissionName(),
+      $this->second_allowed_format->getPermissionName(),
     ));
 
     // Create an administrative user who has access to use all three formats.
@@ -106,9 +105,9 @@ class FilterFormatAccessTest extends WebTestBase {
       'administer filters',
       'create page content',
       'edit any page content',
-      filter_permission_name($this->allowed_format),
-      filter_permission_name($this->second_allowed_format),
-      filter_permission_name($this->disallowed_format),
+      $this->allowed_format->getPermissionName(),
+      $this->second_allowed_format->getPermissionName(),
+      $this->disallowed_format->getPermissionName(),
     ));
   }
 
@@ -118,9 +117,10 @@ class FilterFormatAccessTest extends WebTestBase {
   function testFormatPermissions() {
     // Make sure that a regular user only has access to the text formats for
     // which they were granted access.
-    $this->assertTrue(filter_access($this->allowed_format, $this->web_user), 'A regular user has access to a text format they were granted access to.');
-    $this->assertFalse(filter_access($this->disallowed_format, $this->web_user), 'A regular user does not have access to a text format they were not granted access to.');
-    $this->assertTrue(filter_access(filter_format_load(filter_fallback_format()), $this->web_user), 'A regular user has access to the fallback format.');
+    $fallback_format = entity_load('filter_format', filter_fallback_format());
+    $this->assertTrue($this->allowed_format->access('view', $this->web_user), 'A regular user has access to a text format they were granted access to.');
+    $this->assertFalse($this->disallowed_format->access('view', $this->web_user), 'A regular user does not have access to a text format they were not granted access to.');
+    $this->assertTrue($fallback_format->access('view', $this->web_user), 'A regular user has access to the fallback format.');
 
     // Perform similar checks as above, but now against the entire list of
     // available formats for this user.
@@ -130,16 +130,15 @@ class FilterFormatAccessTest extends WebTestBase {
 
     // Make sure that a regular user only has permission to use the format
     // they were granted access to.
-    $this->assertTrue(user_access(filter_permission_name($this->allowed_format), $this->web_user), 'A regular user has permission to use the allowed text format.');
-    $this->assertFalse(user_access(filter_permission_name($this->disallowed_format), $this->web_user), 'A regular user does not have permission to use the disallowed text format.');
+    $this->assertTrue(user_access($this->allowed_format->getPermissionName(), $this->web_user), 'A regular user has permission to use the allowed text format.');
+    $this->assertFalse(user_access($this->disallowed_format->getPermissionName(), $this->web_user), 'A regular user does not have permission to use the disallowed text format.');
 
     // Make sure that the allowed format appears on the node form and that
     // the disallowed format does not.
     $this->drupalLogin($this->web_user);
     $this->drupalGet('node/add/page');
-    $langcode = Language::LANGCODE_NOT_SPECIFIED;
     $elements = $this->xpath('//select[@name=:name]/option', array(
-      ':name' => "body[$langcode][0][format]",
+      ':name' => 'body[0][format]',
       ':option' => $this->allowed_format->format,
     ));
     $options = array();
@@ -192,7 +191,7 @@ class FilterFormatAccessTest extends WebTestBase {
     $this->assertFalse(in_array($this->disallowed_format->format, array_keys(filter_get_formats_by_role($rid))), 'A text format which a role does not have access to does not appear in the list of formats available to that role.');
 
     // Check that the fallback format is always allowed.
-    $this->assertEqual(filter_get_roles_by_format(filter_format_load(filter_fallback_format())), user_role_names(), 'All roles have access to the fallback format.');
+    $this->assertEqual(filter_get_roles_by_format(entity_load('filter_format', filter_fallback_format())), user_role_names(), 'All roles have access to the fallback format.');
     $this->assertTrue(in_array(filter_fallback_format(), array_keys(filter_get_formats_by_role($rid))), 'The fallback format appears in the list of allowed formats for any role.');
   }
 
@@ -206,10 +205,8 @@ class FilterFormatAccessTest extends WebTestBase {
    * choose a new format before saving the page.
    */
   function testFormatWidgetPermissions() {
-    $langcode = Language::LANGCODE_NOT_SPECIFIED;
-    $title_key = "title";
-    $body_value_key = "body[$langcode][0][value]";
-    $body_format_key = "body[$langcode][0][format]";
+    $body_value_key = 'body[0][value]';
+    $body_format_key = 'body[0][format]';
 
     // Create node to edit.
     $this->drupalLogin($this->admin_user);
@@ -217,7 +214,7 @@ class FilterFormatAccessTest extends WebTestBase {
     $edit['title'] = $this->randomName(8);
     $edit[$body_value_key] = $this->randomName(16);
     $edit[$body_format_key] = $this->disallowed_format->format;
-    $this->drupalPost('node/add/page', $edit, t('Save'));
+    $this->drupalPostForm('node/add/page', $edit, t('Save'));
     $node = $this->drupalGetNodeByTitle($edit['title']);
 
     // Try to edit with a less privileged user.
@@ -231,11 +228,11 @@ class FilterFormatAccessTest extends WebTestBase {
     // Verify that title can be changed, but preview displays original body.
     $new_edit = array();
     $new_edit['title'] = $this->randomName(8);
-    $this->drupalPost(NULL, $new_edit, t('Preview'));
+    $this->drupalPostForm(NULL, $new_edit, t('Preview'));
     $this->assertText($edit[$body_value_key], 'Old body found in preview.');
 
     // Save and verify that only the title was changed.
-    $this->drupalPost(NULL, $new_edit, t('Save'));
+    $this->drupalPostForm(NULL, $new_edit, t('Save'));
     $this->assertNoText($edit['title'], 'Old title not found.');
     $this->assertText($new_edit['title'], 'New title found.');
     $this->assertText($edit[$body_value_key], 'Old body found.');
@@ -272,7 +269,7 @@ class FilterFormatAccessTest extends WebTestBase {
     $old_title = $new_edit['title'];
     $new_title = $this->randomName(8);
     $edit = array('title' => $new_title);
-    $this->drupalPost('node/' . $node->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save'));
     $this->assertText(t('!name field is required.', array('!name' => t('Text format'))), 'Error message is displayed.');
     $this->drupalGet('node/' . $node->id());
     $this->assertText($old_title, 'Old title found.');
@@ -280,7 +277,7 @@ class FilterFormatAccessTest extends WebTestBase {
 
     // Now select a new text format and make sure the node can be saved.
     $edit[$body_format_key] = filter_fallback_format();
-    $this->drupalPost('node/' . $node->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save'));
     $this->assertUrl('node/' . $node->id());
     $this->assertText($new_title, 'New title found.');
     $this->assertNoText($old_title, 'Old title not found.');
@@ -289,10 +286,10 @@ class FilterFormatAccessTest extends WebTestBase {
     // other formats on the site (leaving only the fallback format).
     $this->drupalLogin($this->admin_user);
     $edit = array($body_format_key => $this->allowed_format->format);
-    $this->drupalPost('node/' . $node->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save'));
     $this->assertUrl('node/' . $node->id());
     foreach (filter_formats() as $format) {
-      if ($format->format != filter_fallback_format()) {
+      if (!$format->isFallbackFormat()) {
         $format->disable()->save();
       }
     }
@@ -306,13 +303,13 @@ class FilterFormatAccessTest extends WebTestBase {
     $old_title = $new_title;
     $new_title = $this->randomName(8);
     $edit = array('title' => $new_title);
-    $this->drupalPost('node/' . $node->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save'));
     $this->assertText(t('!name field is required.', array('!name' => t('Text format'))), 'Error message is displayed.');
     $this->drupalGet('node/' . $node->id());
     $this->assertText($old_title, 'Old title found.');
     $this->assertNoText($new_title, 'New title not found.');
     $edit[$body_format_key] = filter_fallback_format();
-    $this->drupalPost('node/' . $node->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save'));
     $this->assertUrl('node/' . $node->id());
     $this->assertText($new_title, 'New title found.');
     $this->assertNoText($old_title, 'Old title not found.');

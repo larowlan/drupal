@@ -217,7 +217,7 @@ function node_views_data() {
     );
   }
 
-  if (Drupal::moduleHandler()->moduleExists('content_translation')) {
+  if (\Drupal::moduleHandler()->moduleExists('content_translation')) {
     $data['node']['translation_link'] = array(
       'title' => t('Translation link'),
       'help' => t('Provide a link to the translations overview for nodes.'),
@@ -660,5 +660,5 @@ function node_views_wizard() {
  */
 function node_views_plugins_row_alter(array &$plugins) {
   $plugins['entity:node']['class'] = 'Drupal\node\Plugin\views\row\NodeRow';
-  $plugins['entity:node']['module'] = 'node';
+  $plugins['entity:node']['provider'] = 'node';
 }

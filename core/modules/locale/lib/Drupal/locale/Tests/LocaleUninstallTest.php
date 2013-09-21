@@ -63,7 +63,7 @@ class LocaleUninstallTest extends WebTestBase {
     $language_manager->init();
     // Check the UI language.
 
-    // @todo: If the global user is an EntityBCDecorator, getting the roles
+    // @todo: If the global user is an Entity, getting the roles
     // from it within LocaleLookup results in a loop that invokes LocaleLookup
     // again.
     global $user;
@@ -78,14 +78,14 @@ class LocaleUninstallTest extends WebTestBase {
     // Build the JavaScript translation file for French.
     $user = $this->drupalCreateUser(array('translate interface', 'access administration pages'));
     $this->drupalLogin($user);
-    $this->drupalGet('admin/config/regional/translate/translate');
+    $this->drupalGet('admin/config/regional/translate');
     // Get any of the javascript strings to translate.
     $js_strings = $this->container->get('locale.storage')->getStrings(array('type' => 'javascript'));
     $string = reset($js_strings);
     $edit = array('string' => $string->source);
-    $this->drupalPost('admin/config/regional/translate', $edit, t('Filter'));
+    $this->drupalPostForm('admin/config/regional/translate', $edit, t('Filter'));
     $edit = array('strings[' . $string->lid . '][translations][0]' => 'french translation');
-    $this->drupalPost('admin/config/regional/translate', $edit, t('Save translations'));
+    $this->drupalPostForm('admin/config/regional/translate', $edit, t('Save translations'));
     _locale_rebuild_js('fr');
     $config = \Drupal::config('locale.settings');
     $locale_javascripts = $this->container->get('state')->get('locale.translation.javascript') ?: array();
@@ -109,7 +109,6 @@ class LocaleUninstallTest extends WebTestBase {
       ->save();
 
     // Uninstall Locale.
-    module_disable($locale_module);
     module_uninstall($locale_module);
     $this->rebuildContainer();
 

@@ -9,7 +9,6 @@ namespace Drupal\file\Plugin\field\formatter;
 
 use Drupal\field\Annotation\FieldFormatter;
 use Drupal\Core\Annotation\Translation;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\Field\FieldInterface;
 
 /**
@@ -28,7 +27,7 @@ class GenericFileFormatter extends FileFormatterBase {
   /**
    * Implements \Drupal\field\Plugin\Type\Formatter\FormatterInterface::viewElements().
    */
-  public function viewElements(EntityInterface $entity, $langcode, FieldInterface $items) {
+  public function viewElements(FieldInterface $items) {
     $elements = array();
 
     foreach ($items as $delta => $item) {
@@ -38,6 +37,14 @@ class GenericFileFormatter extends FileFormatterBase {
           '#file' => $item->entity,
           '#description' => $item->description,
         );
+        // Pass field item attributes to the theme function.
+        if (isset($item->_attributes)) {
+          $elements[$delta] += array('#attributes' => array());
+          $elements[$delta]['#attributes'] += $item->_attributes;
+          // Unset field item attributes since they have been included in the
+          // formatter output and should not be rendered in the field template.
+          unset($item->_attributes);
+        }
       }
     }
 

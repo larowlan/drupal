@@ -26,28 +26,30 @@ class VocabularyDeleteForm extends EntityConfirmFormBase {
    * {@inheritdoc}
    */
   public function getQuestion() {
-    return t('Are you sure you want to delete the vocabulary %title?', array('%title' => $this->entity->label()));
+    return $this->t('Are you sure you want to delete the vocabulary %title?', array('%title' => $this->entity->label()));
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getCancelPath() {
-    return 'admin/structure/taxonomy';
+  public function getCancelRoute() {
+    return array(
+      'route_name' => 'taxonomy.vocabulary_list',
+    );
   }
 
   /**
    * {@inheritdoc}
    */
   public function getDescription() {
-    return t('Deleting a vocabulary will delete all the terms in it. This action cannot be undone.');
+    return $this->t('Deleting a vocabulary will delete all the terms in it. This action cannot be undone.');
   }
 
   /**
    * {@inheritdoc}
    */
   public function getConfirmText() {
-    return t('Delete');
+    return $this->t('Delete');
   }
 
   /**
@@ -55,7 +57,7 @@ class VocabularyDeleteForm extends EntityConfirmFormBase {
    */
   public function submit(array $form, array &$form_state) {
     $this->entity->delete();
-    drupal_set_message(t('Deleted vocabulary %name.', array('%name' => $this->entity->label())));
+    drupal_set_message($this->t('Deleted vocabulary %name.', array('%name' => $this->entity->label())));
     watchdog('taxonomy', 'Deleted vocabulary %name.', array('%name' => $this->entity->label()), WATCHDOG_NOTICE);
     $form_state['redirect'] = 'admin/structure/taxonomy';
     Cache::invalidateTags(array('content' => TRUE));

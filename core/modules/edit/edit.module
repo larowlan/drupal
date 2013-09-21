@@ -24,12 +24,14 @@ function edit_menu() {
   // @todo Remove these menu items in http://drupal.org/node/1954892 when theme
   //   callbacks are replaced with something else.
   $items['edit/metadata'] = array(
-    'route_name' => 'edit_metadata',
+    'route_name' => 'edit.metadata',
     'theme callback' => 'ajax_base_page_theme',
+    'type' => MENU_CALLBACK,
   );
   $items['edit/form/%/%/%/%/%'] = array(
-    'route_name' => 'edit_field_form',
+    'route_name' => 'edit.field_form',
     'theme callback' => 'ajax_base_page_theme',
+    'type' => MENU_CALLBACK,
   );
 
   return $items;
@@ -53,7 +55,7 @@ function edit_permission() {
  * editing' permission.
  */
 function edit_page_build(&$page) {
-  if (!user_access('access in-place editing')) {
+  if (!\Drupal::currentUser()->hasPermission('access in-place editing')) {
     return;
   }
 
@@ -77,7 +79,7 @@ function edit_library_info() {
   );
   $libraries['edit'] = array(
     'title' => 'Edit: in-place editing',
-    'version' => VERSION,
+    'version' => \Drupal::VERSION,
     'js' => array(
       // Core.
       $path . '/js/edit.js' => $options,
@@ -92,7 +94,6 @@ function edit_library_info() {
       $path . '/js/views/EntityView.js' => $options,
       $path . '/js/views/EntityToolbarView.js' => $options,
       $path . '/js/views/ContextualLinkView.js' => $options,
-      $path . '/js/views/ModalView.js' => $options,
       $path . '/js/views/FieldToolbarView.js' => $options,
       $path . '/js/views/EditorView.js' => $options,
       // Other.
@@ -115,11 +116,12 @@ function edit_library_info() {
       array('system', 'drupal.ajax'),
       array('system', 'drupal.debounce'),
       array('system', 'drupalSettings'),
+      array('system', 'drupal.dialog'),
     ),
   );
   $libraries['edit.editorWidget.form'] = array(
     'title' => 'Form in-place editor',
-    'version' => VERSION,
+    'version' => \Drupal::VERSION,
     'js' => array(
       $path . '/js/editors/formEditor.js' => $options,
     ),
@@ -129,7 +131,7 @@ function edit_library_info() {
   );
   $libraries['edit.editorWidget.direct'] = array(
     'title' => 'Direct in-place editor',
-    'version' => VERSION,
+    'version' => \Drupal::VERSION,
     'js' => array(
       $path . '/js/editors/directEditor.js' => $options,
     ),

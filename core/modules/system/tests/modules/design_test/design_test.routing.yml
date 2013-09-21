@@ -1,5 +1,5 @@
-design_test:
-  pattern: '/design_test/{category}'
+design.test:
+  path: '/design_test/{category}'
   defaults:
     _content: '\Drupal\design_test\Controller\DesignTestController::categoryPage'
     category: 'FALSE'

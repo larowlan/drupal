@@ -7,7 +7,6 @@
 
 namespace Drupal\edit\Form;
 
-use Drupal;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\user\TempStoreFactory;
 
@@ -57,9 +56,6 @@ class EditFieldForm {
    * Initialize the form state and the entity before the first form build.
    */
   protected function init(array &$form_state, EntityInterface $entity, $field_name) {
-    // @todo Remove when http://drupal.org/node/1346214 is complete.
-    $entity = $entity->getBCEntity();
-
     // @todo Rather than special-casing $node->revision, invoke prepareEdit()
     //   once http://drupal.org/node/1863258 lands.
     if ($entity->entityType() == 'node') {
@@ -137,9 +133,7 @@ class EditFieldForm {
    */
   protected function simplify(array &$form, array &$form_state) {
     $field_name = $form_state['field_name'];
-    $langcode = $form_state['langcode'];
-
-    $widget_element =& $form[$field_name][$langcode];
+    $widget_element =& $form[$field_name]['widget'];
 
     // Hide the field label from displaying within the form, because JavaScript
     // displays the equivalent label that was provided within an HTML data

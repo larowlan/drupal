@@ -7,6 +7,7 @@
 
 namespace Drupal\Core\Entity\Query;
 
+use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Database\Query\AlterableInterface;
 
 /**
@@ -37,7 +38,7 @@ interface QueryInterface extends AlterableInterface {
    * For example, to find all entities containing both the Turkish 'merhaba'
    * and the Polish 'siema' within a 'greetings' text field:
    * @code
-   *   $entity_ids = Drupal::entityQuery($entity_type)
+   *   $entity_ids = \Drupal::entityQuery($entity_type)
    *     ->condition('greetings', 'merhaba', '=', 'tr');
    *     ->condition('greetings.value', 'siema', '=', 'pl');
    *     ->execute();
@@ -158,13 +159,15 @@ interface QueryInterface extends AlterableInterface {
    * @TODO: Once revision tables have been cleaned up, revisit this.
    *
    * @param $age
-   *   - FIELD_LOAD_CURRENT (default): Query the most recent revisions only,
-   *   - FIELD_LOAD_REVISION: Query all revisions.
+   *   - EntityStorageControllerInterface::FIELD_LOAD_CURRENT (default): Query
+   *     the most recent revisions only,
+   *   - EntityStorageControllerInterface::FIELD_LOAD_REVISION: Query all
+   *     revisions.
    *
    * @return \Drupal\Core\Entity\Query\QueryInterface
    *   The called object.
    */
-  public function age($age = FIELD_LOAD_CURRENT);
+  public function age($age = EntityStorageControllerInterface::FIELD_LOAD_CURRENT);
 
   /**
    * Execute the query.
@@ -183,7 +186,7 @@ interface QueryInterface extends AlterableInterface {
    * field containing 'shape' and 'color' columns. To find all drawings
    * containing both a red triangle and a blue circle:
    * @code
-   *   $query = Drupal::entityQuery('drawing');
+   *   $query = \Drupal::entityQuery('drawing');
    *   $group = $query->andConditionGroup()
    *     ->condition('figures.color', 'red')
    *     ->condition('figures.shape', 'triangle');
@@ -206,7 +209,7 @@ interface QueryInterface extends AlterableInterface {
    * containing 'building_type' and 'color' columns.  To find all green and
    * red bikesheds:
    * @code
-   *   $query = Drupal::entityQuery('map');
+   *   $query = \Drupal::entityQuery('map');
    *   $group = $query->orConditionGroup()
    *     ->condition('attributes.color', 'red')
    *     ->condition('attributes.color', 'green');

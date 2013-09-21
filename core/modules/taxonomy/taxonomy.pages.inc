@@ -12,6 +12,8 @@ use Drupal\taxonomy\Entity\Term;
  *
  * @param Drupal\taxonomy\Entity\Term $term
  *   The taxonomy term entity.
+ *
+ * @deprecated Use \Drupal\taxonomy\Controller\TaxonomyController::termPage()
  */
 function taxonomy_term_page(Term $term) {
   // Assign the term name as the page title.
@@ -42,7 +44,7 @@ function taxonomy_term_page(Term $term) {
   }
 
   $build['taxonomy_terms'] = taxonomy_term_view_multiple(array($term->id() => $term));
-  if ($nids = taxonomy_select_nodes($term->id(), TRUE, Drupal::config('node.settings')->get('items_per_page'))) {
+  if ($nids = taxonomy_select_nodes($term->id(), TRUE, \Drupal::config('node.settings')->get('items_per_page'))) {
     $nodes = node_load_multiple($nids);
     $build['nodes'] = node_view_multiple($nodes);
     $build['pager'] = array(
@@ -65,14 +67,16 @@ function taxonomy_term_page(Term $term) {
  *
  * @param Drupal\taxonomy\Entity\Term $term
  *   The taxonomy term entity.
+ *
+ * @deprecated Use \Drupal\taxonomy\Controller\TaxonomyController::termFeed()
  */
 function taxonomy_term_feed(Term $term) {
   $channel['link'] = url('taxonomy/term/' . $term->id(), array('absolute' => TRUE));
-  $channel['title'] = Drupal::config('system.site')->get('name') . ' - ' . $term->label();
+  $channel['title'] = \Drupal::config('system.site')->get('name') . ' - ' . $term->label();
   // Only display the description if we have a single term, to avoid clutter and confusion.
   // HTML will be removed from feed description.
   $channel['description'] = check_markup($term->description->value, $term->format->value, '', TRUE);
-  $nids = taxonomy_select_nodes($term->id(), FALSE, Drupal::config('system.rss')->get('items.limit'));
+  $nids = taxonomy_select_nodes($term->id(), FALSE, \Drupal::config('system.rss')->get('items.limit'));
 
   return node_feed($nids, $channel);
 }

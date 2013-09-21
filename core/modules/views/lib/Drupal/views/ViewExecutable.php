@@ -7,7 +7,6 @@
 
 namespace Drupal\views;
 
-use Drupal;
 use Drupal\views\Plugin\views\query\QueryPluginBase;
 use Drupal\views\ViewStorageInterface;
 use Drupal\Component\Utility\Tags;
@@ -702,6 +701,33 @@ class ViewExecutable {
   }
 
   /**
+   * Creates a new display and a display handler instance for it.
+   *
+   * @param string $plugin_id
+   *   (optional) The plugin type from the Views plugin annotation. Defaults to
+   *   'page'.
+   * @param string $title
+   *   (optional) The title of the display. Defaults to NULL.
+   * @param string $id
+   *   (optional) The ID to use, e.g., 'default', 'page_1', 'block_2'. Defaults
+   *   to NULL.
+   *
+   * @return \Drupal\views\Plugin\views\display\DisplayPluginBase
+   *   A new display plugin instance if executable is set, the new display ID
+   *   otherwise.
+   */
+  public function newDisplay($plugin_id = 'page', $title = NULL, $id = NULL) {
+    $this->initDisplay();
+
+    $id = $this->storage->addDisplay($plugin_id, $title, $id);
+    $this->displayHandlers->addInstanceID($id);
+
+    $display = $this->displayHandlers->get($id);
+    $display->newDisplay();
+    return $display;
+  }
+
+  /**
    * Gets the current style plugin.
    *
    * @return \Drupal\views\Plugin\views\style\StylePluginBase
@@ -1173,7 +1199,6 @@ class ViewExecutable {
         foreach ($multiple_exposed_input as $group_id) {
           // Give this handler access to the exposed filter input.
           if (!empty($this->exposed_data)) {
-            $converted = FALSE;
             if ($handlers[$id]->isAGroup()) {
               $converted = $handlers[$id]->convertExposedInput($this->exposed_data, $group_id);
               $handlers[$id]->storeGroupInput($this->exposed_data, $converted);
@@ -1278,7 +1303,6 @@ class ViewExecutable {
     }
 
     drupal_theme_initialize();
-    $config = \Drupal::config('views.settings');
 
     $exposed_form = $this->display_handler->getPlugin('exposed_form');
     $exposed_form->preRender($this->result);
@@ -1360,7 +1384,7 @@ class ViewExecutable {
     }
 
     // Let modules modify the view output after it is rendered.
-    $module_handler->invokeAll('views_post_render', array($this, $this->display_handler->output, $cache));
+    $module_handler->invokeAll('views_post_render', array($this, &$this->display_handler->output, $cache));
 
     // Let the themes play too, because post render is a very themey thing.
     foreach ($GLOBALS['base_theme_info'] as $base) {
@@ -1444,7 +1468,7 @@ class ViewExecutable {
     }
 
     // Let modules modify the view just prior to executing it.
-    \Drupal::moduleHandler()->invokeAll('views_pre_view', array($this, $display_id, $this->args));
+    \Drupal::moduleHandler()->invokeAll('views_pre_view', array($this, $display_id, &$this->args));
 
     // Allow hook_views_pre_view() to set the dom_id, then ensure it is set.
     $this->dom_id = !empty($this->dom_id) ? $this->dom_id : hash('sha256', $this->storage->id() . REQUEST_TIME . mt_rand());
@@ -1636,7 +1660,7 @@ class ViewExecutable {
       // Exclude arguments that were computed, not passed on the URL.
       $position = 0;
       if (!empty($this->argument)) {
-        foreach ($this->argument as $argument_id => $argument) {
+        foreach ($this->argument as $argument) {
           if (!empty($argument->is_default) && !empty($argument->options['default_argument_skip_url'])) {
             unset($args[$position]);
           }

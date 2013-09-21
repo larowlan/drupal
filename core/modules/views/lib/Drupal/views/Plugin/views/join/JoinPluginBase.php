@@ -7,7 +7,7 @@
 
 namespace Drupal\views\Plugin\views\join;
 
-use Drupal\Component\Plugin\PluginBase;
+use Drupal\Core\Plugin\PluginBase;
 
 /**
  * @defgroup views_join_handlers Views join handlers
@@ -209,7 +209,6 @@ class JoinPluginBase extends PluginBase {
       if (is_array($this->extra)) {
         $extras = array();
         foreach ($this->extra as $info) {
-          $extra = '';
           // Figure out the table name. Remember, only use aliases provided
           // if at all possible.
           $join_table = '';

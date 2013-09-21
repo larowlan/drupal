@@ -7,13 +7,12 @@
 
 namespace Drupal\edit;
 
-use Drupal;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Drupal\Core\Ajax\AjaxResponse;
-use Drupal\Core\Controller\ControllerInterface;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityManager;
 use Drupal\field\FieldInfo;
@@ -29,7 +28,7 @@ use Drupal\user\TempStoreFactory;
 /**
  * Returns responses for Edit module routes.
  */
-class EditController implements ControllerInterface {
+class EditController implements ContainerInjectionInterface {
 
   /**
    * The TempStore factory.
@@ -96,7 +95,7 @@ class EditController implements ControllerInterface {
       $container->get('user.tempstore'),
       $container->get('edit.metadata.generator'),
       $container->get('edit.editor.selector'),
-      $container->get('plugin.manager.entity'),
+      $container->get('entity.manager'),
       $container->get('field.info')
     );
   }
@@ -214,8 +213,6 @@ class EditController implements ControllerInterface {
       // The form submission saved the entity in tempstore. Return the
       // updated view of the field from the tempstore copy.
       $entity = $this->tempStoreFactory->get('edit')->get($entity->uuid());
-      // @todo Remove when http://drupal.org/node/1346214 is complete.
-      $entity = $entity->getBCEntity();
       $output = field_view_field($entity, $field_name, $view_mode_id, $langcode);
 
       $response->addCommand(new FieldFormSavedCommand(drupal_render($output)));

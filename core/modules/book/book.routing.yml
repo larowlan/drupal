@@ -1,20 +1,64 @@
-book_render:
-  pattern: '/book'
+book.render:
+  path: '/book'
   defaults:
     _content: '\Drupal\book\Controller\BookController::bookRender'
   requirements:
     _permission: 'access content'
 
-book_admin:
-  pattern: '/admin/structure/book'
+book.admin:
+  path: '/admin/structure/book'
   defaults:
     _content: '\Drupal\book\Controller\BookController::adminOverview'
   requirements:
     _permission: 'administer book outlines'
 
-book_settings:
-  pattern: '/admin/structure/book/settings'
+book.settings:
+  path: '/admin/structure/book/settings'
   defaults:
-    _form: 'Drupal\book\BookSettingsForm'
+    _form: '\Drupal\book\Form\BookSettingsForm'
   requirements:
     _permission: 'administer site configuration'
+
+book.export:
+  path: '/book/export/{type}/{node}'
+  defaults:
+    _controller: '\Drupal\book\Controller\BookController::bookExport'
+  options:
+    _access_mode: 'ALL'
+  requirements:
+    _permission: 'access printer-friendly version'
+    _entity_access: 'node.view'
+
+book.outline:
+  path: '/node/{node}/outline'
+  defaults:
+    _entity_form: 'node.book_outline'
+  options:
+    _access_mode: 'ALL'
+  requirements:
+    _permission: 'administer book outlines'
+    _entity_access: 'node.view'
+
+book.admin_edit:
+  path: '/admin/structure/book/{node}'
+  defaults:
+    _form: 'Drupal\book\Form\BookAdminEditForm'
+    _title: 'Re-order book pages and change titles'
+  options:
+    _access_mode: 'ALL'
+  requirements:
+    _permission: 'administer book outlines'
+    _entity_access: 'node.view'
+    node: \d+
+
+book.remove:
+  path: '/node/{node}/outline/remove'
+  defaults:
+    _content: '\Drupal\book\Form\BookForm::remove'
+    _title: 'Remove from outline'
+  options:
+    _access_mode: 'ALL'
+  requirements:
+    _permission: 'administer book outlines'
+    _entity_access: 'node.view'
+    _access_book_removable: 'TRUE'

@@ -46,12 +46,11 @@ class ContentTranslationController implements ContentTranslationControllerInterf
    * Implements ContentTranslationControllerInterface::removeTranslation().
    */
   public function removeTranslation(EntityInterface $entity, $langcode) {
-    $translations = $entity->getTranslationLanguages();
     // @todo Handle properties.
     // Remove field translations.
     foreach (field_info_instances($entity->entityType(), $entity->bundle()) as $instance) {
       $field_name = $instance['field_name'];
-      $field = field_info_field($field_name);
+      $field = $instance->getField();
       if ($field['translatable']) {
         $entity->{$field_name}[$langcode] = array();
       }
@@ -155,6 +154,8 @@ class ContentTranslationController implements ContentTranslationControllerInterf
         '#weight' => -100,
         '#multilingual' => TRUE,
         'source' => array(
+          '#title' => t('Select source language'),
+          '#title_display' => 'invisible',
           '#type' => 'select',
           '#default_value' => $source_langcode,
           '#options' => array(),
@@ -234,7 +235,7 @@ class ContentTranslationController implements ContentTranslationControllerInterf
         // A new translation is not available in the translation metadata, hence
         // it should count as one more.
         $published = $new_translation;
-        foreach ($entity->translation as $langcode => $translation) {
+        foreach ($entity->translation as $translation) {
           $published += $translation['status'];
         }
         $enabled = $published > 1;
@@ -274,7 +275,7 @@ class ContentTranslationController implements ContentTranslationControllerInterf
         '#type' => 'textfield',
         '#title' => t('Authored by'),
         '#maxlength' => 60,
-        '#autocomplete_route_name' => 'user_autocomplete',
+        '#autocomplete_route_name' => 'user.autocomplete',
         '#default_value' => $name,
         '#description' => t('Leave blank for %anonymous.', array('%anonymous' => variable_get('anonymous', t('Anonymous')))),
       );

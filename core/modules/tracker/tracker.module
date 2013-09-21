@@ -7,6 +7,7 @@
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\node\NodeInterface;
+use Drupal\Core\Session\AccountInterface;
 
 /**
  * Implements hook_help().
@@ -80,10 +81,10 @@ function tracker_menu() {
  * process, 'tracker.index_nid' will be 0.
  */
 function tracker_cron() {
-  $state = Drupal::state();
+  $state = \Drupal::state();
   $max_nid = $state->get('tracker.index_nid') ?: 0;
   if ($max_nid > 0) {
-    $batch_size = Drupal::config('tracker.settings')->get('cron_index_limit');
+    $batch_size = \Drupal::config('tracker.settings')->get('cron_index_limit');
     $last_nid = FALSE;
     // @todo This should be actually filtering on the desired language and just
     //   fall back to the default language.
@@ -170,9 +171,9 @@ function tracker_cron() {
  *
  * @see tracker_menu()
  */
-function _tracker_myrecent_access($account) {
+function _tracker_myrecent_access(AccountInterface $account) {
   // This path is only allowed for authenticated users looking at their own content.
-  return $account->id() && ($GLOBALS['user']->id() == $account->id()) && user_access('access content');
+  return $account->id() && (\Drupal::currentUser()->id() == $account->id()) && $account->hasPermission('access content');
 }
 
 /**
@@ -188,7 +189,7 @@ function _tracker_myrecent_access($account) {
  * @see tracker_menu()
  */
 function _tracker_user_access($account) {
-  return $account->access('view') && user_access('access content');
+  return $account->access('view') && $account->hasPermission('access content');
 }
 
 /**

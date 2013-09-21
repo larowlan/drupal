@@ -46,7 +46,7 @@ abstract class ActionFormControllerBase extends EntityFormController {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('plugin.manager.entity')->getStorageController('action')
+      $container->get('entity.manager')->getStorageController('action')
     );
   }
 
@@ -72,7 +72,6 @@ abstract class ActionFormControllerBase extends EntityFormController {
 
     $form['id'] = array(
       '#type' => 'machine_name',
-      '#title' => $this->t('Machine name'),
       '#default_value' => $this->entity->id(),
       '#disabled' => !$this->entity->isNew(),
       '#maxlength' => 64,

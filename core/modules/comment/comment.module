@@ -185,10 +185,8 @@ function comment_menu() {
   $items['admin/content/comment'] = array(
     'title' => 'Comments',
     'description' => 'List and edit site comments and the comment approval queue.',
-    'page callback' => 'comment_admin',
-    'access arguments' => array('administer comments'),
+    'route_name' => 'comment.admin',
     'type' => MENU_LOCAL_TASK | MENU_NORMAL_ITEM,
-    'file' => 'comment.admin.inc',
   );
   // Tabs begin here.
   $items['admin/content/comment/new'] = array(
@@ -198,13 +196,12 @@ function comment_menu() {
   $items['admin/content/comment/approval'] = array(
     'title' => 'Unapproved comments',
     'title callback' => 'comment_count_unpublished',
-    'page arguments' => array('approval'),
-    'access arguments' => array('administer comments'),
+    'route_name' => 'comment.admin_approval',
     'type' => MENU_LOCAL_TASK,
   );
   $items['comment/%comment'] = array(
     'title' => 'Comment permalink',
-    'route_name' => 'comment_permalink',
+    'route_name' => 'comment.permalink',
   );
   $items['comment/%comment/view'] = array(
     'title' => 'View comment',
@@ -215,30 +212,18 @@ function comment_menu() {
   $items['comment/%comment/edit'] = array(
     'title' => 'Edit',
     'type' => MENU_LOCAL_TASK,
-    'route_name' => 'comment_edit_page',
+    'route_name' => 'comment.edit_page',
   );
   $items['comment/%comment/approve'] = array(
     'title' => 'Approve',
     'weight' => 10,
-    'route_name' => 'comment_approve',
+    'route_name' => 'comment.approve',
   );
   $items['comment/%comment/delete'] = array(
     'title' => 'Delete',
-    'page callback' => 'comment_confirm_delete_page',
-    'page arguments' => array(1),
-    'access callback' => 'entity_page_access',
-    'access arguments' => array(1, 'delete'),
     'type' => MENU_LOCAL_TASK,
-    'file' => 'comment.admin.inc',
+    'route_name' => 'comment.confirm_delete',
     'weight' => 20,
-  );
-  $items['comment/reply/%node'] = array(
-    'title' => 'Add new comment',
-    'page callback' => 'comment_reply',
-    'page arguments' => array(2),
-    'access callback' => 'node_access',
-    'access arguments' => array('view', 2),
-    'file' => 'comment.pages.inc',
   );
 
   return $items;
@@ -322,11 +307,11 @@ function comment_node_type_delete($info) {
  */
 function _comment_body_field_create($info) {
   // Create the field if needed.
-  if (!field_read_field('comment_body', array('include_inactive' => TRUE))) {
+  if (!field_read_field('comment', 'comment_body', array('include_inactive' => TRUE))) {
     $field = entity_create('field_entity', array(
-      'field_name' => 'comment_body',
+      'name' => 'comment_body',
       'type' => 'text_long',
-      'entity_types' => array('comment'),
+      'entity_type' => 'comment',
     ));
     $field->save();
   }
@@ -537,14 +522,15 @@ function comment_node_view(EntityInterface $node, EntityDisplay $display, $view_
             'fragment' => 'comments',
             'html' => TRUE,
           );
-          // Show a link to the first new comment.
-          if ($new = comment_num_new($node->id())) {
+          if (\Drupal::moduleHandler()->moduleExists('history')) {
             $links['comment-new-comments'] = array(
-              'title' => format_plural($new, '1 new comment', '@count new comments'),
-              'href' => 'node/' . $node->id(),
-              'query' => comment_new_page_count($node->comment_count, $new, $node),
-              'attributes' => array('title' => t('Jump to the first new comment of this posting.')),
-              'fragment' => 'new',
+              'title' => '',
+              'href' => '',
+              'attributes' => array(
+                'class' => 'hidden',
+                'title' => t('Jump to the first new comment of this posting.'),
+                'data-history-node-last-comment-timestamp' => $node->last_comment_timestamp,
+              ),
               'html' => TRUE,
             );
           }
@@ -615,6 +601,9 @@ function comment_node_view(EntityInterface $node, EntityDisplay $display, $view_
       '#links' => $links,
       '#attributes' => array('class' => array('links', 'inline')),
     );
+    if ($view_mode == 'teaser' && \Drupal::moduleHandler()->moduleExists('history')) {
+      $node->content['links']['#attached']['library'][] = array('comment', 'drupal.node-new-comments-link');
+    }
 
     // Only append comments when we are building a node on its own node detail
     // page. We compare $node and $page_node to ensure that comments are not
@@ -623,6 +612,15 @@ function comment_node_view(EntityInterface $node, EntityDisplay $display, $view_
     if ($node->comment && $view_mode == 'full' && node_is_page($node) && empty($node->in_preview)) {
       $node->content['comments'] = comment_node_page_additions($node);
     }
+  }
+}
+
+/**
+ * Implements hook_node_view_alter().
+ */
+function comment_node_view_alter(&$build, EntityInterface $node, EntityDisplay $display) {
+  if (\Drupal::moduleHandler()->moduleExists('history')) {
+    $build['#attributes']['data-history-node-id'] = $node->id();
   }
 }
 
@@ -686,7 +684,7 @@ function comment_node_page_additions(EntityInterface $node) {
 function comment_add(EntityInterface $node, $pid = NULL) {
   $values = array('nid' => $node->id(), 'pid' => $pid, 'node_type' => 'comment_node_' . $node->getType());
   $comment = entity_create('comment', $values);
-  return Drupal::entityManager()->getForm($comment);
+  return \Drupal::entityManager()->getForm($comment);
 }
 
 /**
@@ -809,20 +807,10 @@ function comment_get_thread(EntityInterface $node, $mode, $comments_per_page) {
  *   An array of comment objects, keyed by comment ID.
  */
 function comment_prepare_thread(&$comments) {
-  // A flag stating if we are still searching for first new comment on the thread.
-  $first_new = TRUE;
-
   // A counter that helps track how indented we are.
   $divs = 0;
 
   foreach ($comments as $key => $comment) {
-    if ($first_new && $comment->new->value != MARK_READ) {
-      // Assign the anchor only for the first new comment. This avoids duplicate
-      // id attributes on a page.
-      $first_new = FALSE;
-      $comment->first_new = TRUE;
-    }
-
     // The $divs element instructs #prefix whether to add an indent div or
     // close existing divs (a negative value).
     $comment->depth = count(explode('.', $comment->thread->value)) - 1;
@@ -1195,7 +1183,7 @@ function comment_node_update_index(EntityInterface $node, $langcode) {
     // edit could change the security situation so it is not safe to index the
     // comments.
     $index_comments = TRUE;
-    $roles = Drupal::entityManager()->getStorageController('user_role')->loadMultiple();
+    $roles = \Drupal::entityManager()->getStorageController('user_role')->loadMultiple();
     $authenticated_can_access = $roles[DRUPAL_AUTHENTICATED_RID]->hasPermission('access comments');
     foreach ($roles as $rid => $role) {
       if ($role->hasPermission('search content') && !$role->hasPermission('access comments')) {
@@ -1225,7 +1213,7 @@ function comment_node_update_index(EntityInterface $node, $langcode) {
  */
 function comment_update_index() {
   // Store the maximum possible comments per thread (used for ranking by reply count)
-  Drupal::state()->set('comment.node_comment_statistics_scale', 1.0 / max(1, db_query('SELECT MAX(comment_count) FROM {node_comment_statistics}')->fetchField()));
+  \Drupal::state()->set('comment.node_comment_statistics_scale', 1.0 / max(1, db_query('SELECT MAX(comment_count) FROM {node_comment_statistics}')->fetchField()));
 }
 
 /**
@@ -1432,7 +1420,7 @@ function comment_preview(Comment $comment) {
       $comment->name->value = check_plain($account->getUsername());
     }
     elseif (empty($comment->name->value)) {
-      $comment->name->value = Drupal::config('user.settings')->get('anonymous');
+      $comment->name->value = \Drupal::config('user.settings')->get('anonymous');
     }
 
     $comment->created->value = !empty($comment->created->value) ? $comment->created->value : REQUEST_TIME;
@@ -1511,7 +1499,7 @@ function template_preprocess_comment(&$variables) {
     '#account' => $account,
   );
   $variables['author'] = drupal_render($username);
-  $variables['new'] = $comment->new->value ? t('new') : '';
+  $variables['new_indicator_timestamp'] = $comment->changed->value;
   $variables['created'] = format_date($comment->created->value);
   // Avoid calling format_date() twice on the same timestamp.
   if ($comment->changed->value == $comment->created->value) {
@@ -1530,7 +1518,7 @@ function template_preprocess_comment(&$variables) {
     $variables['user_picture'] = array();
   }
 
-  if (Drupal::config('user.settings')->get('signatures') && $account->getSignature()) {
+  if (\Drupal::config('user.settings')->get('signatures') && $account->getSignature()) {
     $variables['signature'] = check_markup($account->getSignature(), $account->getSignatureFormat(), '', TRUE) ;
   }
   else {
@@ -1603,9 +1591,6 @@ function template_preprocess_comment(&$variables) {
   if ($variables['status'] != 'published') {
     $variables['attributes']['class'][] = $variables['status'];
   }
-  if ($variables['new']) {
-    $variables['attributes']['class'][] = 'new';
-  }
   if (!$comment->uid->target_id) {
     $variables['attributes']['class'][] = 'by-anonymous';
   }
@@ -1613,12 +1598,12 @@ function template_preprocess_comment(&$variables) {
     if ($comment->uid->target_id == $variables['node']->getAuthorId()) {
       $variables['attributes']['class'][] = 'by-node-author';
     }
-    if ($comment->uid->target_id == $variables['user']->id()) {
-      $variables['attributes']['class'][] = 'by-viewer';
-    }
   }
   // Add clearfix class.
   $variables['attributes']['class'][] = 'clearfix';
+
+  // Add comment author user ID. Necessary for the comment-by-viewer library.
+  $variables['attributes']['data-comment-user-id'] = $comment->uid->value;
 
   $variables['content_attributes']['class'][] = 'content';
 }
@@ -1658,7 +1643,7 @@ function theme_comment_post_forbidden($variables) {
         $destination = array('destination' => 'node/' . $node->id() . '#comment-form');
       }
 
-      if (Drupal::config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY) {
+      if (\Drupal::config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY) {
         // Users can register themselves.
         return t('<a href="@login">Log in</a> or <a href="@register">register</a> to post comments', array('@login' => url('user/login', array('query' => $destination)), '@register' => url('user/register', array('query' => $destination))));
       }
@@ -1762,7 +1747,7 @@ function comment_ranking() {
       ),
       // Inverse law that maps the highest reply count on the site to 1 and 0 to 0.
       'score' => '2.0 - 2.0 / (1.0 + node_comment_statistics.comment_count * CAST(:scale AS DECIMAL))',
-      'arguments' => array(':scale' => Drupal::state()->get('comment.node_comment_statistics_scale') ?: 0),
+      'arguments' => array(':scale' => \Drupal::state()->get('comment.node_comment_statistics_scale') ?: 0),
     ),
   );
 }
@@ -1784,11 +1769,12 @@ function comment_file_download_access($field, EntityInterface $entity, File $fil
  * Implements hook_library_info().
  */
 function comment_library_info() {
+  $path = drupal_get_path('module', 'comment');
   $libraries['drupal.comment'] = array(
     'title' => 'Comment',
-    'version' => VERSION,
+    'version' => \Drupal::VERSION,
     'js' => array(
-      drupal_get_path('module', 'comment') . '/comment-node-form.js' => array(),
+      $path . '/comment-node-form.js' => array(),
     ),
     'dependencies' => array(
       array('system', 'jquery'),
@@ -1796,6 +1782,42 @@ function comment_library_info() {
       array('system', 'drupal.form'),
     ),
   );
-
+  $libraries['drupal.comment-by-viewer'] = array(
+    'title' => 'Annotate comments by the current viewer for targeted styling',
+    'version' => \Drupal::VERSION,
+    'js' => array(
+      $path . '/js/comment-by-viewer.js' => array(),
+    ),
+    'dependencies' => array(
+      array('system', 'jquery'),
+      array('system', 'drupal'),
+      array('system', 'drupalSettings'),
+    ),
+  );
+  $libraries['drupal.comment-new-indicator'] = array(
+    'title' => 'New comment indicator',
+    'version' => \Drupal::VERSION,
+    'js' => array(
+      $path . '/js/comment-new-indicator.js' => array(),
+    ),
+    'dependencies' => array(
+      array('system', 'jquery'),
+      array('system', 'drupal'),
+      array('history', 'drupal.history'),
+      array('system', 'drupal.displace'),
+    ),
+  );
+  $libraries['drupal.node-new-comments-link'] = array(
+    'title' => 'New comments link',
+    'version' => \Drupal::VERSION,
+    'js' => array(
+      $path . '/js/node-new-comments-link.js' => array(),
+    ),
+    'dependencies' => array(
+      array('system', 'jquery'),
+      array('system', 'drupal'),
+      array('history', 'drupal.history'),
+    ),
+  );
   return $libraries;
 }

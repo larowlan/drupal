@@ -55,10 +55,11 @@ class OptionsFieldUnitTestBase extends FieldUnitTestBase {
    */
   public function setUp() {
     parent::setUp();
-    $this->installSchema('system', 'menu_router');
+    $this->installSchema('system', array('router', 'menu_router'));
 
     $this->fieldDefinition = array(
-      'field_name' => $this->fieldName,
+      'name' => $this->fieldName,
+      'entity_type' => 'entity_test',
       'type' => 'list_integer',
       'cardinality' => 1,
       'settings' => array(

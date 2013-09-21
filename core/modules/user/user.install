@@ -268,7 +268,8 @@ function user_install() {
  */
 function user_install_picture_field() {
   $field = array(
-    'field_name' => 'user_picture',
+    'name' => 'user_picture',
+    'entity_type' => 'user',
     'module' => 'image',
     'type' => 'image',
     'cardinality' => 1,
@@ -343,9 +344,9 @@ function user_install_picture_field() {
  */
 function user_update_dependencies() {
   // Convert user picture to field after the fields and instances are converted
-  // to ConfigEntities.
+  // to ConfigEntities and the tables are split.
   $dependencies['user'][8011] = array(
-    'field' => 8003,
+    'field' => 8006,
   );
   return $dependencies;
 }
@@ -494,7 +495,7 @@ function user_update_8004() {
     '2' => 'visitors_admin_approval',
   );
 
-  $config = Drupal::config('user.settings');
+  $config = \Drupal::config('user.settings');
   $user_register = $config->get('register');
   $user_cancel_method = $config->get('cancel_method');
 
@@ -613,7 +614,7 @@ function user_update_8011() {
   // User pictures can only be migrated to the new user picture image field
   // if Image module is installed.
   if (!module_exists('image')) {
-    $old_schema = module_enable(array('image'));
+    $old_schema = Drupal::moduleHandler()->install(array('image'));
     if ($old_schema['image'] == SCHEMA_UNINSTALLED) {
       // Install image.module with schema version 8002 as a previous version
       // would have to create tables that would be removed again.
@@ -655,7 +656,8 @@ function user_update_8011() {
 
   // Create the field and instance.
   $field = array(
-    'id' => 'user_picture',
+    'name' => 'user_picture',
+    'entity_type' => 'user',
     'module' => 'image',
     'type' => 'image',
     'cardinality' => 1,
@@ -710,10 +712,9 @@ function user_update_8011() {
   _update_8003_field_create_field($field);
 
   $instance = array(
-    'id' => 'user.user.user_picture',
     'entity_type' => 'user',
-    'label' => 'Picture',
     'bundle' => 'user',
+    'label' => 'Picture',
     'description' => update_variable_get('user_picture_guidelines', ''),
     'required' => FALSE,
     'settings' => array(
@@ -816,9 +817,8 @@ function user_update_8012(&$sandbox) {
     $rows = db_query_range('SELECT uid, picture FROM {users} WHERE picture > 0', 0, 20)->fetchAllKeyed();
     foreach ($rows as $uid => $fid) {
       // Add a row to the field data and revision tables.
-      db_insert('field_data_user_picture')
+      db_insert('user__user_picture')
         ->fields(array(
-          'entity_type' => 'user',
           'bundle' => 'user',
           'entity_id' => $uid,
           'revision_id' => $uid,
@@ -827,9 +827,8 @@ function user_update_8012(&$sandbox) {
           'user_picture_target_id' => $fid,
         ))
         ->execute();
-      db_insert('field_revision_user_picture')
+      db_insert('user_revision__user_picture')
         ->fields(array(
-          'entity_type' => 'user',
           'bundle' => 'user',
           'entity_id' => $uid,
           'revision_id' => $uid,
@@ -1013,11 +1012,31 @@ function user_update_8016() {
 }
 
 /**
+ * Grant "administer account settings" to roles with "administer users."
+ */
+function user_update_8017() {
+  $rids = db_query("SELECT rid FROM {role_permission} WHERE permission = :perm", array(':perm' => 'administer users'))->fetchCol();
+  // None found.
+  if (empty($rids)) {
+    return;
+  }
+  $insert = db_insert('role_permission')->fields(array('rid', 'permission', 'module'));
+  foreach ($rids as $rid) {
+    $insert->values(array(
+      'rid' => $rid,
+      'permission' => 'administer account settings',
+      'module' => 'user'
+    ));
+  }
+  $insert->execute();
+}
+
+/**
  * Migrate user roles into configuration.
  *
  * @ingroup config_upgrade
  */
-function user_update_8017() {
+function user_update_8018() {
   $uuid = new Uuid();
 
   $roles = db_select('role', 'r')
@@ -1026,7 +1045,7 @@ function user_update_8017() {
     ->fetchAll();
 
   foreach ($roles as $role) {
-    Drupal::config('user.role.' . $role->rid)
+    \Drupal::config('user.role.' . $role->rid)
       ->set('id', $role->rid)
       ->set('uuid', $uuid->generate())
       ->set('label', $role->name)
@@ -1039,7 +1058,7 @@ function user_update_8017() {
 /**
  * Use the maximum allowed module name length in module name database fields.
  */
-function user_update_8018() {
+function user_update_8019() {
   if (db_field_exists('role_permission', 'module')) {
     $spec = array(
       'type' => 'varchar',
@@ -1096,7 +1115,7 @@ function _user_update_map_rid($rid) {
  *
  * @ingroup config_upgrade
  */
-function user_update_8019() {
+function user_update_8020() {
   $db_permissions = db_select('role_permission', 'p')
     ->fields('p')
     ->execute()
@@ -1109,7 +1128,7 @@ function user_update_8019() {
     }
   }
   foreach ($new_permissions as $rid => $permissions) {
-    Drupal::config("user.role.$rid")
+    \Drupal::config("user.role.$rid")
       ->set('permissions', $permissions)
       ->save();
   }
@@ -1118,10 +1137,10 @@ function user_update_8019() {
 /**
  * Create the 'register' form mode.
  */
-function user_update_8020() {
+function user_update_8021() {
   $uuid = new Uuid();
 
-  Drupal::config("entity.form_mode.user.register")
+  \Drupal::config("entity.form_mode.user.register")
     ->set('id', "user.register")
     ->set('uuid', $uuid->generate())
     ->set('label', 'Register')

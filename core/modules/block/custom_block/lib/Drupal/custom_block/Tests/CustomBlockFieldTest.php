@@ -65,13 +65,14 @@ class CustomBlockFieldTest extends CustomBlockTestBase {
 
     // Create a field with settings to validate.
     $this->field = entity_create('field_entity', array(
-      'field_name' => drupal_strtolower($this->randomName()),
+      'name' => drupal_strtolower($this->randomName()),
+      'entity_type' => 'custom_block',
       'type' => 'link',
       'cardinality' => 2,
     ));
     $this->field->save();
     $this->instance = entity_create('field_instance', array(
-      'field_name' => $this->field->id(),
+      'field_name' => $this->field->name,
       'entity_type' => 'custom_block',
       'bundle' => 'link',
       'settings' => array(
@@ -95,10 +96,10 @@ class CustomBlockFieldTest extends CustomBlockTestBase {
     $this->drupalGet('block/add/link');
     $edit = array(
       'info' => $this->randomName(8),
-      $this->field['field_name'] . '[und][0][url]' => 'http://example.com',
-      $this->field['field_name'] . '[und][0][title]' => 'Example.com'
+      $this->field['field_name'] . '[0][url]' => 'http://example.com',
+      $this->field['field_name'] . '[0][title]' => 'Example.com'
     );
-    $this->drupalPost(NULL, $edit, t('Save'));
+    $this->drupalPostForm(NULL, $edit, t('Save'));
     $block = entity_load('custom_block', 1);
     $url = 'admin/structure/block/add/custom_block:' . $block->uuid() . '/' . \Drupal::config('system.theme')->get('default');
     // Place the block.
@@ -107,7 +108,7 @@ class CustomBlockFieldTest extends CustomBlockTestBase {
       'settings[label]' => $edit['info'],
       'region' => 'sidebar_first',
     );
-    $this->drupalPost($url, $instance, t('Save block'));
+    $this->drupalPostForm($url, $instance, t('Save block'));
     // Navigate to home page.
     $this->drupalGet('<front>');
     $this->assertLinkByHref('http://example.com');

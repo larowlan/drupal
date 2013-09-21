@@ -7,8 +7,6 @@
 
 namespace Drupal\file\Tests;
 
-use Drupal\Core\Language\Language;
-
 /**
  * Tests that formatters are working properly.
  */
@@ -36,7 +34,7 @@ class FileFieldDisplayTest extends FileFieldTestBase {
       'description_field' => '1',
     );
     $widget_settings = array();
-    $this->createFileField($field_name, $type_name, $field_settings, $instance_settings, $widget_settings);
+    $this->createFileField($field_name, 'node', $type_name, $field_settings, $instance_settings, $widget_settings);
 
     // Create a new node *without* the file field set, and check that the field
     // is not shown for each node display.
@@ -48,7 +46,7 @@ class FileFieldDisplayTest extends FileFieldTestBase {
       $edit = array(
         "fields[$field_name][type]" => $formatter,
       );
-      $this->drupalPost("admin/structure/types/manage/$type_name/display", $edit, t('Save'));
+      $this->drupalPostForm("admin/structure/types/manage/$type_name/display", $edit, t('Save'));
       $this->drupalGet('node/' . $node->id());
       $this->assertNoText($field_name, format_string('Field label is hidden when no file attached for formatter %formatter', array('%formatter' => $formatter)));
     }
@@ -69,18 +67,18 @@ class FileFieldDisplayTest extends FileFieldTestBase {
     $this->assertRaw($default_output, 'Default formatter displaying correctly on full node view.');
 
     // Turn the "display" option off and check that the file is no longer displayed.
-    $edit = array($field_name . '[' . Language::LANGCODE_NOT_SPECIFIED . '][0][display]' => FALSE);
-    $this->drupalPost('node/' . $nid . '/edit', $edit, t('Save and keep published'));
+    $edit = array($field_name . '[0][display]' => FALSE);
+    $this->drupalPostForm('node/' . $nid . '/edit', $edit, t('Save and keep published'));
 
     $this->assertNoRaw($default_output, 'Field is hidden when "display" option is unchecked.');
 
     // Add a description and make sure that it is displayed.
     $description = $this->randomName();
     $edit = array(
-      $field_name . '[' . Language::LANGCODE_NOT_SPECIFIED . '][0][description]' => $description,
-      $field_name . '[' . Language::LANGCODE_NOT_SPECIFIED . '][0][display]' => TRUE,
+      $field_name . '[0][description]' => $description,
+      $field_name . '[0][display]' => TRUE,
     );
-    $this->drupalPost('node/' . $nid . '/edit', $edit, t('Save and keep published'));
+    $this->drupalPostForm('node/' . $nid . '/edit', $edit, t('Save and keep published'));
     $this->assertText($description);
   }
 }

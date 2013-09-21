@@ -7,8 +7,8 @@
 
 namespace Drupal\views\Plugin\views;
 
-use Drupal\Component\Plugin\PluginBase as ComponentPluginBase;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Plugin\PluginBase as ComponentPluginBase;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\ViewExecutable;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -105,8 +105,8 @@ abstract class PluginBase extends ComponentPluginBase implements ContainerFactor
    *   The options configured for this plugin.
    */
   public function init(ViewExecutable $view, DisplayPluginBase $display, array &$options = NULL) {
-    $this->setOptionDefaults($this->options, $this->defineOptions());
     $this->view = $view;
+    $this->setOptionDefaults($this->options, $this->defineOptions());
     $this->displayHandler = $display;
 
     $this->unpackOptions($this->options, $options);
@@ -264,7 +264,8 @@ abstract class PluginBase extends ComponentPluginBase implements ContainerFactor
    * This appears on the ui beside each plugin and beside the settings link.
    */
   public function pluginTitle() {
-    if (isset($this->definition['short_title'])) {
+    // Short_title is optional so its defaults to an empty string.
+    if (!empty($this->definition['short_title'])) {
       return check_plain($this->definition['short_title']);
     }
     return check_plain($this->definition['title']);

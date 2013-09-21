@@ -40,7 +40,8 @@ class UserCreateTest extends WebTestBase {
     // Create a field and an instance.
     $field_name = 'test_field';
     $field = array(
-      'field_name' => $field_name,
+      'name' => $field_name,
+      'entity_type' => 'user',
       'module' => 'image',
       'type' => 'image',
       'cardinality' => 1,
@@ -101,7 +102,7 @@ class UserCreateTest extends WebTestBase {
         'pass[pass2]' => $pass,
         'notify' => $notify,
       );
-      $this->drupalPost('admin/people/create', $edit, t('Create new account'));
+      $this->drupalPostForm('admin/people/create', $edit, t('Create new account'));
 
       if ($notify) {
         $this->assertText(t('A welcome message with further instructions has been e-mailed to the new user @name.', array('@name' => $edit['name'])), 'User created');

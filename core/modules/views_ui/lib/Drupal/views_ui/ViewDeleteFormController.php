@@ -18,21 +18,23 @@ class ViewDeleteFormController extends EntityConfirmFormBase {
    * {@inheritdoc}
    */
   public function getQuestion() {
-    return t('Are you sure you want to delete the %name view?', array('%name' => $this->entity->label()));
+    return $this->t('Are you sure you want to delete the %name view?', array('%name' => $this->entity->label()));
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getCancelPath() {
-    return 'admin/structure/views';
+  public function getCancelRoute() {
+    return array(
+      'route_name' => 'views_ui.list',
+    );
   }
 
   /**
    * {@inheritdoc}
    */
   public function getConfirmText() {
-    return t('Delete');
+    return $this->t('Delete');
   }
 
   /**

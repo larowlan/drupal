@@ -22,6 +22,8 @@ use Symfony\Component\DependencyInjection\Reference;
 // Change the directory to the Drupal root.
 chdir('..');
 
+require_once __DIR__ . '/vendor/autoload.php';
+
 // Exit early if an incompatible PHP version would cause fatal errors.
 // The minimum version is specified explicitly, as DRUPAL_MINIMUM_PHP is not
 // yet available. It is defined in bootstrap.inc, but it is not possible to
@@ -187,7 +189,7 @@ function update_helpful_links() {
  */
 function update_flush_all_caches() {
   unset($GLOBALS['conf']['container_service_providers']['UpdateServiceProvider']);
-  Drupal::service('kernel')->updateModules(Drupal::moduleHandler()->getModuleList());
+  \Drupal::service('kernel')->updateModules(\Drupal::moduleHandler()->getModuleList());
 
   // No updates to run, so caches won't get flushed later.  Clear them now.
   drupal_flush_all_caches();
@@ -349,7 +351,7 @@ function update_access_allowed() {
   // Calls to user_access() might fail during the Drupal 6 to 7 update process,
   // so we fall back on requiring that the user be logged in as user #1.
   try {
-    $module_handler = Drupal::moduleHandler();
+    $module_handler = \Drupal::moduleHandler();
     $module_filenames = $module_handler->getModuleList();
     $module_filenames['user'] = 'core/modules/user/user.module';
     $module_handler->setModuleList($module_filenames);
@@ -405,7 +407,7 @@ function update_extra_requirements($requirements = NULL) {
  */
 function update_check_requirements($skip_warnings = FALSE) {
   // Check requirements of all loaded modules.
-  $requirements = Drupal::moduleHandler()->invokeAll('requirements', array('update'));
+  $requirements = \Drupal::moduleHandler()->invokeAll('requirements', array('update'));
   $requirements += update_extra_requirements();
   $severity = drupal_requirements_severity($requirements);
 
@@ -430,6 +432,7 @@ function update_check_requirements($skip_warnings = FALSE) {
   }
 }
 
+
 // Some unavoidable errors happen because the database is not yet up-to-date.
 // Our custom error handler is not yet installed, so we just suppress them.
 ini_set('display_errors', FALSE);
@@ -450,15 +453,12 @@ require_once DRUPAL_ROOT . '/' . settings()->get('session_inc', 'core/includes/s
 drupal_session_initialize();
 
 // A request object from the HTTPFoundation to tell us about the request.
-// @todo These two lines were copied from index.php which has its own todo about
-// a change required here. Revisit this when that change has been made.
 $request = Request::createFromGlobals();
-drupal_container()
-  ->set('request', $request);
+\Drupal::getContainer()->set('request', $request);
 
 // Ensure that URLs generated for the home and admin pages don't have 'update.php'
 // in them.
-$generator = Drupal::urlGenerator();
+$generator = \Drupal::urlGenerator();
 $generator->setBasePath(str_replace('/core', '', $request->getBasePath()) . '/');
 $generator->setScriptPath('');
 
@@ -553,7 +553,7 @@ if (update_access_allowed()) {
     // Regular batch ops : defer to batch processing API.
     default:
       update_task_list('run');
-      $output = _batch_page();
+      $output = _batch_page($request);
       break;
   }
 }

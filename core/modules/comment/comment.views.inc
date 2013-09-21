@@ -360,7 +360,7 @@ function comment_views_data() {
     ),
   );
 
-  if (Drupal::moduleHandler()->moduleExists('content_translation')) {
+  if (\Drupal::moduleHandler()->moduleExists('content_translation')) {
     $data['comment']['translation_link'] = array(
       'title' => t('Translation link'),
       'help' => t('Provide a link to the translations overview for comments.'),
@@ -559,5 +559,5 @@ function comment_views_data_alter(&$data) {
  */
 function comment_views_plugins_row_alter(array &$plugins) {
   $plugins['entity:comment']['class'] = 'Drupal\comment\Plugin\views\row\CommentRow';
-  $plugins['entity:comment']['module'] = 'comment';
+  $plugins['entity:comment']['provider'] = 'comment';
 }

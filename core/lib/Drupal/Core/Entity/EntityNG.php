@@ -10,8 +10,6 @@ namespace Drupal\Core\Entity;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\TypedData\TypedDataInterface;
-use ArrayIterator;
-use InvalidArgumentException;
 
 /**
  * Implements Entity Field API specific enhancements to the Entity class.
@@ -68,13 +66,6 @@ class EntityNG extends Entity {
    * @var array
    */
   protected $fields = array();
-
-  /**
-   * An instance of the backward compatibility decorator.
-   *
-   * @var EntityBCDecorator
-   */
-  protected $bcEntity;
 
   /**
    * Local cache for the entity language.
@@ -217,61 +208,6 @@ class EntityNG extends Entity {
   }
 
   /**
-   * {@inheritdoc}
-   */
-  public function uri($rel = 'canonical') {
-    $entity_info = $this->entityInfo();
-
-    $link_templates = isset($entity_info['links']) ? $entity_info['links'] : array();
-
-    if (isset($link_templates[$rel])) {
-      $template = $link_templates[$rel];
-      $replacements = $this->uriPlaceholderReplacements();
-      $uri['path'] = str_replace(array_keys($replacements), array_values($replacements), $template);
-
-      // @todo Remove this once http://drupal.org/node/1888424 is in and we can
-      //   move the BC handling of / vs. no-/ to the generator.
-      $uri['path'] = trim($uri['path'], '/');
-
-      // Pass the entity data to url() so that alter functions do not need to
-      // look up this entity again.
-      $uri['options']['entity_type'] = $this->entityType;
-      $uri['options']['entity'] = $this;
-      return $uri;
-    }
-
-    // For a canonical link (that is, a link to self), look up the stack for
-    // default logic. Other relationship types are not supported by parent
-    // classes.
-    if ($rel == 'canonical') {
-      return parent::uri();
-    }
-  }
-
-  /**
-   * Returns an array of placeholders for this entity.
-   *
-   * Individual entity classes may override this method to add additional
-   * placeholders if desired. If so, they should be sure to replicate the
-   * property caching logic.
-   *
-   * @return array
-   *   An array of URI placeholders.
-   */
-  protected function uriPlaceholderReplacements() {
-    if (empty($this->uriPlaceholderReplacements)) {
-      $this->uriPlaceholderReplacements = array(
-        '{entityType}' => $this->entityType(),
-        '{bundle}' => $this->bundle(),
-        '{id}' => $this->id(),
-        '{uuid}' => $this->uuid(),
-        '{' . $this->entityType() . '}' => $this->id(),
-      );
-    }
-    return $this->uriPlaceholderReplacements;
-  }
-
-  /**
    * Implements \Drupal\Core\TypedData\ComplexDataInterface::get().
    */
   public function get($property_name) {
@@ -296,7 +232,7 @@ class EntityNG extends Entity {
     if (!isset($this->fields[$property_name][$langcode])) {
       $definition = $this->getPropertyDefinition($property_name);
       if (!$definition) {
-        throw new InvalidArgumentException('Field ' . check_plain($property_name) . ' is unknown.');
+        throw new \InvalidArgumentException('Field ' . check_plain($property_name) . ' is unknown.');
       }
       // Non-translatable fields are always stored with
       // Language::LANGCODE_DEFAULT as key.
@@ -308,14 +244,9 @@ class EntityNG extends Entity {
         if (isset($this->values[$property_name][$langcode])) {
           $value = $this->values[$property_name][$langcode];
         }
-        // @todo Remove this once the BC decorator is gone.
-        elseif ($property_name != 'langcode' && $langcode == Language::LANGCODE_DEFAULT) {
-          $default_langcode = $this->language()->id;
-          if (isset($this->values[$property_name][$default_langcode])) {
-            $value = $this->values[$property_name][$default_langcode];
-          }
-        }
-        $this->fields[$property_name][$langcode] = \Drupal::typedData()->getPropertyInstance($this, $property_name, $value);
+        $field = \Drupal::typedData()->getPropertyInstance($this, $property_name, $value);
+        $field->setLangcode($langcode);
+        $this->fields[$property_name][$langcode] = $field;
       }
     }
     return $this->fields[$property_name][$langcode];
@@ -345,7 +276,7 @@ class EntityNG extends Entity {
    * Implements \IteratorAggregate::getIterator().
    */
   public function getIterator() {
-    return new ArrayIterator($this->getProperties());
+    return new \ArrayIterator($this->getProperties());
   }
 
   /**
@@ -570,6 +501,10 @@ class EntityNG extends Entity {
    * {@inheritdoc}
    */
   public function hasTranslation($langcode) {
+    $default_language = $this->language ?: $this->getDefaultLanguage();
+    if ($langcode == $default_language->id) {
+      $langcode = Language::LANGCODE_DEFAULT;
+    }
     return !empty($this->translations[$langcode]['status']);
   }
 
@@ -615,10 +550,10 @@ class EntityNG extends Entity {
    */
   public function removeTranslation($langcode) {
     if (isset($this->translations[$langcode]) && $langcode != Language::LANGCODE_DEFAULT && $langcode != $this->getDefaultLanguage()->id) {
-      foreach ($this->getPropertyDefinitions() as $definition) {
+      foreach ($this->getPropertyDefinitions() as $name => $definition) {
         if (!empty($definition['translatable'])) {
-          unset($this->values[$langcode]);
-          unset($this->fields[$langcode]);
+          unset($this->values[$name][$langcode]);
+          unset($this->fields[$name][$langcode]);
         }
       }
       $this->translations[$langcode]['status'] = static::TRANSLATION_REMOVED;
@@ -664,18 +599,6 @@ class EntityNG extends Entity {
   }
 
   /**
-   * Overrides Entity::getBCEntity().
-   */
-  public function getBCEntity() {
-    if (!isset($this->bcEntity)) {
-      // Initialize field definitions so that we can pass them by reference.
-      $this->getPropertyDefinitions();
-      $this->bcEntity = new EntityBCDecorator($this, $this->fieldDefinitions);
-    }
-    return $this->bcEntity;
-  }
-
-  /**
    * Updates the original values with the interim changes.
    */
   public function updateOriginalValues() {
@@ -695,8 +618,8 @@ class EntityNG extends Entity {
   /**
    * Implements the magic method for setting object properties.
    *
-   * Uses default language always.
-   * For compatibility mode to work this must return a reference.
+   * @todo: A lot of code still uses non-fields (e.g. $entity->content in render
+   *   controllers) by reference. Clean that up.
    */
   public function &__get($name) {
     // If this is an entity field, handle it accordingly. We first check whether
@@ -711,11 +634,6 @@ class EntityNG extends Entity {
     if (isset($this->fieldDefinitions[$name])) {
       $return = $this->getTranslatedField($name, $this->activeLangcode);
       return $return;
-    }
-    // Allow the EntityBCDecorator to directly access the values and fields.
-    // @todo: Remove once the EntityBCDecorator gets removed.
-    if ($name == 'values' || $name == 'fields') {
-      return $this->$name;
     }
     // Else directly read/write plain values. That way, non-field entity
     // properties can always be accessed directly.
@@ -742,6 +660,11 @@ class EntityNG extends Entity {
     }
     elseif ($this->getPropertyDefinition($name)) {
       $this->getTranslatedField($name, $this->activeLangcode)->setValue($value);
+    }
+    // The translations array is unset when cloning the entity object, we just
+    // need to restore it.
+    elseif ($name == 'translations') {
+      $this->translations = $value;
     }
     // Else directly read/write plain values. That way, fields not yet converted
     // to the entity field API can always be directly accessed.
@@ -804,8 +727,6 @@ class EntityNG extends Entity {
    * Magic method: Implements a deep clone.
    */
   public function __clone() {
-    $this->bcEntity = NULL;
-
     // Avoid deep-cloning when we are initializing a translation object, since
     // it will represent the same entity, only with a different active language.
     if (!$this->translationInitialize) {
@@ -815,7 +736,15 @@ class EntityNG extends Entity {
           $this->fields[$name][$langcode]->setContext($name, $this);
         }
       }
+
+      // Ensure the translations array is actually cloned by removing the
+      // original reference and re-creating its values.
       $this->clearTranslationCache();
+      $translations = $this->translations;
+      unset($this->translations);
+      // This will trigger the magic setter as the translations array is
+      // undefined now.
+      $this->translations = $translations;
     }
   }
 

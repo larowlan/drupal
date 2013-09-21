@@ -9,9 +9,7 @@ namespace Drupal\image\Plugin\field\widget;
 
 use Drupal\field\Annotation\FieldWidget;
 use Drupal\Core\Annotation\Translation;
-use Drupal\field\Plugin\Type\Widget\WidgetBase;
 use Drupal\file\Plugin\field\widget\FileWidget;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\Field\FieldInterface;
 
 /**
@@ -26,8 +24,7 @@ use Drupal\Core\Entity\Field\FieldInterface;
  *   settings = {
  *     "progress_indicator" = "throbber",
  *     "preview_image_style" = "thumbnail",
- *   },
- *   default_value = FALSE
+ *   }
  * )
  */
 class ImageWidget extends FileWidget {
@@ -80,8 +77,8 @@ class ImageWidget extends FileWidget {
    *
    * Special handling for draggable multiple widgets and 'add more' button.
    */
-  protected function formMultipleElements(EntityInterface $entity, FieldInterface $items, $langcode, array &$form, array &$form_state) {
-    $elements = parent::formMultipleElements($entity, $items, $langcode, $form, $form_state);
+  protected function formMultipleElements(FieldInterface $items, array &$form, array &$form_state) {
+    $elements = parent::formMultipleElements($items, $form, $form_state);
 
     $cardinality = $this->fieldDefinition->getFieldCardinality();
     $file_upload_help = array(
@@ -106,8 +103,8 @@ class ImageWidget extends FileWidget {
   /**
    * {@inheritdoc}
    */
-  public function formElement(FieldInterface $items, $delta, array $element, $langcode, array &$form, array &$form_state) {
-    $element = parent::formElement($items, $delta, $element, $langcode, $form, $form_state);
+  public function formElement(FieldInterface $items, $delta, array $element, array &$form, array &$form_state) {
+    $element = parent::formElement($items, $delta, $element, $form, $form_state);
 
     $field_settings = $this->getFieldSettings();
 

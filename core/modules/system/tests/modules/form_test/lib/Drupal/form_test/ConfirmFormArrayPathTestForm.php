@@ -13,29 +13,31 @@ namespace Drupal\form_test;
 class ConfirmFormArrayPathTestForm extends ConfirmFormTestForm {
 
   /**
-   * Overrides \Drupal\form_test\ConfirmFormTestForm::getFormID().
+   * {@inheritdoc}
    */
   public function getFormID() {
     return 'form_test_confirm_array_path_test_form';
   }
 
   /**
-   * Overrides \Drupal\form_test\ConfirmFormTestForm::getCancelPath().
+   * {@inheritdoc}
    */
-  public function getCancelPath() {
+  public function getCancelRoute() {
     return array(
-      'path' => 'admin',
-      'query' => array(
-        'destination' => 'admin/config',
+      'route_name' => 'system.admin',
+      'options' => array(
+        'query' => array(
+          'destination' => 'admin/config',
+        ),
       ),
     );
   }
 
   /**
-   * Overrides \Drupal\form_test\ConfirmFormTestForm::getCancelText().
+   * {@inheritdoc}
    */
   public function getCancelText() {
-    return t('ConfirmFormArrayPathTestForm::getCancelText().');
+    return $this->t('ConfirmFormArrayPathTestForm::getCancelText().');
   }
 
 }

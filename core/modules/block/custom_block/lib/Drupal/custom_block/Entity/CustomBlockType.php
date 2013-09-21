@@ -37,6 +37,9 @@ use Drupal\custom_block\CustomBlockTypeInterface;
  *     "id" = "id",
  *     "label" = "label",
  *     "uuid" = "uuid"
+ *   },
+ *   links = {
+ *     "edit-form" = "admin/structure/block/custom-blocks/manage/{custom_block_type}"
  *   }
  * )
  */
@@ -78,22 +81,11 @@ class CustomBlockType extends ConfigEntityBase implements CustomBlockTypeInterfa
   public $description;
 
   /**
-   * Overrides \Drupal\Core\Entity\Entity::uri().
-   */
-  public function uri() {
-    return array(
-      'path' => 'admin/structure/custom-blocks/manage/' . $this->id(),
-      'options' => array(
-        'entity_type' => $this->entityType,
-        'entity' => $this,
-      )
-    );
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
+    parent::postSave($storage_controller, $update);
+
     if (!$update) {
       entity_invoke_bundle_hook('create', 'custom_block', $this->id());
       custom_block_add_body_field($this->id);
@@ -107,8 +99,11 @@ class CustomBlockType extends ConfigEntityBase implements CustomBlockTypeInterfa
    * {@inheritdoc}
    */
   public static function postDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
+    parent::postDelete($storage_controller, $entities);
+
     foreach ($entities as $entity) {
       entity_invoke_bundle_hook('delete', 'custom_block', $entity->id());
     }
   }
+
 }

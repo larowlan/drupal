@@ -90,7 +90,7 @@ function node_token_info() {
  * Implements hook_tokens().
  */
 function node_tokens($type, $tokens, array $data = array(), array $options = array()) {
-  $token_service = Drupal::token();
+  $token_service = \Drupal::token();
 
   $url_options = array('absolute' => TRUE);
   if (isset($options['langcode'])) {
@@ -144,11 +144,11 @@ function node_tokens($type, $tokens, array $data = array(), array $options = arr
 
             // If the summary was requested and is not empty, use it.
             if ($name == 'summary' && !empty($item->summary)) {
-              $output = $sanitize ? text_sanitize($instance['settings']['text_processing'], $field_langcode, $item->getValue(), 'summary') : $item->summary;
+              $output = $sanitize ? $item->summary_processed : $item->summary;
             }
             // Attempt to provide a suitable version of the 'body' field.
             else {
-              $output = $sanitize ? text_sanitize($instance['settings']['text_processing'], $field_langcode, $item->getValue(), 'value') : $item->value;
+              $output = $sanitize ? $item->processed : $item->value;
               // A summary was requested.
               if ($name == 'summary') {
                 // Generate an optionally trimmed summary of the body field.

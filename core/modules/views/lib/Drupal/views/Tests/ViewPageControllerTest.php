@@ -55,9 +55,9 @@ class ViewPageControllerTest extends ViewUnitTestBase {
   protected function setUp() {
     parent::setUp();
 
-    $this->installSchema('system', 'menu_router');
+    $this->installSchema('system', array('router', 'menu_router'));
 
-    $this->pageController = new ViewPageController($this->container->get('plugin.manager.entity')->getStorageController('view'), new ViewExecutableFactory());
+    $this->pageController = new ViewPageController($this->container->get('entity.manager')->getStorageController('view'), new ViewExecutableFactory());
   }
 
   /**

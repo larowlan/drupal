@@ -52,7 +52,7 @@ class UserPermissionsForm extends FormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('module_handler'),
-      $container->get('plugin.manager.entity')->getStorageController('user_role')
+      $container->get('entity.manager')->getStorageController('user_role')
     );
   }
 
@@ -114,7 +114,7 @@ class UserPermissionsForm extends FormBase {
       '#id' => 'permissions',
       '#sticky' => TRUE,
     );
-    foreach ($role_names as $rid => $name) {
+    foreach ($role_names as $name) {
       $form['permissions']['#header'][] = array(
         'data' => $name,
         'class' => array('checkbox'),
@@ -139,7 +139,7 @@ class UserPermissionsForm extends FormBase {
             'restrict access' => FALSE,
             'warning' => !empty($perm_item['restrict access']) ? $this->t('Warning: Give to trusted roles only; this permission has security implications.') : '',
           );
-          $options[$perm] = '';
+          $options[$perm] = $perm_item['title'];
           $user_permission_description = array(
             '#theme' => 'user_permission_description',
             '#permission_item' => $perm_item,

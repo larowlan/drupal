@@ -32,7 +32,7 @@ class HtmlEntityFormController extends HtmlFormController {
    * representing the entity and operation being performed.
    * Consider the following route:
    * @code
-   *   pattern: '/foo/{node}/bar'
+   *   path: '/foo/{node}/bar'
    *   defaults:
    *     _entity_form: 'node.edit'
    * @endcode
@@ -40,13 +40,13 @@ class HtmlEntityFormController extends HtmlFormController {
    * If the entity type has a default form controller, only the name of the
    * entity {param} needs to be passed:
    * @code
-   *   pattern: '/foo/{node}/baz'
+   *   path: '/foo/{node}/baz'
    *   defaults:
    *     _entity_form: 'node'
    * @endcode
    */
   protected function getFormObject(Request $request, $form_arg) {
-    $manager = $this->container->get('plugin.manager.entity');
+    $manager = $this->container->get('entity.manager');
 
     // If no operation is provided, use 'default'.
     $form_arg .= '.default';

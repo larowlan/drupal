@@ -8,7 +8,6 @@
 namespace Drupal\simpletest\Tests;
 
 use Drupal\simpletest\WebTestBase;
-use SimpleXMLElement;
 
 class SimpleTestTest extends WebTestBase {
 
@@ -65,10 +64,6 @@ class SimpleTestTest extends WebTestBase {
       )));
       $this->assertNoTitle('Foo');
 
-      global $base_url;
-      $this->drupalGet(url($base_url . '/core/install.php', array('external' => TRUE, 'absolute' => TRUE)));
-      $this->assertResponse(403, 'Cannot access install.php.');
-
       $user = $this->drupalCreateUser();
       $this->drupalLogin($user);
       $headers = $this->drupalGetHeaders(TRUE);
@@ -86,11 +81,20 @@ class SimpleTestTest extends WebTestBase {
         'pass' => $user->pass_raw
       );
       $this->maximumRedirects = 1;
-      $this->drupalPost('user', $edit, t('Log in'), array(
+      $this->drupalPostForm('user', $edit, t('Log in'), array(
         'query' => array('destination' => 'user/logout'),
       ));
       $headers = $this->drupalGetHeaders(TRUE);
       $this->assertEqual(count($headers), 2, 'Simpletest stopped following redirects after the first one.');
+
+      // Remove the Simpletest settings.php so we can test the protection
+      // against requests that forge a valid testing user agent to gain access
+      // to the installer.
+      drupal_unlink($this->public_files_directory . '/settings.php');
+      global $base_url;
+      $this->drupalGet(url($base_url . '/core/install.php', array('external' => TRUE, 'absolute' => TRUE)));
+      $this->assertResponse(403, 'Cannot access install.php.');
+
     }
   }
 
@@ -154,7 +158,7 @@ class SimpleTestTest extends WebTestBase {
 
         $edit = array();
         $edit['Drupal\simpletest\Tests\SimpleTestTest'] = TRUE;
-        $this->drupalPost(NULL, $edit, t('Run tests'));
+        $this->drupalPostForm(NULL, $edit, t('Run tests'));
 
         // Parse results and confirm that they are correct.
         $this->getTestResults();
@@ -320,7 +324,7 @@ class SimpleTestTest extends WebTestBase {
    * @return
    *   Extracted text.
    */
-  function asText(SimpleXMLElement $element) {
+  function asText(\SimpleXMLElement $element) {
     if (!is_object($element)) {
       return $this->fail('The element is not an element.');
     }

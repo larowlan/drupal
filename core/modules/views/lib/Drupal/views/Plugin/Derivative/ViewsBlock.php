@@ -45,7 +45,7 @@ class ViewsBlock implements ContainerDerivativeInterface {
   public static function create(ContainerInterface $container, $base_plugin_id) {
     return new static(
       $base_plugin_id,
-      $container->get('plugin.manager.entity')->getStorageController('view')
+      $container->get('entity.manager')->getStorageController('view')
     );
   }
 
@@ -93,13 +93,14 @@ class ViewsBlock implements ContainerDerivativeInterface {
 
           if (empty($desc)) {
             if ($display->display['display_title'] == $display->definition['title']) {
-              $desc = t('View: !view', array('!view' => $view->label()));
+              $desc = t('!view', array('!view' => $view->label()));
             }
             else {
-              $desc = t('View: !view: !display', array('!view' => $view->label(), '!display' => $display->display['display_title']));
+              $desc = t('!view: !display', array('!view' => $view->label(), '!display' => $display->display['display_title']));
             }
           }
           $this->derivatives[$delta] = array(
+            'category' => $display->getOption('block_category'),
             'admin_label' => $desc,
             'cache' => $display->getCacheType()
           );

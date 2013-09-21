@@ -7,7 +7,7 @@
 
 namespace Drupal\node\Form;
 
-use Drupal\Core\Controller\ControllerInterface;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\node\NodeInterface;
@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Provides a form for reverting a node revision.
  */
-class NodeRevisionRevertForm extends ConfirmFormBase implements ControllerInterface {
+class NodeRevisionRevertForm extends ConfirmFormBase implements ContainerInjectionInterface {
 
   /**
    * The node revision.
@@ -47,7 +47,7 @@ class NodeRevisionRevertForm extends ConfirmFormBase implements ControllerInterf
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('plugin.manager.entity')->getStorageController('node')
+      $container->get('entity.manager')->getStorageController('node')
     );
   }
 
@@ -68,8 +68,7 @@ class NodeRevisionRevertForm extends ConfirmFormBase implements ControllerInterf
   /**
    * {@inheritdoc}
    */
-  public function getCancelPath() {
-    return 'node/' . $this->revision->id() . '/revisions';
+  public function getCancelRoute() {
   }
 
   /**
@@ -91,7 +90,11 @@ class NodeRevisionRevertForm extends ConfirmFormBase implements ControllerInterf
    */
   public function buildForm(array $form, array &$form_state, $node_revision = NULL) {
     $this->revision = $this->nodeStorage->loadRevision($node_revision);
-    return parent::buildForm($form, $form_state);
+    $form = parent::buildForm($form, $form_state);
+
+    // @todo Convert to getCancelRoute() after http://drupal.org/node/1863906.
+    $form['actions']['cancel']['#href'] = 'node/' . $this->revision->id() . '/revisions';
+    return $form;
   }
 
   /**

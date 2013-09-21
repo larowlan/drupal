@@ -8,7 +8,7 @@
 namespace Drupal\aggregator\Form;
 
 use Drupal\aggregator\CategoryStorageControllerInterface;
-use Drupal\Core\Controller\ControllerInterface;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityManager;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\ConfirmFormBase;
@@ -18,7 +18,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * Provides a confirm delete form.
  */
-class CategoryDeleteForm extends ConfirmFormBase implements ControllerInterface {
+class CategoryDeleteForm extends ConfirmFormBase implements ContainerInjectionInterface {
 
   /**
    * The category to be deleted.
@@ -70,7 +70,7 @@ class CategoryDeleteForm extends ConfirmFormBase implements ControllerInterface 
   public static function create(ContainerInterface $container) {
     return new static (
       $container->get('module_handler'),
-      $container->get('plugin.manager.entity'),
+      $container->get('entity.manager'),
       $container->get('aggregator.category.storage')
     );
   }
@@ -79,14 +79,16 @@ class CategoryDeleteForm extends ConfirmFormBase implements ControllerInterface 
    * {@inheritdoc}
    */
   public function getQuestion() {
-    return t('Are you sure you want to delete the category %title?', array('%title' => $this->category->title));
+    return $this->t('Are you sure you want to delete the category %title?', array('%title' => $this->category->title));
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getCancelPath() {
-    return 'admin/config/services/aggregator';
+  public function getCancelRoute() {
+    return array(
+      'route_name' => 'aggregator.admin_overview',
+    );
   }
 
   /**
@@ -100,14 +102,14 @@ class CategoryDeleteForm extends ConfirmFormBase implements ControllerInterface 
    * {@inheritdoc}
    */
   public function getConfirmText() {
-    return t('Delete');
+    return $this->t('Delete');
   }
 
   /**
    * {@inheritdoc}
    */
   public function getDescription() {
-    return t('This will delete the aggregator category, the menu item for this category, and any related category blocks.');
+    return $this->t('This will delete the aggregator category, the menu item for this category, and any related category blocks.');
   }
 
   /**
@@ -145,7 +147,7 @@ class CategoryDeleteForm extends ConfirmFormBase implements ControllerInterface 
     // Make sure there is no active block for this category.
     $this->deleteBlocks($cid);
     watchdog('aggregator', 'Category %category deleted.', array('%category' => $title));
-    drupal_set_message(t('The category %category has been deleted.', array('%category' => $title)));
+    drupal_set_message($this->t('The category %category has been deleted.', array('%category' => $title)));
     if (preg_match('/^\/admin/', $this->getRequest()->getPathInfo())) {
       $form_state['redirect'] = 'admin/config/services/aggregator/';
     }

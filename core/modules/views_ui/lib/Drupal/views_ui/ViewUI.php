@@ -1025,20 +1025,6 @@ class ViewUI implements ViewStorageInterface {
   }
 
   /**
-   * Implements Drupal\Core\Entity\EntityInterface::getBCEntity().
-   */
-  public function getBCEntity() {
-    return $this->storage->getBCEntity();
-  }
-
-  /**
-   * Implements \Drupal\Core\Entity\EntityInterface::getNGEntity().
-   */
-  public function getNGEntity() {
-    return $this->storage->getNGEntity();
-  }
-
-  /**
    * Implements \Drupal\Core\Entity\EntityInterface::isTranslatable().
    */
   public function isTranslatable() {
@@ -1243,7 +1229,7 @@ class ViewUI implements ViewStorageInterface {
   public static function baseFieldDefinitions($entity_type) {
     // @todo: This class is not directly defined as an entity type and does
     //   not have base definitions but has to implement this method. Remove in
-    //   http://drupal.org/node/2024963.
+    //   https://drupal.org/node/2004244.
     return array();
   }
 }

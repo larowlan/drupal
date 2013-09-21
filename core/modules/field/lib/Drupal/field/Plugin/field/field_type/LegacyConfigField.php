@@ -7,8 +7,8 @@
 
 namespace Drupal\field\Plugin\field\field_type;
 
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\field\Plugin\Type\FieldType\ConfigField;
+use Drupal\field\FieldInstanceInterface;
 use Symfony\Component\Validator\ConstraintViolation;
 
 /**
@@ -39,16 +39,17 @@ class LegacyConfigField extends ConfigField {
     $legacy_errors = array();
     $this->legacyCallback('validate', array(&$legacy_errors));
 
-    $entity = $this->getParent();
-    $langcode = $entity->language()->id;
+    $langcode = $this->getLangcode();
+    $field_name = $this->getFieldDefinition()->getFieldName();
 
-    if (isset($legacy_errors[$this->getInstance()->getField()->id()][$langcode])) {
-      foreach ($legacy_errors[$this->getInstance()->getField()->id()][$langcode] as $delta => $item_errors) {
+    if (isset($legacy_errors[$field_name][$langcode])) {
+      foreach ($legacy_errors[$field_name][$langcode] as $delta => $item_errors) {
         foreach ($item_errors as $item_error) {
           // We do not have the information about which column triggered the
           // error, so assume the first column...
-          $column = key($this->getInstance()->getField()->getColumns());
-          $violations->add(new ConstraintViolation($item_error['message'], $item_error['message'], array(), $this, $delta . '.' . $column, $this->offsetGet($delta)->get($column)->getValue(), NULL, $item_error['error']));
+          $property_names = $this->getFieldDefinition()->getFieldPropertyNames();
+          $property_name = $property_names[0];
+          $violations->add(new ConstraintViolation($item_error['message'], $item_error['message'], array(), $this, $delta . '.' . $property_name, $this->offsetGet($delta)->get($property_name)->getValue(), NULL, $item_error['error']));
         }
       }
     }
@@ -105,24 +106,35 @@ class LegacyConfigField extends ConfigField {
     $module = $definition['provider'];
     $callback = "{$module}_field_{$hook}";
     if (function_exists($callback)) {
-      $entity = $this->getParent();
-      $langcode = $entity->language()->id;
-
       // We need to remove the empty "prototype" item here.
       // @todo Revisit after http://drupal.org/node/1988492.
       $this->filterEmptyValues();
-      // Legcacy callbacks alter $items by reference.
+      // Legacy callbacks alter $items by reference.
       $items = (array) $this->getValue(TRUE);
       $args = array_merge(array(
-        $entity,
-        $this->getInstance()->getField(),
-        $this->getInstance(),
-        $langcode,
+        $this->getEntity(),
+        $this->getFieldInstance()->getField(),
+        $this->getFieldInstance(),
+        $this->getLangcode(),
         &$items
       ), $args);
       call_user_func_array($callback, $args);
       $this->setValue($items);
     }
+  }
+
+  /**
+   * Returns the field instance.
+   *
+   * @return \Drupal\field\FieldInstanceInterface
+   *   The field instance.
+   */
+  protected function getFieldInstance() {
+    $instance = $this->getFieldDefinition();
+    if (!($instance instanceof FieldInstanceInterface)) {
+      throw new \UnexpectedValueException('LegacyConfigField::getFieldInstance() called for a field whose definition is not a field instance.');
+    }
+    return $instance;
   }
 
 }

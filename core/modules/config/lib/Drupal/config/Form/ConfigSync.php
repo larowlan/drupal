@@ -53,11 +53,6 @@ class ConfigSync extends FormBase {
   protected $eventDispatcher;
 
   /**
-   * @var \Drupal\Core\Config\ConfigFactory;
-   */
-  protected $configFactory;
-
-  /**
    * @var \Drupal\Core\Entity\EntityManager;
    */
   protected $entity_manager;
@@ -81,7 +76,7 @@ class ConfigSync extends FormBase {
    * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   Event dispatcher.
    * @param \Drupal\Core\Config\ConfigFactory $config_factory
-   *   Configuration object factory.
+   *   The config factory.
    * @param \Drupal\Core\Entity\EntityManager $entity_manager
    *   Entity manager.
    * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
@@ -107,7 +102,7 @@ class ConfigSync extends FormBase {
       $container->get('lock'),
       $container->get('event_dispatcher'),
       $container->get('config.factory'),
-      $container->get('plugin.manager.entity'),
+      $container->get('entity.manager'),
       $container->get('url_generator')
     );
   }
@@ -178,7 +173,7 @@ class ConfigSync extends FormBase {
       foreach ($config_files as $config_file) {
         $links['view_diff'] = array(
           'title' => $this->t('View differences'),
-          'href' => $this->urlGenerator->getPathFromRoute('config_diff', array('config_file' => $config_file)),
+          'href' => $this->urlGenerator->getPathFromRoute('config.diff', array('config_file' => $config_file)),
           'attributes' => array(
             'class' => array('use-ajax'),
             'data-accepts' => 'application/vnd.drupal-modal',

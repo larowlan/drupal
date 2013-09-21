@@ -11,92 +11,18 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
- * Menu callback; Provide the administration overview page.
- */
-function system_admin_config_page() {
-  // Check for status report errors.
-  // @todo Use depedancy injection in http://drupal.org/node/1987810.
-  if (Drupal::service('system.manager')->checkRequirements() && user_access('administer site configuration')) {
-    drupal_set_message(t('One or more problems were detected with your Drupal installation. Check the <a href="@status">status report</a> for more information.', array('@status' => url('admin/reports/status'))), 'error');
-  }
-  $blocks = array();
-  if ($system_link = entity_load_multiple_by_properties('menu_link', array('link_path' => 'admin/config', 'module' => 'system'))) {
-    $system_link = reset($system_link);
-    $query = Drupal::entityQuery('menu_link')
-      ->condition('link_path', 'admin/help', '<>')
-      ->condition('menu_name', $system_link->menu_name)
-      ->condition('plid', $system_link->id())
-      ->condition('hidden', 0);
-    $result = $query->execute();
-    if (!empty($result)) {
-      $menu_links = menu_link_load_multiple($result);
-
-      foreach ($menu_links as $item) {
-        _menu_link_translate($item);
-        if (!$item['access']) {
-          continue;
-        }
-        // The link description, either derived from 'description' in hook_menu()
-        // or customized via menu module is used as title attribute.
-        if (!empty($item['localized_options']['attributes']['title'])) {
-          $item['description'] = $item['localized_options']['attributes']['title'];
-          unset($item['localized_options']['attributes']['title']);
-        }
-        $block = $item;
-        $block['content'] = '';
-        $block['content'] .= theme('admin_block_content', array('content' => system_admin_menu_block($item)));
-        if (!empty($block['content'])) {
-          $block['show'] = TRUE;
-        }
-
-        // Prepare for sorting as in function _menu_tree_check_access().
-        // The weight is offset so it is always positive, with a uniform 5-digits.
-        $blocks[(50000 + $item['weight']) . ' ' . $item['title'] . ' ' . $item['mlid']] = $block;
-      }
-    }
-  }
-  if ($blocks) {
-    ksort($blocks);
-    return theme('admin_page', array('blocks' => $blocks));
-  }
-  else {
-    return t('You do not have any administrative items.');
-  }
-}
-
-/**
- * Provide a single block from the administration menu as a page.
- *
- * This function is often a destination for these blocks.
- * For example, 'admin/structure/types' needs to have a destination to be valid
- * in the Drupal menu system, but too much information there might be
- * hidden, so we supply the contents of the block.
- *
- * @return
- *   The output HTML.
- */
-function system_admin_menu_block_page() {
-  $item = menu_get_item();
-  if ($content = system_admin_menu_block($item)) {
-    $output = theme('admin_block_content', array('content' => $content));
-  }
-  else {
-    $output = t('You do not have any administrative items.');
-  }
-  return $output;
-}
-
-/**
  * Menu callback; displays a listing of all themes.
+ *
+ * @deprecated Use \Drupal\system\Controller\SystemController::themesPage()
  */
 function system_themes_page() {
   // Get current list of themes.
   $themes = system_rebuild_theme_data();
   uasort($themes, 'system_sort_modules_by_info_name');
 
-  $theme_default = Drupal::config('system.theme')->get('default');
+  $theme_default = \Drupal::config('system.theme')->get('default');
   $theme_groups  = array();
-  $admin_theme = Drupal::config('system.theme')->get('admin');
+  $admin_theme = \Drupal::config('system.theme')->get('admin');
 
   foreach ($themes as &$theme) {
     if (!empty($theme->info['hidden'])) {
@@ -131,7 +57,7 @@ function system_themes_page() {
      // Ensure this theme is compatible with this version of core.
      // Require the 'content' region to make sure the main page
      // content has a common place in all themes.
-      $theme->incompatible_core = !isset($theme->info['core']) || ($theme->info['core'] != DRUPAL_CORE_COMPATIBILITY) || (!isset($theme->info['regions']['content']));
+      $theme->incompatible_core = !isset($theme->info['core']) || ($theme->info['core'] != \Drupal::CORE_COMPATIBILITY) || (!isset($theme->info['regions']['content']));
       $theme->incompatible_php = version_compare(phpversion(), $theme->info['php']) < 0;
       // Confirmed that the base theme is available.
       $theme->incompatible_base = (isset($theme->info['base theme']) && !isset($themes[$theme->info['base theme']]));
@@ -233,7 +159,7 @@ function system_themes_admin_form($form, &$form_state, $theme_options) {
     '#options' => array(0 => t('Default theme')) + $theme_options,
     '#title' => t('Administration theme'),
     '#description' => t('Choose "Default theme" to always use the same theme as the rest of the site.'),
-    '#default_value' => Drupal::config('system.theme')->get('admin'),
+    '#default_value' => \Drupal::config('system.theme')->get('admin'),
   );
   $form['admin_theme']['actions'] = array('#type' => 'actions');
   $form['admin_theme']['actions']['submit'] = array(
@@ -248,14 +174,14 @@ function system_themes_admin_form($form, &$form_state, $theme_options) {
  */
 function system_themes_admin_form_submit($form, &$form_state) {
   drupal_set_message(t('The configuration options have been saved.'));
-  Drupal::config('system.theme')->set('admin', $form_state['values']['admin_theme'])->save();
+  \Drupal::config('system.theme')->set('admin', $form_state['values']['admin_theme'])->save();
 }
 
 /**
  * Menu callback; Set the default theme.
  */
 function system_theme_default() {
-  $request = Drupal::request();
+  $request = \Drupal::request();
   $theme = $request->get('theme');
   $token = $request->get('token');
   if (!empty($theme) && !empty($token) && drupal_valid_token($token, 'system-theme-operation-link')) {
@@ -269,7 +195,7 @@ function system_theme_default() {
        theme_enable(array($theme));
       }
       // Set the default theme.
-      Drupal::config('system.theme')
+      \Drupal::config('system.theme')
         ->set('default', $theme)
         ->save();
 
@@ -283,7 +209,7 @@ function system_theme_default() {
 
       // The status message depends on whether an admin theme is currently in use:
       // a value of 0 means the admin theme is set to be the default theme.
-      $admin_theme = Drupal::config('system.theme')->get('admin');
+      $admin_theme = \Drupal::config('system.theme')->get('admin');
       if ($admin_theme != 0 && $admin_theme != $theme) {
         drupal_set_message(t('Please note that the administration theme is still set to the %admin_theme theme; consequently, the theme on this page remains unchanged. All non-administrative sections of the site, however, will show the selected %selected_theme theme by default.', array(
           '%admin_theme' => $themes[$admin_theme]->info['name'],
@@ -350,29 +276,6 @@ function system_sort_themes($a, $b) {
 }
 
 /**
- * Default page callback for batches.
- */
-function system_batch_page() {
-  require_once DRUPAL_ROOT . '/core/includes/batch.inc';
-  $output = _batch_page();
-
-  if ($output === FALSE) {
-    throw new AccessDeniedHttpException();
-  }
-  elseif ($output instanceof Response) {
-    return $output;
-  }
-  elseif (isset($output)) {
-    // Force a page without blocks or messages to
-    // display a list of collected messages later.
-    drupal_set_page_content($output);
-    $page = element_info('page');
-    $page['#show_messages'] = FALSE;
-    return $page;
-  }
-}
-
-/**
  * Returns HTML for an administrative block for display.
  *
  * @param $variables
@@ -400,7 +303,7 @@ function theme_admin_block($variables) {
     $output .= '<h3>' . $block['title'] . '</h3>';
   }
   if (!empty($block['content'])) {
-    $output .= '<div class="body">' . $block['content'] . '</div>';
+    $output .= '<div class="body">' . render($block['content']) . '</div>';
   }
   else {
     $output .= '<div class="description">' . $block['description'] . '</div>';
@@ -498,7 +401,6 @@ function theme_admin_page($variables) {
 function theme_system_admin_index($variables) {
   $menu_items = $variables['menu_items'];
 
-  $stripe = 0;
   $container = array('left' => '', 'right' => '');
   $flip = array('left' => 'right', 'right' => 'left');
   $position = 'left';
@@ -717,11 +619,11 @@ function theme_system_modules_uninstall($variables) {
   // Display table.
   $rows = array();
   foreach (element_children($form['modules']) as $module) {
-    if (!empty($form['modules'][$module]['#dependents'])) {
-      $disabled_message = format_plural(count($form['modules'][$module]['#dependents']),
+    if (!empty($form['modules'][$module]['#required_by'])) {
+      $disabled_message = format_plural(count($form['modules'][$module]['#required_by']),
         'To uninstall @module, the following module must be uninstalled first: @required_modules',
         'To uninstall @module, the following modules must be uninstalled first: @required_modules',
-        array('@module' => $form['modules'][$module]['#module_name'], '@required_modules' => implode(', ', $form['modules'][$module]['#dependents'])));
+        array('@module' => $form['modules'][$module]['#module_name'], '@required_modules' => implode(', ', $form['modules'][$module]['#required_by'])));
       $disabled_message = '<div class="admin-requirements">' . $disabled_message . '</div>';
     }
     else {
@@ -790,7 +692,7 @@ function theme_system_themes_page($variables) {
 
       // Make sure to provide feedback on compatibility.
       if (!empty($theme->incompatible_core)) {
-        $output .= '<div class="incompatible">' . t('This version is not compatible with Drupal !core_version and should be replaced.', array('!core_version' => DRUPAL_CORE_COMPATIBILITY)) . '</div>';
+        $output .= '<div class="incompatible">' . t('This version is not compatible with Drupal !core_version and should be replaced.', array('!core_version' => \Drupal::CORE_COMPATIBILITY)) . '</div>';
       }
       elseif (!empty($theme->incompatible_php)) {
         if (substr_count($theme->info['php'], '.') < 2) {
@@ -824,39 +726,6 @@ function theme_system_themes_page($variables) {
 }
 
 /**
- * Page callback: Displays edit date format links for each language.
- *
- * @see locale_menu()
- */
-function system_date_format_language_overview_page() {
-  $header = array(t('Language'), t('Operations'));
-
-  $languages = language_list();
-  foreach ($languages as $langcode => $language) {
-    $row = array();
-    $row[] = $language->name;
-    $links = array();
-    $links['edit'] = array(
-      'title' => t('Edit'),
-      'href' => "admin/config/regional/date-time/locale/$langcode/edit",
-    );
-    $links['reset'] = array(
-      'title' => t('Reset'),
-      'href' => "admin/config/regional/date-time/locale/$langcode/reset",
-    );
-    $row[] = array(
-      'data' => array(
-        '#type' => 'operations',
-        '#links' => $links,
-      ),
-    );
-    $rows[] = $row;
-  }
-
-  return theme('table', array('header' => $header, 'rows' => $rows));
-}
-
-/**
  * Form constructor for the date localization configuration form.
  *
  * @param $langcode
@@ -865,6 +734,8 @@ function system_date_format_language_overview_page() {
  * @see locale_menu()
  * @see system_date_format_localize_form_submit()
  * @ingroup forms
+ *
+ * @deprecated Use \Drupal\system\Form\SystemForm::localizeDateFormat()
  */
 function system_date_format_localize_form($form, &$form_state, $langcode) {
   // Display the current language name.
@@ -880,8 +751,8 @@ function system_date_format_localize_form($form, &$form_state, $langcode) {
   );
 
   // Get list of available formats.
-  $date_service = Drupal::service('date');
-  $formats = Drupal::entityManager()
+  $date_service = \Drupal::service('date');
+  $formats = \Drupal::entityManager()
     ->getStorageController('date_format')
     ->loadMultiple();
   $choices = array();
@@ -981,7 +852,7 @@ function theme_system_date_format_localize_form($variables) {
  */
 function system_date_format_localize_form_save($langcode, $date_format_id, DateFormatInterface $format) {
   $format->addLocale($langcode)->save();
-  Drupal::config('locale.config.' . $langcode . '.system.date_format.' . $date_format_id)
+  \Drupal::config('locale.config.' . $langcode . '.system.date_format.' . $date_format_id)
     ->set('pattern', $format->get('pattern'))
     ->save();
 }

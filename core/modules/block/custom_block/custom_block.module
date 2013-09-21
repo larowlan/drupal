@@ -16,11 +16,11 @@ function custom_block_help($path, $arg) {
     case 'admin/help#custom_block':
       return t('Allows the creation of custom blocks through the user interface.');
 
-    case 'admin/structure/custom-blocks':
+    case 'admin/structure/block/custom-blocks':
       $output = '<p>' . t('This page lists user-created blocks. These blocks are derived from block types. A block type can consist of different fields and display settings. From the block types tab you can manage these fields as well as create new block types.') . '</p>';
       return $output;
 
-    case 'admin/structure/custom-blocks/types':
+    case 'admin/structure/block/custom-blocks/types':
       $output = '<p>' . t('This page lists block types. A block type can consist of different fields and display settings. From here you can manage these fields as well as create new block types.') . '</p>';
       return $output;
 
@@ -31,13 +31,30 @@ function custom_block_help($path, $arg) {
  * Implements hook_menu_local_tasks().
  */
 function custom_block_menu_local_tasks(&$data, $router_item, $root_path) {
-  if ($router_item['route_name'] == 'custom_block_list') {
+  if ($router_item['route_name'] == 'custom_block.list') {
     // @todo Move to a LocalAction plugin when https://drupal.org/node/2045267
     //   allows local actions to work with query strings.
     $item = menu_get_item('block/add');
     if ($item['access']) {
       // Add a destination parameter.
-      $item['localized_options']['query']['destination'] = 'admin/structure/custom-blocks';
+      $item['localized_options']['query']['destination'] = 'admin/structure/block/custom-blocks';
+      $data['actions']['block/add'] = array(
+        '#theme' => 'menu_local_action',
+        '#link' => $item,
+      );
+    }
+  }
+
+  $routes = array_map(function ($theme) {
+    return "block.admin_display_$theme";
+  }, array_keys(list_themes()));
+  if (in_array($router_item['route_name'], $routes)) {
+    // @todo Move to a LocalAction plugin when https://drupal.org/node/2045267
+    //   allows local actions to work with query strings.
+    $item = menu_get_item('block/add');
+    if ($item['access']) {
+      // Add a destination parameter.
+      $item['localized_options']['query']['theme'] = end($router_item['map']);
       $data['actions']['block/add'] = array(
         '#theme' => 'menu_local_action',
         '#link' => $item,
@@ -47,71 +64,53 @@ function custom_block_menu_local_tasks(&$data, $router_item, $root_path) {
 }
 
 /**
- * Implements hook_menu_local_actions_alter().
- */
-function custom_block_menu_local_actions_alter(&$actions) {
-  if (isset($actions['local_action_static:custom_block_add_action'])) {
-    foreach (list_themes() as $theme => $theme_info) {
-      if ($theme_info->status) {
-        $actions['local_action_static:custom_block_add_action']['appears_on'][] = "block_admin_display.$theme";
-      }
-    }
-  }
-}
-
-/**
  * Implements hook_menu().
  */
 function custom_block_menu() {
-  $items['admin/structure/custom-blocks'] = array(
-    'title' => 'Custom blocks',
+  $items['admin/structure/block/custom-blocks'] = array(
+    'title' => 'Custom block library',
     'description' => 'Manage custom blocks.',
-    'route_name' => 'custom_block_list',
+    'route_name' => 'custom_block.list',
+    'type' => MENU_LOCAL_TASK | MENU_NORMAL_ITEM,
   );
-  $items['admin/structure/custom-blocks/list'] = array(
+  $items['admin/structure/block/custom-blocks/list'] = array(
     'title' => 'Blocks',
     'type' => MENU_DEFAULT_LOCAL_TASK,
   );
-  $items['admin/structure/custom-blocks/types'] = array(
+  $items['admin/structure/block/custom-blocks/types'] = array(
     'title' => 'Types',
-    'route_name' => 'custom_block_type_list',
+    'route_name' => 'custom_block.type_list',
     'type' => MENU_LOCAL_TASK,
   );
-  $items['admin/structure/custom-blocks/types/add'] = array(
-    'route_name' => 'custom_block_type_add',
+  $items['admin/structure/block/custom-blocks/types/add'] = array(
+    'route_name' => 'custom_block.type_add',
     'type' => MENU_SIBLING_LOCAL_TASK,
     'weight' => 1,
   );
-  $items['admin/structure/custom-blocks/manage/%custom_block_type'] = array(
+  $items['admin/structure/block/custom-blocks/manage/%custom_block_type'] = array(
     'title' => 'Edit custom block type',
     'title callback' => 'entity_page_label',
-    'title arguments' => array(4),
-    'route_name' => 'custom_block_type_edit',
+    'title arguments' => array(5),
+    'route_name' => 'custom_block.type_edit',
   );
-  $items['admin/structure/custom-blocks/manage/%custom_block_type/edit'] = array(
+  $items['admin/structure/block/custom-blocks/manage/%custom_block_type/edit'] = array(
     'title' => 'Edit',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
-  $items['admin/structure/custom-blocks/manage/%custom_block_type/delete'] = array(
-    'title' => 'Delete',
-    'type' => MENU_LOCAL_TASK,
-    'weight' => 10,
-    'route_name' => 'custom_block_type_delete',
-  );
   $items['block/add'] = array(
     'title' => 'Add custom block',
-    'route_name' => 'custom_block_add_page',
+    'route_name' => 'custom_block.add_page',
   );
   $items['block/add/%custom_block_type'] = array(
     'title' => 'Add custom block',
     'description' => 'Add custom block',
-    'route_name' => 'custom_block_add_form'
+    'route_name' => 'custom_block.add_form'
   );
   // There has to be a base-item in order for contextual links to work.
   $items['block/%custom_block'] = array(
     'title' => 'Edit',
-    'route_name' => 'custom_block_edit',
+    'route_name' => 'custom_block.edit',
   );
   $items['block/%custom_block/edit'] = array(
     'title' => 'Edit',
@@ -121,14 +120,10 @@ function custom_block_menu() {
   );
   $items['block/%custom_block/delete'] = array(
     'title' => 'Delete',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('custom_block_delete_form', 1),
-    'access callback' => 'entity_page_access',
-    'access arguments' => array(1, 'delete'),
     'weight' => 1,
     'type' => MENU_LOCAL_TASK,
     'context' => MENU_CONTEXT_INLINE,
-    'file' => 'custom_block.pages.inc',
+    'route_name' => 'custom_block.delete',
   );
   return $items;
 }
@@ -188,7 +183,7 @@ function custom_block_entity_info_alter(&$types) {
 function custom_block_entity_bundle_info() {
   $bundles = array();
   foreach (config_get_storage_names_with_prefix('custom_block.type.') as $config_name) {
-    $config = Drupal::config($config_name);
+    $config = \Drupal::config($config_name);
     $bundles['custom_block'][$config->get('id')]['label'] = $config->get('label');
   }
   return $bundles;
@@ -207,13 +202,13 @@ function custom_block_entity_bundle_info() {
  */
 function custom_block_add_body_field($block_type_id, $label = 'Block body') {
   // Add or remove the body field, as needed.
-  $field = field_info_field('block_body');
+  $field = field_info_field('custom_block', 'block_body');
   $instance = field_info_instance('custom_block', 'block_body', $block_type_id);
   if (empty($field)) {
     $field = entity_create('field_entity', array(
-      'field_name' => 'block_body',
+      'name' => 'block_body',
+      'entity_type' => 'custom_block',
       'type' => 'text_with_summary',
-      'entity_types' => array('custom_block'),
     ));
     $field->save();
   }
@@ -255,7 +250,7 @@ function custom_block_admin_paths() {
     'block/add/*' => TRUE,
     'block/*' => TRUE,
     'block/*/delete' => TRUE,
-    'admin/structure/custom-blocks/*' => TRUE,
+    'admin/structure/block/custom-blocks/*' => TRUE,
   );
   return $paths;
 }

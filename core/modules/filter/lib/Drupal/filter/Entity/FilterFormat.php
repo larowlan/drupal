@@ -38,6 +38,9 @@ use Drupal\filter\FilterBag;
  *     "uuid" = "uuid",
  *     "weight" = "weight",
  *     "status" = "status"
+ *   },
+ *   links = {
+ *     "edit-form" = "admin/config/content/formats/manage/{filter_format}"
  *   }
  * )
  */
@@ -191,20 +194,9 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
   /**
    * {@inheritdoc}
    */
-  public function uri() {
-    return array(
-      'path' => 'admin/config/content/formats/manage/' . $this->id(),
-      'options' => array(
-        'entity_type' => $this->entityType,
-        'entity' => $this,
-      ),
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function preSave(EntityStorageControllerInterface $storage_controller) {
+    parent::preSave($storage_controller);
+
     $this->name = trim($this->label());
 
     // @todo Do not save disabled filters whose properties are identical to
@@ -224,6 +216,8 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
    * {@inheritdoc}
    */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
+    parent::postSave($storage_controller, $update);
+
     // Clear the static caches of filter_formats() and others.
     filter_formats_reset();
 
@@ -239,7 +233,7 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
       // Note: user_role_change_permissions() triggers a call chain back into
       // filter_permission() and lastly filter_formats(), so its cache must be
       // reset upfront.
-      if (($roles = $this->get('roles')) && $permission = filter_permission_name($this)) {
+      if (($roles = $this->get('roles')) && $permission = $this->getPermissionName()) {
         foreach (user_roles() as $rid => $name) {
           $enabled = in_array($rid, $roles, TRUE);
           user_role_change_permissions($rid, array($permission => $enabled));
@@ -259,6 +253,13 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
   public function isFallbackFormat() {
     $fallback_format = \Drupal::config('filter.settings')->get('fallback_format');
     return $this->id() == $fallback_format;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPermissionName() {
+    return !$this->isFallbackFormat() ? 'use text format ' . $this->id() : FALSE;
   }
 
 }

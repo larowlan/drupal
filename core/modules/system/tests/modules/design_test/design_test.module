@@ -68,7 +68,7 @@ function design_test_menu() {
 
   $items['design_test'] = array(
     'title' => 'Design test',
-    'route_name' => 'design_test',
+    'route_name' => 'design.test',
   );
 
   $items['design_test/list'] = array(
@@ -80,7 +80,7 @@ function design_test_menu() {
   foreach ($categories as $category) {
     $items["design_test/{$category}"] = array(
       'title' => drupal_ucfirst($category),
-      'route_name' => 'design_test',
+      'route_name' => 'design.test',
       'type' => MENU_LOCAL_TASK | MENU_VISIBLE_IN_TREE,
     );
   }
@@ -96,7 +96,7 @@ function design_test_menu_local_tasks_alter(&$data, $router_item, $root_path) {
     $actions = &$data['actions']['output'];
     // Determine the currently selected theme, if any.
     $selected_theme = drupal_container()->get('request')->query->get('theme');
-    $default_theme = Drupal::config('system.theme')->get('default');
+    $default_theme = \Drupal::config('system.theme')->get('default');
 
     // Expand all enabled themes into action links.
     $themes = list_themes();
