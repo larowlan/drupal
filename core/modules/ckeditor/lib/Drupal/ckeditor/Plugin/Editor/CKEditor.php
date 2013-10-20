@@ -143,6 +143,9 @@ class CKEditor extends EditorBase implements ContainerFactoryPluginInterface {
     $form['plugin_settings'] = array(
       '#type' => 'vertical_tabs',
       '#title' => t('CKEditor plugin settings'),
+      '#attributes' => array(
+        'id' => 'ckeditor-plugin-settings',
+      ),
     );
     $this->ckeditorPluginManager->injectPluginSettingsForm($form, $form_state, $editor);
     if (count(element_children($form['plugins'])) === 0) {
@@ -171,7 +174,7 @@ class CKEditor extends EditorBase implements ContainerFactoryPluginInterface {
     // Build a fake Editor object, which we'll use to generate JavaScript
     // settings for this fake Editor instance.
     $fake_editor = entity_create('editor', array(
-      'format' => '',
+      'format' => $editor->id(),
       'editor' => 'ckeditor',
       'settings' => array(
         // Single toolbar row that contains all existing buttons.

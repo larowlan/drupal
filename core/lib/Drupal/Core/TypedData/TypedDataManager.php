@@ -46,7 +46,7 @@ class TypedDataManager extends DefaultPluginManager {
 
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, LanguageManager $language_manager, ModuleHandlerInterface $module_handler) {
     $this->alterInfo($module_handler, 'data_type_info');
-    $this->setCacheBackend($cache_backend, $language_manager, 'typed_data:types');
+    $this->setCacheBackend($cache_backend, $language_manager, 'typed_data_types_plugins');
 
     parent::__construct('Plugin/DataType', $namespaces, 'Drupal\Core\TypedData\Annotation\DataType');
   }
@@ -147,7 +147,6 @@ class TypedDataManager extends DefaultPluginManager {
    * @see \Drupal\Core\TypedData\Plugin\DataType\Date
    * @see \Drupal\Core\TypedData\Plugin\DataType\Uri
    * @see \Drupal\Core\TypedData\Plugin\DataType\Binary
-   * @see \Drupal\Core\Entity\Field\EntityWrapper
    */
   public function create(array $definition, $value = NULL, $name = NULL, $parent = NULL) {
     $wrapper = $this->createInstance($definition['type'], $definition, $name, $parent);

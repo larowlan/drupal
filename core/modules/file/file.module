@@ -7,6 +7,7 @@
 
 use Drupal\file\Entity\File;
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Template\Attribute;
 use Drupal\file\FileUsage\FileUsageInterface;
@@ -93,7 +94,7 @@ function file_element_info() {
  * @see hook_file_load()
  * @see file_load()
  * @see entity_load()
- * @see Drupal\Core\Entity\Query\EntityQueryInterface
+ * @see \Drupal\Core\Entity\Query\EntityQueryInterface
  */
 function file_load_multiple(array $fids = NULL, $reset = FALSE) {
   return entity_load_multiple('file', $fids, $reset);
@@ -120,7 +121,7 @@ function file_load($fid, $reset = FALSE) {
 /**
  * Returns the file usage service.
  *
- * @return Drupal\file\FileUsage\FileUsageInterface.
+ * @return \Drupal\file\FileUsage\FileUsageInterface.
  */
 function file_usage() {
   return \Drupal::service('file.usage');
@@ -133,15 +134,16 @@ function file_usage() {
  * stored in the database. This is a powerful function that in many ways
  * performs like an advanced version of copy().
  * - Checks if $source and $destination are valid and readable/writable.
- * - Checks that $source is not equal to $destination; if they are an error
- *   is reported.
  * - If file already exists in $destination either the call will error out,
  *   replace the file or rename the file based on the $replace parameter.
+ * - If the $source and $destination are equal, the behavior depends on the
+ *   $replace parameter. FILE_EXIST_REPLACE will error out. FILE_EXIST_RENAME
+ *   will rename the file until the $destination is unique.
  * - Adds the new file to the files database. If the source file is a
  *   temporary file, the resulting file will also be a temporary file. See
  *   file_save_upload() for details on temporary files.
  *
- * @param Drupal\file\File $source
+ * @param \Drupal\file\File $source
  *   A file entity.
  * @param $destination
  *   A string containing the destination that $source should be copied to.
@@ -213,7 +215,7 @@ function file_copy(File $source, $destination = NULL, $replace = FILE_EXISTS_REN
  *   replace the file or rename the file based on the $replace parameter.
  * - Adds the new file to the files database.
  *
- * @param Drupal\file\File $source
+ * @param \Drupal\file\File $source
  *   A file entity.
  * @param $destination
  *   A string containing the destination that $source should be moved to.
@@ -229,7 +231,7 @@ function file_copy(File $source, $destination = NULL, $replace = FILE_EXISTS_REN
  *       unique.
  *   - FILE_EXISTS_ERROR - Do nothing and return FALSE.
  *
- * @return Drupal\file\File
+ * @return \Drupal\file\File
  *   Resulting file entity for success, or FALSE in the event of an error.
  *
  * @see file_unmanaged_move()
@@ -288,7 +290,7 @@ function file_move(File $source, $destination = NULL, $replace = FILE_EXISTS_REN
  * After executing the validator callbacks specified hook_file_validate() will
  * also be called to allow other modules to report errors about the file.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  * @param $validators
  *   An optional, associative array of callback functions used to validate the
@@ -320,7 +322,7 @@ function file_validate(File $file, $validators = array()) {
 /**
  * Checks for files with names longer than can be stored in the database.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  *
  * @return
@@ -341,7 +343,7 @@ function file_validate_name_length(File $file) {
 /**
  * Checks that the filename ends with an allowed extension.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  * @param $extensions
  *   A string with a space separated list of allowed extensions.
@@ -365,7 +367,7 @@ function file_validate_extensions(File $file, $extensions) {
 /**
  * Checks that the file's size is below certain limits.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  * @param $file_limit
  *   An integer specifying the maximum file size in bytes. Zero indicates that
@@ -399,7 +401,7 @@ function file_validate_size(File $file, $file_limit = 0, $user_limit = 0) {
 /**
  * Checks that the file is recognized by Image::getInfo() as an image.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  *
  * @return
@@ -411,8 +413,13 @@ function file_validate_is_image(File $file) {
   $errors = array();
 
   $image = \Drupal::service('image.factory')->get($file->getFileUri());
-  if (!$image->getExtension()) {
-    $errors[] = t('Only JPEG, PNG and GIF images are allowed.');
+  if (!$image->isSupported()) {
+    $toolkit = \Drupal::service('image.toolkit');
+    $extensions = array();
+    foreach ($toolkit->supportedTypes() as $image_type) {
+      $extensions[] = Unicode::strtoupper(image_type_to_extension($image_type));
+    }
+    $errors[] = t('Image type not supported. Allowed types: @types.', array('@types' => implode(', ', $extensions)));
   }
 
   return $errors;
@@ -424,7 +431,7 @@ function file_validate_is_image(File $file) {
  * Non-image files will be ignored. If a image toolkit is available the image
  * will be scaled to fit within the desired maximum dimensions.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity. This function may resize the file affecting its size.
  * @param $maximum_dimensions
  *   An optional string in the form WIDTHxHEIGHT e.g. '640x480' or '85x85'. If
@@ -447,7 +454,7 @@ function file_validate_image_resolution(File $file, $maximum_dimensions = 0, $mi
   // Check first that the file is an image.
   $image_factory = \Drupal::service('image.factory');
   $image = $image_factory->get($file->getFileUri());
-  if ($image->getExtension()) {
+  if ($image->isSupported()) {
     if ($maximum_dimensions) {
       // Check that it is smaller than the given dimensions.
       list($width, $height) = explode('x', $maximum_dimensions);
@@ -544,7 +551,7 @@ function file_save_data($data, $destination = NULL, $replace = FILE_EXISTS_RENAM
 /**
  * Examines a file entity and returns appropriate content headers for download.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  *
  * @return
@@ -643,7 +650,7 @@ function file_file_download($uri, $field_type = 'file') {
       foreach ($entities as $entity) {
         $field = field_info_field($entity_type, $field_name);
         // Check if access to this field is not disallowed.
-        if (!field_access('view', $field, $entity_type, $entity)) {
+        if (!$entity->get($field_name)->access('view')) {
           $denied = TRUE;
           continue;
         }
@@ -1614,7 +1621,7 @@ function theme_file_icon($variables) {
 /**
  * Creates a URL to the icon for a file entity.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  * @param $icon_directory
  *   (optional) A path to a directory of icons to be used for files. Defaults to
@@ -1633,7 +1640,7 @@ function file_icon_url(File $file, $icon_directory = NULL) {
 /**
  * Creates a path to the icon for a file entity.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  * @param $icon_directory
  *   (optional) A path to a directory of icons to be used for files. Defaults to
@@ -1686,7 +1693,7 @@ function file_icon_path(File $file, $icon_directory = NULL) {
 /**
  * Determines the generic icon MIME package based on a file's MIME type.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  *
  * @return
@@ -1818,7 +1825,7 @@ function file_icon_map(File $file) {
 /**
  * Retrieves a list of references to a file.
  *
- * @param Drupal\file\File $file
+ * @param \Drupal\file\File $file
  *   A file entity.
  * @param $field
  *   (optional) A field array to be used for this check. If given, limits the
@@ -1863,15 +1870,15 @@ function file_get_file_references(File $file, $field = NULL, $age = EntityStorag
           // This contains the possible field names.
           $instances = field_info_instances($entity_type, $bundle);
           foreach ($instances as $field_name => $instance) {
-            $current_field = $instance->getField();
+            $field_type = $instance->getFieldType();
             // If this is the first time this field type is seen, check
             // whether it references files.
-            if (!isset($field_columns[$current_field['type']])) {
-              $field_columns[$current_field['type']] = file_field_find_file_reference_column($current_field);
+            if (!isset($field_columns[$field_type])) {
+              $field_columns[$field_type] = file_field_find_file_reference_column($instance->getField());
             }
             // If the field type does reference files then record it.
-            if ($field_columns[$current_field['type']]) {
-              $file_fields[$entity_type][$bundle][$field_name] = $field_columns[$current_field['type']];
+            if ($field_columns[$field_type]) {
+              $file_fields[$entity_type][$bundle][$field_name] = $field_columns[$field_type];
             }
           }
         }
@@ -1903,7 +1910,7 @@ function file_get_file_references(File $file, $field = NULL, $age = EntityStorag
     foreach ($return as $field_name => $data) {
       foreach (array_keys($data) as $entity_type) {
         $current_field = field_info_field($entity_type, $field_name);
-        if (($field_type && $current_field['type'] != $field_type) || ($field && $field['id'] != $current_field['id'])) {
+        if (($field_type && $current_field->getFieldType() != $field_type) || ($field && $field->uuid() != $current_field->uuid())) {
           unset($return[$field_name][$entity_type]);
         }
       }

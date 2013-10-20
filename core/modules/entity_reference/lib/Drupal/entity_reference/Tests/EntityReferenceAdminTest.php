@@ -15,7 +15,7 @@ use Drupal\simpletest\WebTestBase;
 class EntityReferenceAdminTest extends WebTestBase {
   public static function getInfo() {
     return array(
-      'name' => 'Entity Reference UI',
+      'name' => 'Entity Reference admin UI',
       'description' => 'Tests for the administrative UI.',
       'group' => 'Entity Reference',
     );
@@ -75,6 +75,11 @@ class EntityReferenceAdminTest extends WebTestBase {
     // Node should be selected by default.
     $this->assertFieldByName('field[settings][target_type]', 'node');
 
+    // Check that all entity types can be referenced.
+    foreach (\Drupal::entityManager()->getDefinitions() as $entity_type => $entity_info) {
+      $this->assertFieldByXPath("//select[@name='field[settings][target_type]']/option[@value='" . $entity_type . "']");
+    }
+
     // Second step: 'Instance settings' form.
     $this->drupalPostForm(NULL, array(), t('Save field settings'));
 
@@ -106,6 +111,6 @@ class EntityReferenceAdminTest extends WebTestBase {
     ), t('Save settings'));
 
     // Check that the field appears in the overview form.
-    $this->assertFieldByXPath('//table[@id="field-overview"]//td[1]', 'Test label', 'Field was created and appears in the overview page.');
+    $this->assertFieldByXPath('//table[@id="field-overview"]//tr[@id="field-test"]/td[1]', 'Test label', 'Field was created and appears in the overview page.');
   }
 }

@@ -11,7 +11,7 @@ use Drupal\Component\Plugin\Exception\PluginException;
 use Drupal\Component\Plugin\Factory\ReflectionFactory;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManager;
 use Drupal\Core\Plugin\DefaultPluginManager;
@@ -34,7 +34,7 @@ class SelectionPluginManager extends DefaultPluginManager {
     $this->factory = new ReflectionFactory($this);
 
     $this->alterInfo($module_handler, 'entity_reference_selection');
-    $this->setCacheBackend($cache_backend, $language_manager, 'entity_reference_selection');
+    $this->setCacheBackend($cache_backend, $language_manager, 'entity_reference_selection_plugins');
   }
 
   /**
@@ -93,7 +93,7 @@ class SelectionPluginManager extends DefaultPluginManager {
   /**
    * Gets the selection handler for a given entity_reference field.
    *
-   * @param \Drupal\Core\Entity\Field\FieldDefinitionInterface $field_definition
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
    *   The field definition for the operation.
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   The entity for the operation.

@@ -7,6 +7,7 @@
 
 namespace Drupal\Tests\Core\Menu;
 
+use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Menu\LocalTaskDefault;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
@@ -83,7 +84,11 @@ class LocalTaskDefaultTest extends UnitTestCase {
    * Setups the local task default.
    */
   protected function setupLocalTaskDefault() {
-    $this->localTaskBase = new LocalTaskDefault($this->config, $this->pluginId, $this->pluginDefinition, $this->stringTranslation, $this->routeProvider);
+    $container = new ContainerBuilder();
+    $container->set('string_translation', $this->stringTranslation);
+    $container->set('router.route_provider', $this->routeProvider);
+    \Drupal::setContainer($container);
+    $this->localTaskBase = new LocalTaskDefault($this->config, $this->pluginId, $this->pluginDefinition);
   }
 
   /**
@@ -186,21 +191,34 @@ class LocalTaskDefaultTest extends UnitTestCase {
    */
   public function providerTestGetWeight() {
     return array(
-      array(array('weight' => 314), 314),
+      // Manually specify a weight, so this is used.
+      array(array('weight' => 314), 'test_id', 314),
       // Ensure that a default tab get a lower weight.
       array(
         array(
           'tab_root_id' => 'local_task_default',
           'id' => 'local_task_default'
         ),
+        'local_task_default',
         -10
       ),
+      // If the root ID is different to the ID of the tab, ignore it.
       array(
         array(
           'tab_root_id' => 'local_task_example',
           'id' => 'local_task_default'
         ),
-        0
+        'local_task_default',
+        0,
+      ),
+      // Ensure that a default tab of a derivative gets the default value.
+      array(
+        array(
+          'tab_root_id' => 'local_task_derivative_default:example_id',
+          'id' => 'local_task_derivative_default'
+        ),
+        'local_task_derivative_default:example_id',
+        -10,
       ),
     );
   }
@@ -212,8 +230,9 @@ class LocalTaskDefaultTest extends UnitTestCase {
    *
    * @see \Drupal\Core\Menu\LocalTaskDefault::getWeight()
    */
-  public function testGetWeight(array $plugin_definition, $expected_weight) {
+  public function testGetWeight(array $plugin_definition, $plugin_id, $expected_weight) {
     $this->pluginDefinition = $plugin_definition;
+    $this->pluginId = $plugin_id;
     $this->setupLocalTaskDefault();
 
     $this->assertEquals($expected_weight, $this->localTaskBase->getWeight());

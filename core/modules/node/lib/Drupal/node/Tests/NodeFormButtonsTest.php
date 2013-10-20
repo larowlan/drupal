@@ -61,7 +61,7 @@ class NodeFormButtonsTest extends NodeTestBase {
     // Save the node and verify it's still published after clicking
     // 'Save and keep published'.
     $this->drupalPostForm(NULL, $edit, t('Save and keep published'));
-    $node = node_load(1, TRUE);
+    $node_1 = node_load(1, TRUE);
     $this->assertTrue($node_1->isPublished(), 'Node is published');
 
     // Save the node and verify it's unpublished after clicking
@@ -108,8 +108,7 @@ class NodeFormButtonsTest extends NodeTestBase {
     // Set article content type default to unpublished. This will change the
     // the initial order of buttons and/or status of the node when creating
     // a node.
-    variable_set('node_options_article', array('promote'));
-    \Drupal::config('node.type.article')->set('settings.node.options.status', 0)->save();
+    \Drupal::config('node.type.article')->set('settings.node.options.status', FALSE)->save();
 
     // Verify the buttons on a node add form for an administrator.
     $this->drupalLogin($this->admin_user);

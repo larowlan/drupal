@@ -64,7 +64,7 @@ language.negotiation_browser:
     _permission: 'administer languages'
 
 language.negotiation_browser_delete:
-  path: 'admin/config/regional/language/detection/browser/delete/{browser_langcode}'
+  path: '/admin/config/regional/language/detection/browser/delete/{browser_langcode}'
   defaults:
     _form: '\Drupal\language\Form\NegotiationBrowserDeleteForm'
   requirements:
@@ -73,7 +73,7 @@ language.negotiation_browser_delete:
 language.content_settings_page:
   path: '/admin/config/regional/content-language'
   defaults:
-    _title: 'Content language settings'
+    _title: 'Content language'
     _content: '\Drupal\language\Controller\LanguageController::contentSettings'
   requirements:
     _permission: 'administer languages'

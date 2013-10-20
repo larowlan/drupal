@@ -28,7 +28,7 @@ class ViewExecutable {
   /**
    * The config entity in which the view is stored.
    *
-   * @var Drupal\views\Entity\View
+   * @var \Drupal\views\Entity\View
    */
   public $storage;
 
@@ -178,21 +178,21 @@ class ViewExecutable {
   /**
    * Where the $query object will reside.
    *
-   * @var Drupal\views\Plugin\query\QueryInterface
+   * @var \Drupal\views\Plugin\query\QueryInterface
    */
   public $query = NULL;
 
   /**
    * The used pager plugin used by the current executed view.
    *
-   * @var Drupal\views\Plugin\views\pager\PagerPluginBase
+   * @var \Drupal\views\Plugin\views\pager\PagerPluginBase
    */
   public $pager = NULL;
 
   /**
    * The current used display plugin.
    *
-   * @var Drupal\views\Plugin\views\display\DisplayPluginBase
+   * @var \Drupal\views\Plugin\views\display\DisplayPluginBase
    */
   public $display_handler;
 
@@ -1288,7 +1288,7 @@ class ViewExecutable {
    * @param string $display_id
    *   The machine name of the display, which should be rendered.
    *
-   * @return (string|NULL)
+   * @return string|null
    *   Return the output of the rendered view or NULL if something failed in the process.
    */
   public function render($display_id = NULL) {
@@ -1550,7 +1550,7 @@ class ViewExecutable {
     }
 
     if (!$account) {
-      $account = $GLOBALS['user'];
+      $account = \Drupal::currentUser();
     }
 
     // We can't use choose_display() here because that function

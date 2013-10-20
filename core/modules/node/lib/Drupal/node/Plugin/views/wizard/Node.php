@@ -115,16 +115,6 @@ class Node extends WizardPluginBase {
           ),
           '#default_value' => 1,
         );
-        $style_form['row_options']['comments'] = array(
-          '#type' => 'select',
-          '#title' => t('Should comments be displayed below each node'),
-          '#title_display' => 'invisible',
-          '#options' => array(
-            1 => t('with comments'),
-            0 => t('without comments'),
-          ),
-          '#default_value' => 0,
-        );
         break;
     }
   }
@@ -222,13 +212,11 @@ class Node extends WizardPluginBase {
         $display_options['row']['type'] = 'entity:node';
         $display_options['row']['options']['build_mode'] = 'full';
         $display_options['row']['options']['links'] = !empty($row_options['links']);
-        $display_options['row']['options']['comments'] = !empty($row_options['comments']);
         break;
       case 'teasers':
         $display_options['row']['type'] = 'entity:node';
         $display_options['row']['options']['build_mode'] = 'teaser';
         $display_options['row']['options']['links'] = !empty($row_options['links']);
-        $display_options['row']['options']['comments'] = !empty($row_options['comments']);
         break;
       case 'titles_linked':
         $display_options['row']['type'] = 'fields';
@@ -277,12 +265,13 @@ class Node extends WizardPluginBase {
     }
     $tag_fields = array();
     foreach ($bundles as $bundle) {
-      foreach (field_info_instances($this->entity_type, $bundle) as $instance) {
-        $widget = entity_get_form_display($instance['entity_type'], $instance['bundle'], 'default')->getComponent($instance['field_name']);
+      $display = entity_get_form_display($this->entity_type, $bundle, 'default');
+      foreach (field_info_instances($this->entity_type, $bundle) as $field_name => $instance) {
+        $widget = $display->getComponent($field_name);
         // We define "tag-like" taxonomy fields as ones that use the
         // "Autocomplete term widget (tagging)" widget.
         if ($widget['type'] == 'taxonomy_autocomplete') {
-          $tag_fields[] = $instance['field_name'];
+          $tag_fields[] = $field_name;
         }
       }
     }

@@ -41,13 +41,13 @@ class CommentPreviewTest extends CommentTestBase {
     $filter_format = $filter_format_storage_controller->create(array(
       'format' => 'basic_html',
       'name' => 'Basic HTML',
-      'status' => '1',
+      'status' => TRUE,
       'roles' => array('authenticated'),
     ), 'filter_format');
 
     $filter_format->setFilterConfig('filter_html', array(
       'module' => 'filter',
-      'status' => '1',
+      'status' => TRUE,
       'settings' => array(
         'allowed_html' => '<a> <em> <strong> <cite> <blockquote> <code> <ul> <ol> <li> <dl> <dt> <dd> <h4> <h5> <h6> <p> <span> <img>',
       ),
@@ -64,7 +64,7 @@ class CommentPreviewTest extends CommentTestBase {
     $this->setCommentPreview(DRUPAL_OPTIONAL);
     $this->setCommentForm(TRUE);
     $this->setCommentSubject(TRUE);
-    $this->setCommentSettings('comment_default_mode', COMMENT_MODE_THREADED, 'Comment paging changed.');
+    $this->setCommentSettings('default_mode', COMMENT_MODE_THREADED, 'Comment paging changed.');
     $this->drupalLogout();
 
     // Login as web user and add a signature and a user picture.
@@ -102,12 +102,12 @@ class CommentPreviewTest extends CommentTestBase {
    * Tests comment edit, preview, and save.
    */
   function testCommentEditPreviewSave() {
-    $web_user = $this->drupalCreateUser(array('access comments', 'post comments', 'skip comment approval'));
+    $web_user = $this->drupalCreateUser(array('access comments', 'post comments', 'skip comment approval',  'edit own comments'));
     $this->drupalLogin($this->admin_user);
     $this->setCommentPreview(DRUPAL_OPTIONAL);
     $this->setCommentForm(TRUE);
     $this->setCommentSubject(TRUE);
-    $this->setCommentSettings('comment_default_mode', COMMENT_MODE_THREADED, 'Comment paging changed.');
+    $this->setCommentSettings('default_mode', COMMENT_MODE_THREADED, 'Comment paging changed.');
 
     $edit = array();
     $date = new DrupalDateTime('2008-03-02 17:23');
@@ -164,6 +164,17 @@ class CommentPreviewTest extends CommentTestBase {
     $this->assertEqual($comment_loaded->comment_body->value, $edit['comment_body[0][value]'], 'Comment body loaded.');
     $this->assertEqual($comment_loaded->name->value, $edit['name'], 'Name loaded.');
     $this->assertEqual($comment_loaded->created->value, $raw_date, 'Date loaded.');
+    $this->drupalLogout();
+
+    // Check that the date and time of the comment are correct when edited by
+    // non-admin users.
+    $user_edit = array();
+    $expected_created_time = $comment_loaded->created->value;
+    $this->drupalLogin($web_user);
+    $this->drupalPostForm('comment/' . $comment->id() . '/edit', $user_edit, t('Save'));
+    $comment_loaded = comment_load($comment->id(), TRUE);
+    $this->assertEqual($comment_loaded->created->value, $expected_created_time, 'Expected date and time for comment edited.');
+    $this->drupalLogout();
   }
 
 }

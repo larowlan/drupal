@@ -8,12 +8,12 @@
 namespace Drupal\text\Tests;
 
 use Drupal\Core\Language\Language;
-use Drupal\Core\Entity\Field\FieldInterface;
-use Drupal\Core\Entity\Field\FieldItemInterface;
+use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Core\Field\FieldItemInterface;
 use Drupal\field\Tests\FieldUnitTestBase;
 
 /**
- * Tests for \Drupal\text\Plugin\field\field_type\TextWithSummaryItem.
+ * Tests for \Drupal\text\Plugin\Field\FieldType\TextWithSummaryItem.
  */
 class TextWithSummaryItemTest extends FieldUnitTestBase {
 
@@ -76,7 +76,7 @@ class TextWithSummaryItemTest extends FieldUnitTestBase {
     $entity->save();
 
     $entity = entity_load($entity_type, $entity->id());
-    $this->assertTrue($entity->summary_field instanceof FieldInterface, 'Field implements interface.');
+    $this->assertTrue($entity->summary_field instanceof FieldItemListInterface, 'Field implements interface.');
     $this->assertTrue($entity->summary_field[0] instanceof FieldItemInterface, 'Field item implements interface.');
     $this->assertEqual($entity->summary_field->value, $value);
     $this->assertEqual($entity->summary_field->processed, $value);
@@ -119,8 +119,30 @@ class TextWithSummaryItemTest extends FieldUnitTestBase {
     $entity->name->value = $this->randomName();
     $entity->save();
 
-    // Inject values into the cache to make sure that these are used as-is and
-    // not re-calculated.
+    // Check that the processed values are correctly computed.
+    $this->assertEqual($entity->summary_field->processed, $value);
+    $this->assertEqual($entity->summary_field->summary_processed, $summary);
+
+    // Load the entity and check that the field cache contains the expected
+    // data.
+    $entity = entity_load($entity_type, $entity->id());
+    $cache = cache('field')->get("field:$entity_type:" . $entity->id());
+    $this->assertEqual($cache->data, array(
+      Language::LANGCODE_DEFAULT => array(
+        'summary_field' => array(
+          0 => array(
+            'value' => $value,
+            'summary' => $summary,
+            'format' => 'plain_text',
+            'processed' => $value,
+            'summary_processed' => $summary,
+          ),
+        ),
+      ),
+    ));
+
+    // Inject fake processed values into the cache to make sure that these are
+    // used as-is and not re-calculated when the entity is loaded.
     $data = array(
       Language::LANGCODE_DEFAULT => array(
         'summary_field' => array(
@@ -135,8 +157,7 @@ class TextWithSummaryItemTest extends FieldUnitTestBase {
       ),
     );
     cache('field')->set("field:$entity_type:" . $entity->id(), $data);
-
-    $entity = entity_load($entity_type, $entity->id());
+    $entity = entity_load($entity_type, $entity->id(), TRUE);
     $this->assertEqual($entity->summary_field->processed, 'Cached processed value');
     $this->assertEqual($entity->summary_field->summary_processed, 'Cached summary processed value');
 

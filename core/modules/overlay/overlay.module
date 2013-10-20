@@ -20,7 +20,11 @@ function overlay_help($path, $arg) {
     case 'admin/help#overlay':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Overlay module makes the administration pages on your site display in a JavaScript overlay of the page you were viewing when you clicked the administrative link, instead of replacing the page in your browser window. Use the close link on the overlay to return to the page you were viewing when you clicked the link. For more information, see the online handbook entry for <a href="@overlay">Overlay module</a>.', array('@overlay' => 'http://drupal.org/documentation/modules/overlay')) . '</p>';
+      $output .= '<p>' . t('The Overlay module uses JavaScript to open administration pages in an overlay of the page you were viewing when you clicked the administrative link, instead of replacing the page in your browser window. This ensures that you return to the page you were viewing once you close the overlay, even if you have visited several administration pages. For more information, see the <a href="!overlay">online documentation for the Overlay module</a>.', array('!overlay' => 'https://drupal.org/documentation/modules/overlay')) . '</p>';
+      $output .= '<dl>';
+      $output .= '<dt>' . t('Disabling the overlay for individual users') . '</dt>';
+      $output .= '<dd>' . t('Users can individually disable the overlay functionality on their <em>Profile page</em>.') . '</dd>';
+      $output .= '</dl>';
       return $output;
   }
 }
@@ -216,7 +220,7 @@ function overlay_page_alter(&$page) {
  * @see http://drupal.org/node/890284
  */
 function overlay_disable_message() {
-  global $user;
+  $user = \Drupal::currentUser();
 
   $build = array();
   if ($user->isAnonymous() || !$user->hasPermission('access overlay')) {
@@ -327,7 +331,7 @@ function overlay_system_info_alter(&$info, $file, $type) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for html.tpl.php.
+ * Implements hook_preprocess_HOOK() for HTML document templates.
  *
  * If the current page request is inside the overlay, add appropriate classes
  * to the <body> element, and simplify the page title.
@@ -342,7 +346,7 @@ function overlay_preprocess_html(&$variables) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for maintenance-page.html.twig.
+ * Implements hook_preprocess_HOOK() for maintenance page templates.
  *
  * If the current page request is inside the overlay, add appropriate classes
  * to the <body> element, and simplify the page title.
@@ -352,12 +356,16 @@ function overlay_preprocess_maintenance_page(&$variables) {
 }
 
 /**
- * Implements template_preprocess_HOOK() for overlay.tpl.php
+ * Prepares variables for overlay templates.
+ *
+ * Default template: overlay.html.twig.
  *
  * If the current page request is inside the overlay, add appropriate classes
  * to the <body> element, and simplify the page title.
  *
- * @see overlay.tpl.php
+ * @param array $variables
+ *   An associative array containing:
+ *   - page: A render element representing the page.
  */
 function template_preprocess_overlay(&$variables) {
   $variables['tabs'] = menu_primary_local_tasks();
@@ -381,7 +389,7 @@ function template_preprocess_overlay(&$variables) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for page.tpl.php.
+ * Implements hook_preprocess_HOOK() for page templates.
  *
  * If the current page request is inside the overlay, hide the tabs.
  *
@@ -456,7 +464,6 @@ function overlay_get_mode() {
  * @see \Drupal\overlay\EventSubscriber\OverlaySubscriber::onRequest()
  */
 function overlay_set_mode($mode = NULL) {
-  global $base_path;
   // We're not using drupal_static() here since the static cache is reset in
   // drupal_flush_all_caches(); this could lead to the loss of the overlay when
   // submitting the admin/modules form, for instance.
@@ -498,7 +505,7 @@ function overlay_overlay_parent_initialize() {
   }
   drupal_add_js(array('overlay' => array('paths' => $paths)), 'setting');
   $path_prefixes = array();
-  if (module_exists('language')) {
+  if (\Drupal::moduleHandler()->moduleExists('language')) {
     language_negotiation_include();
     if (\Drupal::config('language.negotiation')->get('url.source') == LANGUAGE_NEGOTIATION_URL_PREFIX) {
       // Skip the empty string indicating the default language. We always accept

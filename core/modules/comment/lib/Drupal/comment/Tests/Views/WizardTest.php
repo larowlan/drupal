@@ -12,7 +12,7 @@ use Drupal\views\Tests\Wizard\WizardTestBase;
 /**
  * Tests the comment module integration into the wizard.
  *
- * @see Drupal\comment\Plugin\views\wizard\Comment
+ * @see \Drupal\comment\Plugin\views\wizard\Comment
  */
 class WizardTest extends WizardTestBase {
 
@@ -36,6 +36,8 @@ class WizardTest extends WizardTestBase {
    * Tests adding a view of comments.
    */
   public function testCommentWizard() {
+    // Add comment field to page node type.
+    $this->container->get('comment.manager')->addDefaultField('node', 'page');
     $view = array();
     $view['label'] = $this->randomName(16);
     $view['id'] = strtolower($this->randomName(16));

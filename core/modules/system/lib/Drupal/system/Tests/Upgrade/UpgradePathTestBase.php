@@ -84,9 +84,9 @@ abstract class UpgradePathTestBase extends WebTestBase {
   /**
    * Overrides Drupal\simpletest\WebTestBase::setUp() for upgrade testing.
    *
-   * @see Drupal\simpletest\WebTestBase::prepareDatabasePrefix()
-   * @see Drupal\simpletest\WebTestBase::changeDatabasePrefix()
-   * @see Drupal\simpletest\WebTestBase::prepareEnvironment()
+   * @see \Drupal\simpletest\WebTestBase::prepareDatabasePrefix()
+   * @see \Drupal\simpletest\WebTestBase::changeDatabasePrefix()
+   * @see \Drupal\simpletest\WebTestBase::prepareEnvironment()
    */
   protected function setUp() {
     global $user, $conf;
@@ -117,7 +117,7 @@ abstract class UpgradePathTestBase extends WebTestBase {
 
 
     // Build a minimal, partially mocked environment for unit tests.
-    $this->containerBuild(drupal_container());
+    $this->rebuildContainer();
     // Make sure it survives kernel rebuilds.
     $conf['container_service_providers']['TestServiceProvider'] = 'Drupal\simpletest\TestServiceProvider';
 

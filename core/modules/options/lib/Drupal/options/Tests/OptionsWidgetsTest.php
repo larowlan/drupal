@@ -110,13 +110,13 @@ class OptionsWidgetsTest extends FieldTestBase {
   function testRadioButtons() {
     // Create an instance of the 'single value' field.
     $instance = entity_create('field_instance', array(
-      'field_name' => $this->card_1->name,
+      'field_name' => $this->card_1->getFieldName(),
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
     ));
     $instance->save();
     entity_get_form_display('entity_test', 'entity_test', 'default')
-      ->setComponent($this->card_1->name, array(
+      ->setComponent($this->card_1->getFieldName(), array(
         'type' => 'options_buttons',
       ))
       ->save();
@@ -130,7 +130,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $entity_init = clone $entity;
 
     // With no field data, no buttons are checked.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertNoFieldChecked('edit-card-1-0');
     $this->assertNoFieldChecked('edit-card-1-1');
     $this->assertNoFieldChecked('edit-card-1-2');
@@ -142,7 +142,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_1', array(0));
 
     // Check that the selected button is checked.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertFieldChecked('edit-card-1-0');
     $this->assertNoFieldChecked('edit-card-1-1');
     $this->assertNoFieldChecked('edit-card-1-2');
@@ -157,7 +157,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->card_1->save();
     $instance->required = TRUE;
     $instance->save();
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertFieldChecked('edit-card-1-99');
   }
 
@@ -167,13 +167,13 @@ class OptionsWidgetsTest extends FieldTestBase {
   function testCheckBoxes() {
     // Create an instance of the 'multiple values' field.
     $instance = entity_create('field_instance', array(
-      'field_name' => $this->card_2->name,
+      'field_name' => $this->card_2->getFieldName(),
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
     ));
     $instance->save();
     entity_get_form_display('entity_test', 'entity_test', 'default')
-      ->setComponent($this->card_2->name, array(
+      ->setComponent($this->card_2->getFieldName(), array(
         'type' => 'options_buttons',
       ))
       ->save();
@@ -187,7 +187,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $entity_init = clone $entity;
 
     // Display form: with no field data, nothing is checked.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertNoFieldChecked('edit-card-2-0');
     $this->assertNoFieldChecked('edit-card-2-1');
     $this->assertNoFieldChecked('edit-card-2-2');
@@ -203,7 +203,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_2', array(0, 2));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertFieldChecked('edit-card-2-0');
     $this->assertNoFieldChecked('edit-card-2-1');
     $this->assertFieldChecked('edit-card-2-2');
@@ -218,7 +218,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_2', array(0));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertFieldChecked('edit-card-2-0');
     $this->assertNoFieldChecked('edit-card-2-1');
     $this->assertNoFieldChecked('edit-card-2-2');
@@ -247,7 +247,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->card_2->save();
     $instance->required = TRUE;
     $instance->save();
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertFieldChecked('edit-card-2-99');
   }
 
@@ -257,14 +257,14 @@ class OptionsWidgetsTest extends FieldTestBase {
   function testSelectListSingle() {
     // Create an instance of the 'single value' field.
     $instance = entity_create('field_instance', array(
-      'field_name' => $this->card_1->name,
+      'field_name' => $this->card_1->getFieldName(),
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
       'required' => TRUE,
     ));
     $instance->save();
     entity_get_form_display('entity_test', 'entity_test', 'default')
-      ->setComponent($this->card_1->name, array(
+      ->setComponent($this->card_1->getFieldName(), array(
         'type' => 'options_select',
       ))
       ->save();
@@ -278,7 +278,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $entity_init = clone $entity;
 
     // Display form.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     // A required field without any value has a "none" option.
     $this->assertTrue($this->xpath('//select[@id=:id]//option[@value="_none" and text()=:label]', array(':id' => 'edit-card-1', ':label' => t('- Select a value -'))), 'A required select list has a "Select a value" choice.');
 
@@ -292,7 +292,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     // Submit form: select invalid 'none' option.
     $edit = array('card_1' => '_none');
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    $this->assertRaw(t('!title field is required.', array('!title' => $instance['field_name'])), 'Cannot save a required field when selecting "none" from the select list.');
+    $this->assertRaw(t('!title field is required.', array('!title' => $instance->getFieldName())), 'Cannot save a required field when selecting "none" from the select list.');
 
     // Submit form: select first option.
     $edit = array('card_1' => 0);
@@ -300,7 +300,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_1', array(0));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     // A required field with a value has no 'none' option.
     $this->assertFalse($this->xpath('//select[@id=:id]//option[@value="_none"]', array(':id' => 'edit-card-1')), 'A required select list with an actual value has no "none" choice.');
     $this->assertOptionSelected('edit-card-1', 0);
@@ -312,22 +312,22 @@ class OptionsWidgetsTest extends FieldTestBase {
     $instance->save();
 
     // Display form.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     // A non-required field has a 'none' option.
     $this->assertTrue($this->xpath('//select[@id=:id]//option[@value="_none" and text()=:label]', array(':id' => 'edit-card-1', ':label' => t('- None -'))), 'A non-required select list has a "None" choice.');
     // Submit form: Unselect the option.
     $edit = array('card_1' => '_none');
-    $this->drupalPostForm('entity_test/manage/' . $entity->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('entity_test/manage/' . $entity->id(), $edit, t('Save'));
     $this->assertFieldValues($entity_init, 'card_1', array());
 
     // Test optgroups.
 
-    $this->card_1['settings']['allowed_values'] = array();
-    $this->card_1['settings']['allowed_values_function'] = 'options_test_allowed_values_callback';
+    $this->card_1->settings['allowed_values'] = array();
+    $this->card_1->settings['allowed_values_function'] = 'options_test_allowed_values_callback';
     $this->card_1->save();
 
     // Display form: with no field data, nothing is selected
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertNoOptionSelected('edit-card-1', 0);
     $this->assertNoOptionSelected('edit-card-1', 1);
     $this->assertNoOptionSelected('edit-card-1', 2);
@@ -340,14 +340,14 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_1', array(0));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertOptionSelected('edit-card-1', 0);
     $this->assertNoOptionSelected('edit-card-1', 1);
     $this->assertNoOptionSelected('edit-card-1', 2);
 
     // Submit form: Unselect the option.
     $edit = array('card_1' => '_none');
-    $this->drupalPostForm('entity_test/manage/' . $entity->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('entity_test/manage/' . $entity->id(), $edit, t('Save'));
     $this->assertFieldValues($entity_init, 'card_1', array());
   }
 
@@ -357,13 +357,13 @@ class OptionsWidgetsTest extends FieldTestBase {
   function testSelectListMultiple() {
     // Create an instance of the 'multiple values' field.
     $instance = entity_create('field_instance', array(
-      'field_name' => $this->card_2->name,
+      'field_name' => $this->card_2->getFieldName(),
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
     ));
     $instance->save();
     entity_get_form_display('entity_test', 'entity_test', 'default')
-      ->setComponent($this->card_2->name, array(
+      ->setComponent($this->card_2->getFieldName(), array(
         'type' => 'options_select',
       ))
       ->save();
@@ -377,7 +377,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $entity_init = clone $entity;
 
     // Display form: with no field data, nothing is selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertNoOptionSelected('edit-card-2', 0);
     $this->assertNoOptionSelected('edit-card-2', 1);
     $this->assertNoOptionSelected('edit-card-2', 2);
@@ -389,7 +389,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_2', array(0, 2));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertOptionSelected('edit-card-2', 0);
     $this->assertNoOptionSelected('edit-card-2', 1);
     $this->assertOptionSelected('edit-card-2', 2);
@@ -400,7 +400,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_2', array(0));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertOptionSelected('edit-card-2', 0);
     $this->assertNoOptionSelected('edit-card-2', 1);
     $this->assertNoOptionSelected('edit-card-2', 2);
@@ -420,18 +420,18 @@ class OptionsWidgetsTest extends FieldTestBase {
     // Check that the 'none' option has no efect if actual options are selected
     // as well.
     $edit = array('card_2[]' => array('_none' => '_none', 0 => 0));
-    $this->drupalPostForm('entity_test/manage/' . $entity->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('entity_test/manage/' . $entity->id(), $edit, t('Save'));
     $this->assertFieldValues($entity_init, 'card_2', array(0));
 
     // Check that selecting the 'none' option empties the field.
     $edit = array('card_2[]' => array('_none' => '_none'));
-    $this->drupalPostForm('entity_test/manage/' . $entity->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('entity_test/manage/' . $entity->id(), $edit, t('Save'));
     $this->assertFieldValues($entity_init, 'card_2', array());
 
     // A required select list does not have an empty key.
     $instance->required = TRUE;
     $instance->save();
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertFalse($this->xpath('//select[@id=:id]//option[@value=""]', array(':id' => 'edit-card-2')), 'A required select list does not have an empty key.');
 
     // We do not have to test that a required select list with one option is
@@ -447,7 +447,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $instance->save();
 
     // Display form: with no field data, nothing is selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertNoOptionSelected('edit-card-2', 0);
     $this->assertNoOptionSelected('edit-card-2', 1);
     $this->assertNoOptionSelected('edit-card-2', 2);
@@ -460,14 +460,14 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'card_2', array(0));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertOptionSelected('edit-card-2', 0);
     $this->assertNoOptionSelected('edit-card-2', 1);
     $this->assertNoOptionSelected('edit-card-2', 2);
 
     // Submit form: Unselect the option.
     $edit = array('card_2[]' => array('_none' => '_none'));
-    $this->drupalPostForm('entity_test/manage/' . $entity->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('entity_test/manage/' . $entity->id(), $edit, t('Save'));
     $this->assertFieldValues($entity_init, 'card_2', array());
   }
 
@@ -477,12 +477,12 @@ class OptionsWidgetsTest extends FieldTestBase {
   function testOnOffCheckbox() {
     // Create an instance of the 'boolean' field.
     entity_create('field_instance', array(
-      'field_name' => $this->bool->name,
+      'field_name' => $this->bool->getFieldName(),
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
     ))->save();
     entity_get_form_display('entity_test', 'entity_test', 'default')
-      ->setComponent($this->bool->name, array(
+      ->setComponent($this->bool->getFieldName(), array(
         'type' => 'options_onoff',
       ))
       ->save();
@@ -496,7 +496,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $entity_init = clone $entity;
 
     // Display form: with no field data, option is unchecked.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertNoFieldChecked('edit-bool');
     $this->assertRaw('Some dangerous &amp; unescaped <strong>markup</strong>', 'Option text was properly filtered.');
 
@@ -506,7 +506,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'bool', array(1));
 
     // Display form: check that the right options are selected.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertFieldChecked('edit-bool');
 
     // Submit form: uncheck the option.
@@ -515,7 +515,7 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, 'bool', array(0));
 
     // Display form: with 'off' value, option is unchecked.
-    $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
+    $this->drupalGet('entity_test/manage/' . $entity->id());
     $this->assertNoFieldChecked('edit-bool');
   }
 
@@ -531,8 +531,9 @@ class OptionsWidgetsTest extends FieldTestBase {
     $this->drupalLogin($admin_user);
 
     // Create a test field instance.
+    $field_name = 'bool';
     entity_create('field_entity', array(
-      'name' => 'bool',
+      'name' => $field_name,
       'entity_type' => 'node',
       'type' => 'list_boolean',
       'cardinality' => 1,
@@ -541,13 +542,13 @@ class OptionsWidgetsTest extends FieldTestBase {
       ),
     ))->save();
     entity_create('field_instance', array(
-      'field_name' => 'bool',
+      'field_name' => $field_name,
       'entity_type' => 'node',
       'bundle' => 'page',
     ))->save();
 
     entity_get_form_display('node', 'page', 'default')
-      ->setComponent($this->bool['field_name'], array(
+      ->setComponent($field_name, array(
         'type' => 'options_onoff',
       ))
       ->save();
@@ -557,7 +558,6 @@ class OptionsWidgetsTest extends FieldTestBase {
     $fieldEditUrl = 'admin/structure/types/manage/page/form-display';
     $this->drupalGet($fieldEditUrl);
 
-    $field_name = $this->bool['field_name'];
     // Click on the widget settings button to open the widget settings form.
     $this->drupalPostAjaxForm(NULL, array(), $field_name . "_settings_edit");
 

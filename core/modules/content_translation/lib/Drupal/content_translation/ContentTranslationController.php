@@ -43,21 +43,6 @@ class ContentTranslationController implements ContentTranslationControllerInterf
   }
 
   /**
-   * Implements ContentTranslationControllerInterface::removeTranslation().
-   */
-  public function removeTranslation(EntityInterface $entity, $langcode) {
-    // @todo Handle properties.
-    // Remove field translations.
-    foreach (field_info_instances($entity->entityType(), $entity->bundle()) as $instance) {
-      $field_name = $instance['field_name'];
-      $field = $instance->getField();
-      if ($field['translatable']) {
-        $entity->{$field_name}[$langcode] = array();
-      }
-    }
-  }
-
-  /**
    * Implements ContentTranslationControllerInterface::retranslate().
    */
   public function retranslate(EntityInterface $entity, $langcode = NULL) {
@@ -277,7 +262,7 @@ class ContentTranslationController implements ContentTranslationControllerInterf
         '#maxlength' => 60,
         '#autocomplete_route_name' => 'user.autocomplete',
         '#default_value' => $name,
-        '#description' => t('Leave blank for %anonymous.', array('%anonymous' => variable_get('anonymous', t('Anonymous')))),
+        '#description' => t('Leave blank for %anonymous.', array('%anonymous' => \Drupal::config('user.settings')->get('anonymous'))),
       );
 
       $date = $new_translation ? REQUEST_TIME : $entity->translation[$form_langcode]['created'];

@@ -121,8 +121,8 @@ function language_menu() {
 
   // Content language settings.
   $items['admin/config/regional/content-language'] = array(
-    'title' => 'Content language settings',
-    'description' => 'Configure content language support for any multilingual element.',
+    'title' => 'Content language',
+    'description' => 'Configure language support for content.',
     'route_name' => 'language.content_settings_page',
   );
 
@@ -222,6 +222,21 @@ function language_process_language_select($element) {
     foreach (language_list($element['#languages']) as $langcode => $language) {
       $element['#options'][$langcode] = $language->locked ? t('- @name -', array('@name' => $language->name)) : $language->name;
     }
+  }
+  // Add "Built-in English" language to the select when the default value is
+  // set to English but it does not exist in the options list.
+  //
+  // Drupal core includes configuration shipped in English, including default
+  // views, content types, user roles, filter formats, etc. To keep the Drupal
+  // software update-able, as well as translations update-able, we keep these
+  // configuration files in English even when installed in a foreign language.
+  // However, administrators can remove English, in which case editing such a
+  // configuration would lead to the language settings being changed on it. We
+  // avoid that by including this option and letting administrators keep it
+  // in English.
+  if (isset($element['#default_value']) && $element['#default_value'] == 'en' && !isset($element['#options']['en'])) {
+    // Prepend the default language at the beginning of the list.
+    $element['#options'] = array('en' => t('Built-in English')) + $element['#options'];
   }
   return $element;
 }
@@ -476,8 +491,8 @@ function language_save($language) {
   // Assign language properties to language entity.
   $language_entity->label = isset($language->name) ? $language->name : '';
   $language_entity->direction = isset($language->direction) ? $language->direction : '0';
-  $language_entity->locked = isset($language->locked) ? $language->locked : '0';
-  $language_entity->weight = isset($language->weight) ? $language->weight : '0';
+  $language_entity->locked = !empty($language->locked);
+  $language_entity->weight = isset($language->weight) ? $language->weight : 0;
 
   // Save the record and inform others about the change.
   $language_entity->save();
@@ -761,7 +776,7 @@ function language_language_delete($language) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for block.html.twig.
+ * Implements hook_preprocess_HOOK() for block templates.
  */
 function language_preprocess_block(&$variables) {
   if ($variables['configuration']['module'] == 'language') {

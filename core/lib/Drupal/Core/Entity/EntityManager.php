@@ -354,7 +354,7 @@ class EntityManager extends PluginManagerBase {
         $this->controllers[$controller_type][$entity_type] = $class::createInstance($this->container, $entity_type, $this->getDefinition($entity_type));
       }
       else {
-        $this->controllers[$controller_type][$entity_type] = new $class($entity_type);
+        $this->controllers[$controller_type][$entity_type] = new $class($entity_type, $this->getDefinition($entity_type));
       }
     }
     return $this->controllers[$controller_type][$entity_type];
@@ -383,7 +383,7 @@ class EntityManager extends PluginManagerBase {
    */
   public function getForm(EntityInterface $entity, $operation = 'default', array $form_state = array()) {
     $form_state += entity_form_state_defaults($entity, $operation);
-    $form_id = $form_state['build_info']['callback_object']->getFormID();
+    $form_id = $form_state['build_info']['callback_object']->getFormId();
     return drupal_build_form($form_id, $form_state);
   }
 
@@ -403,10 +403,6 @@ class EntityManager extends PluginManagerBase {
     $entity_info = $this->getDefinition($entity_type);
     // Check for an entity type's admin base path.
     if (isset($entity_info['route_base_path'])) {
-      // If the entity type has a bundle prefix, strip it out of the path.
-      if (isset($entity_info['bundle_prefix'])) {
-        $bundle = str_replace($entity_info['bundle_prefix'], '', $bundle);
-      }
       // Replace any dynamic 'bundle' portion of the path with the actual bundle.
       $admin_path = str_replace('{bundle}', $bundle, $entity_info['route_base_path']);
     }
@@ -430,9 +426,6 @@ class EntityManager extends PluginManagerBase {
    */
   public function getAdminRouteInfo($entity_type, $bundle) {
     $entity_info = $this->getDefinition($entity_type);
-    if (isset($entity_info['bundle_prefix'])) {
-      $bundle = str_replace($entity_info['bundle_prefix'], '', $bundle);
-    }
     return array(
       'route_name' => "field_ui.overview_$entity_type",
       'route_parameters' => array(
@@ -442,14 +435,15 @@ class EntityManager extends PluginManagerBase {
   }
 
   /**
-   * Gets an array of entity field definitions.
+   * Gets an array of content entity field definitions.
    *
    * If a bundle is passed, fields specific to this bundle are included. Entity
    * fields are always multi-valued, so 'list' is TRUE for each returned field
    * definition.
    *
    * @param string $entity_type
-   *   The entity type to get field definitions for.
+   *   The entity type to get field definitions for. Only entity types that
+   *   implement \Drupal\Core\Entity\ContentEntityInterface are supported.
    * @param string $bundle
    *   (optional) The entity bundle for which to get field definitions. If NULL
    *   is passed, no bundle-specific fields are included. Defaults to NULL.
@@ -477,8 +471,16 @@ class EntityManager extends PluginManagerBase {
       }
       else {
         $class = $this->factory->getPluginClass($entity_type, $this->getDefinition($entity_type));
+
+        $base_definitions = $class::baseFieldDefinitions($entity_type);
+        foreach ($base_definitions as &$base_definition) {
+          // Support old-style field types to avoid that all base field
+          // definitions need to be changed.
+          // @todo: Remove after https://drupal.org/node/2047229.
+          $base_definition['type'] = preg_replace('/(.+)_field/', 'field_item:$1', $base_definition['type']);
+        }
         $this->entityFieldInfo[$entity_type] = array(
-          'definitions' => $class::baseFieldDefinitions($entity_type),
+          'definitions' => $base_definitions,
           // Contains definitions of optional (per-bundle) fields.
           'optional' => array(),
           // An array keyed by bundle name containing the optional fields added
@@ -495,13 +497,23 @@ class EntityManager extends PluginManagerBase {
         $hooks = array('entity_field_info', $entity_type . '_field_info');
         $this->moduleHandler->alter($hooks, $this->entityFieldInfo[$entity_type], $entity_type);
 
-        // Enforce fields to be multiple by default.
-        foreach ($this->entityFieldInfo[$entity_type]['definitions'] as &$definition) {
-          $definition['list'] = TRUE;
+        // Enforce fields to be multiple and untranslatable by default.
+        $entity_info = $this->getDefinition($entity_type);
+        $keys = array_intersect_key(array_filter($entity_info['entity_keys']), array_flip(array('id', 'revision', 'uuid', 'bundle')));
+        $untranslatable_fields = array_flip(array('langcode') + $keys);
+        foreach (array('definitions', 'optional') as $key) {
+          foreach ($this->entityFieldInfo[$entity_type][$key] as $name => &$definition) {
+            $definition['list'] = TRUE;
+            // Ensure ids and langcode fields are never made translatable.
+            if (isset($untranslatable_fields[$name]) && !empty($definition['translatable'])) {
+              throw new \LogicException(format_string('The @field field cannot be translatable.', array('@field' => $definition['label'])));
+            }
+            if (!isset($definition['translatable'])) {
+              $definition['translatable'] = FALSE;
+            }
+          }
         }
-        foreach ($this->entityFieldInfo[$entity_type]['optional'] as &$definition) {
-          $definition['list'] = TRUE;
-        }
+
         $this->cache->set($cid, $this->entityFieldInfo[$entity_type], CacheBackendInterface::CACHE_PERMANENT, array('entity_info' => TRUE, 'entity_field_info' => TRUE));
       }
     }
@@ -596,6 +608,21 @@ class EntityManager extends PluginManagerBase {
     }
 
     return $this->bundleInfo;
+  }
+
+  /**
+   * Builds a list of entity type labels suitable for a Form API options list.
+   *
+   * @return array
+   *   An array of entity type labels, keyed by entity type name.
+   */
+  public function getEntityTypeLabels() {
+    $options = array();
+    foreach ($this->getDefinitions() as $entity_type => $definition) {
+      $options[$entity_type] = $definition['label'];
+    }
+
+    return $options;
   }
 
 }

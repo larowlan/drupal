@@ -1,3 +1,11 @@
+node.content_overview:
+  path: '/admin/content'
+  defaults:
+    _title: 'Content'
+    _content: '\Drupal\node\Controller\NodeController::contentOverview'
+  requirements:
+    _permission: 'access content overview'
+
 node.multiple_delete_confirm:
   path: '/admin/content/node/delete'
   defaults:
@@ -17,6 +25,8 @@ node.add_page:
   defaults:
     _title: 'Add page'
     _content: '\Drupal\node\Controller\NodeController::addPage'
+  options:
+    _access_mode: 'ANY'
   requirements:
     _permission: 'administer content types'
     _node_add_access: 'node'
@@ -31,7 +41,8 @@ node.add:
 node.view:
   path: '/node/{node}'
   defaults:
-    _content: '\Drupal\node\Controller\NodeController::viewPage'
+    _content: '\Drupal\node\Controller\NodeController::page'
+    _title_callback: '\Drupal\node\Controller\NodeController::pageTitle'
   requirements:
     _entity_access: 'node.view'
 
@@ -53,8 +64,8 @@ node.revision_overview:
 node.revision_show:
   path: '/node/{node}/revisions/{node_revision}/view'
   defaults:
-    _title: 'Revisions'
     _content: '\Drupal\node\Controller\NodeController::revisionShow'
+    _title_callback: '\Drupal\node\Controller\NodeController::revisionPageTitle'
   requirements:
     _access_node_revision: 'view'
 
@@ -77,6 +88,7 @@ node.overview_types:
   defaults:
     _content: '\Drupal\Core\Entity\Controller\EntityListController::listing'
     entity_type: 'node_type'
+    _title: 'Content types'
   requirements:
     _permission: 'administer content types'
 

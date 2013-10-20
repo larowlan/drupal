@@ -103,7 +103,7 @@ function system_help($path, $arg) {
       return '<p>' . t('These options control the default display settings for your entire site, across all themes. Unless they have been overridden by a specific theme, these settings will be used.') . '</p>';
     case 'admin/modules':
       $output = '<p>' . t('Download additional <a href="@modules">contributed modules</a> to extend Drupal\'s functionality.', array('@modules' => 'http://drupal.org/project/modules')) . '</p>';
-      if (module_exists('update')) {
+      if (\Drupal::moduleHandler()->moduleExists('update')) {
         if (update_manager_access()) {
           $output .= '<p>' . t('Regularly review and install <a href="@updates">available updates</a> to maintain a secure and current site. Always run the <a href="@update-php">update script</a> each time a module is updated.', array('@update-php' => $base_url . '/core/update.php', '@updates' => url('admin/reports/updates'))) . '</p>';
         }
@@ -139,7 +139,10 @@ function system_help($path, $arg) {
 function system_theme() {
   return array_merge(drupal_common_theme(), array(
     'system_themes_page' => array(
-      'variables' => array('theme_groups' => NULL),
+      'variables' => array(
+        'theme_groups' => NULL,
+        'theme_group_titles' => NULL,
+      ),
       'file' => 'system.admin.inc',
     ),
     'system_config_form' => array(
@@ -322,7 +325,7 @@ function system_element_info() {
     '#input' => TRUE,
     '#size' => 60,
     '#maxlength' => 128,
-    '#autocomplete_path' => FALSE,
+    '#autocomplete_route_name' => FALSE,
     '#process' => array('form_process_autocomplete', 'ajax_process_form', 'form_process_pattern'),
     '#pre_render' => array('form_pre_render_textfield'),
     '#theme' => 'input__textfield',
@@ -332,7 +335,7 @@ function system_element_info() {
     '#input' => TRUE,
     '#size' => 30,
     '#maxlength' => 128,
-    '#autocomplete_path' => FALSE,
+    '#autocomplete_route_name' => FALSE,
     '#process' => array('form_process_autocomplete', 'ajax_process_form', 'form_process_pattern'),
     '#pre_render' => array('form_pre_render_tel'),
     '#theme' => 'input__tel',
@@ -343,7 +346,7 @@ function system_element_info() {
     '#size' => 60,
     // user.module is not loaded in case of early bootstrap errors.
     '#maxlength' => defined('EMAIL_MAX_LENGTH') ? EMAIL_MAX_LENGTH : 255,
-    '#autocomplete_path' => FALSE,
+    '#autocomplete_route_name' => FALSE,
     '#process' => array('form_process_autocomplete', 'ajax_process_form', 'form_process_pattern'),
     '#element_validate' => array('form_validate_email'),
     '#pre_render' => array('form_pre_render_email'),
@@ -354,7 +357,7 @@ function system_element_info() {
     '#input' => TRUE,
     '#size' => 60,
     '#maxlength' => 255,
-    '#autocomplete_path' => FALSE,
+    '#autocomplete_route_name' => FALSE,
     '#process' => array('form_process_autocomplete', 'ajax_process_form', 'form_process_pattern'),
     '#element_validate' => array('form_validate_url'),
     '#pre_render' => array('form_pre_render_url'),
@@ -365,7 +368,7 @@ function system_element_info() {
     '#input' => TRUE,
     '#size' => 60,
     '#maxlength' => 128,
-    '#autocomplete_path' => FALSE,
+    '#autocomplete_route_name' => FALSE,
     '#process' => array('form_process_autocomplete', 'ajax_process_form'),
     '#pre_render' => array('form_pre_render_search'),
     '#theme' => 'input__search',
@@ -405,7 +408,7 @@ function system_element_info() {
     '#required' => TRUE,
     '#maxlength' => 64,
     '#size' => 60,
-    '#autocomplete_path' => FALSE,
+    '#autocomplete_route_name' => FALSE,
     '#process' => array('form_process_machine_name', 'form_process_autocomplete', 'ajax_process_form'),
     '#element_validate' => array('form_validate_machine_name'),
     '#pre_render' => array('form_pre_render_textfield'),
@@ -828,7 +831,7 @@ function system_menu() {
   );
   $items['admin/config/system/site-information'] = array(
     'title' => 'Site information',
-    'description' => 'Change site name, e-mail address, slogan, default front page, and number of posts per page, error pages.',
+    'description' => 'Change site name, e-mail address, slogan, default front page and error pages.',
     'route_name' => 'system.site_information_settings',
     'weight' => -20,
   );
@@ -883,7 +886,7 @@ function system_menu() {
   );
 
   // Localize date formats.
-  if (module_exists('language')) {
+  if (\Drupal::moduleHandler()->moduleExists('language')) {
     $items['admin/config/regional/date-time/locale'] = array(
       'title' => 'Localize',
       'description' => 'Configure date formats for each locale',
@@ -904,6 +907,54 @@ function system_menu() {
   }
 
   return $items;
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function system_theme_suggestions_html(array $variables) {
+  return theme_get_suggestions(arg(), 'html');
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function system_theme_suggestions_page(array $variables) {
+  return theme_get_suggestions(arg(), 'page');
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function system_theme_suggestions_maintenance_page(array $variables) {
+  $suggestions = array();
+
+  // Dead databases will show error messages so supplying this template will
+  // allow themers to override the page and the content completely.
+  $offline = defined('MAINTENANCE_MODE');
+  try {
+    drupal_is_front_page();
+  }
+  catch (Exception $e) {
+    // The database is not yet available.
+    $offline = TRUE;
+  }
+  if ($offline) {
+    $suggestions[] = 'maintenance_page__offline';
+  }
+
+  return $suggestions;
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function system_theme_suggestions_region(array $variables) {
+  $suggestions = array();
+  if (!empty($variables['elements']['#region'])) {
+    $suggestions[] = 'region__' . $variables['elements']['#region'];
+  }
+  return $suggestions;
 }
 
 /**
@@ -1028,6 +1079,7 @@ function system_library_info() {
     'version' => \Drupal::VERSION,
     'js' => array(
       'core/misc/dialog.js' => array('group' => JS_LIBRARY),
+      'core/misc/dialog.position.js' => array('group' => JS_LIBRARY),
     ),
     'css' => array(
       'core/misc/dialog.theme.css' => array('weight' => 1),
@@ -1035,9 +1087,10 @@ function system_library_info() {
     'dependencies' => array(
       array('system', 'jquery'),
       array('system', 'drupal'),
-      array('system', 'drupal.debounce'),
       array('system', 'drupalSettings'),
-      array('system', 'jquery.ui.dialog')
+      array('system', 'drupal.debounce'),
+      array('system', 'drupal.displace'),
+      array('system', 'jquery.ui.dialog'),
     ),
   );
 
@@ -1349,18 +1402,6 @@ function system_library_info() {
       ),
     ),
   );
-
-  // Drupal's base CSS.
-  $libraries['drupal.base'] = array(
-    'title' => 'Drupal base CSS',
-    'version' => \Drupal::VERSION,
-    'css' => array(
-      'core/misc/drupal.base.css' => array(
-        'every_page' => TRUE,
-        'weight' => CSS_BASE - 10,
-       ),
-     ),
-   );
 
   // jQuery UI.
   $libraries['jquery.ui.core'] = array(
@@ -2006,7 +2047,7 @@ function _system_themes_access($theme) {
  * as a Batch API processing page, if the operation requires a batch.
  *
  * @see authorize.php
- * @see Drupal\Core\FileTransfer\FileTransfer
+ * @see \Drupal\Core\FileTransfer\FileTransfer
  * @see hook_filetransfer_info()
  */
 
@@ -2167,7 +2208,7 @@ function system_filetransfer_info() {
  */
 function system_page_build(&$page) {
   // Note: ensure the same CSS is loaded in _drupal_maintenance_theme().
-  $page['#attached']['library'][] = array('system', 'drupal.base');
+  $page['#attached']['library'][] = array('system', 'normalize');
   $path = drupal_get_path('module', 'system');
   // Adjust the weights to load these early.
   $page['#attached']['css'][$path . '/css/system.module.css'] = array('weight' => CSS_COMPONENT - 10, 'every_page' => TRUE);
@@ -2182,7 +2223,7 @@ function system_page_build(&$page) {
  */
 function system_custom_theme() {
   if (drupal_container()->isScopeActive('request')) {
-    $request = drupal_container()->get('request');
+    $request = \Drupal::request();
     $path = $request->attributes->get('_system_path');
     if (user_access('view the administration theme') && path_is_admin($path)) {
       return \Drupal::config('system.theme')->get('admin');
@@ -2257,7 +2298,7 @@ function system_user_timezone(&$form, &$form_state) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for block.html.twig.
+ * Implements hook_preprocess_HOOK() for block templates.
  */
 function system_preprocess_block(&$variables) {
   // Derive the base plugin ID.
@@ -2379,7 +2420,7 @@ function system_get_info($type, $name = NULL) {
  *   Only modules with the property specified in their .info.yml file will be
  *   returned.
  *
- * @see Drupal\Core\Utility\ModuleInfo
+ * @see \Drupal\Core\Utility\ModuleInfo
  */
 function system_get_module_info($property) {
   static $info;
@@ -3122,7 +3163,7 @@ function system_run_automated_cron() {
   // If the site is not fully installed, suppress the automated cron run.
   // Otherwise it could be triggered prematurely by Ajax requests during
   // installation.
-  if (($threshold = \Drupal::config('system.cron')->get('threshold.autorun')) > 0 && variable_get('install_task') == 'done') {
+  if (($threshold = \Drupal::config('system.cron')->get('threshold.autorun')) > 0 && \Drupal::state()->get('install_task') == 'done') {
     $cron_last = \Drupal::state()->get('system.cron_last') ?: NULL;
     if (!isset($cron_last) || (REQUEST_TIME - $cron_last > $threshold)) {
       drupal_cron_run();
@@ -3183,7 +3224,12 @@ function theme_exposed_filters($variables) {
     foreach (element_children($form['current']) as $key) {
       $items[] = $form['current'][$key];
     }
-    $output .= theme('item_list', array('items' => $items, 'attributes' => array('class' => array('clearfix', 'current-filters'))));
+    $item_list = array(
+      '#theme' => 'item_list',
+      '#items' => $items,
+      '#attributes' => array('class' => array('clearfix', 'current-filters')),
+    );
+    $output .= drupal_render($item_list);
   }
 
   $output .= drupal_render_children($form);

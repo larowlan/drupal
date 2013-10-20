@@ -41,7 +41,7 @@ function image_field_widget_process($element, &$form_state, $form) {
     }
     else {
       $image = \Drupal::service('image.factory')->get($file->getFileUri());
-      if ($image->getExtension()) {
+      if ($image->isSupported()) {
         $variables['width'] = $image->getWidth();
         $variables['height'] = $image->getHeight();
       }
@@ -76,7 +76,7 @@ function image_field_widget_process($element, &$form_state, $form) {
     '#type' => 'textfield',
     '#default_value' => isset($item['alt']) ? $item['alt'] : '',
     '#description' => t('This text will be used by screen readers, search engines, or when the image cannot be loaded.'),
-    // @see http://www.gawds.org/show.php?contentid=28
+    // @see https://drupal.org/node/465106#alt-text
     '#maxlength' => 512,
     '#weight' => -2,
     '#access' => (bool) $item['fids'] && $element['#alt_field'],

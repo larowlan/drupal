@@ -19,7 +19,7 @@ class NodeLastChangedTest extends DrupalUnitTestBase {
    *
    * @var array
    */
-  public static $modules = array('node', 'field');
+  public static $modules = array('entity', 'user', 'node', 'field');
 
   public static function getInfo() {
     return array(
@@ -32,8 +32,10 @@ class NodeLastChangedTest extends DrupalUnitTestBase {
   public function setUp() {
     parent::setUp();
     $this->installSchema('node', 'node');
+    $this->installSchema('node', 'node_revision');
     $this->installSchema('node', 'node_field_data');
     $this->installSchema('node', 'node_field_revision');
+    $this->installSchema('user', array('users'));
   }
 
   /**

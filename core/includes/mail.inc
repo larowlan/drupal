@@ -206,7 +206,7 @@ function drupal_mail($module, $key, $to, $langcode, $params = array(), $from = N
  *   A key to identify the e-mail sent. The final e-mail ID for the e-mail
  *   alter hook in drupal_mail() would have been {$module}_{$key}.
  *
- * @return Drupal\Core\Mail\MailInterface
+ * @return \Drupal\Core\Mail\MailInterface
  *   An object that implements Drupal\Core\Mail\MailInterface.
  *
  * @throws \Exception
@@ -476,7 +476,7 @@ function _drupal_wrap_mail_line(&$line, $key, $values) {
   }
   if (!$line_is_mime_header) {
     // Use soft-breaks only for purely quoted or unindented text.
-    $line = wordwrap($line, 77 - $values['length'], $values['soft'] ? "  \n" : "\n");
+    $line = wordwrap($line, 77 - $values['length'], $values['soft'] ? " \n" : "\n");
   }
   // Break really long words at the maximum width allowed.
   $line = wordwrap($line, 996 - $values['length'], $values['soft'] ? " \n" : "\n");

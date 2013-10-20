@@ -9,6 +9,7 @@
  */
 
 use Drupal\Component\Utility\String;
+use Drupal\Component\Utility\Url;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\Config;
 use Drupal\Core\Language\Language;
@@ -77,7 +78,7 @@ function drupal_theme_access($theme) {
   if (is_object($theme)) {
     $theme = $theme->name;
   }
-  return Drupal::service('access_check.theme')->checkAccess($theme);
+  return \Drupal::service('access_check.theme')->checkAccess($theme);
 }
 
 /**
@@ -814,7 +815,7 @@ function drupal_find_base_themes($themes, $key, $used_keys = array()) {
  * (see hook_theme() for details). Default templates are implemented with the
  * Twig rendering engine and are named the same as the theme hook, with
  * underscores changed to hyphens, so for the 'taxonomy_term' theme hook, the
- * default template is 'taxonomy-term.tpl.php'.
+ * default template is 'taxonomy-term.html.twig'.
  *
  * @subsection sub_overriding_theme_hooks Overriding Theme Hooks
  * Themes may also register new theme hooks within a hook_theme()
@@ -862,17 +863,16 @@ function drupal_find_base_themes($themes, $key, $used_keys = array()) {
  * a noticeable performance penalty.
  *
  * @subsection sub_alternate_suggestions Suggesting Alternate Hooks
- * There are two special variables that these preprocess functions can set:
- * 'theme_hook_suggestion' and 'theme_hook_suggestions'. These will be merged
- * together to form a list of 'suggested' alternate theme hooks to use, in
- * reverse order of priority. theme_hook_suggestion will always be a higher
- * priority than items in theme_hook_suggestions. theme() will use the highest
- * priority implementation that exists. If none exists, theme() will use the
- * implementation for the theme hook it was called with. These suggestions are
- * similar to, and are used for similar reasons as, calling theme() with an
- * array as the $hook parameter (see below). The difference is whether the
- * suggestions are determined by the code that calls theme() or by a preprocess
- * function.
+ * Alternate hooks can be suggested by implementing the hook-specific
+ * hook_theme_suggestions_HOOK_alter() or the generic
+ * hook_theme_suggestions_alter(). These alter hooks are used to manipulate an
+ * array of suggested alternate theme hooks to use, in reverse order of
+ * priority. theme() will use the highest priority implementation that exists.
+ * If none exists, theme() will use the implementation for the theme hook it was
+ * called with. These suggestions are similar to and are used for similar
+ * reasons as calling theme() with an array as the $hook parameter (see below).
+ * The difference is whether the suggestions are determined by the code that
+ * calls theme() or by altering the suggestions via the suggestion alter hooks.
  *
  * @param $hook
  *   The name of the theme hook to call. If the name contains a
@@ -1002,11 +1002,41 @@ function theme($hook, $variables = array()) {
     'theme_hook_original' => $original_hook,
   );
 
-  // Invoke the variable preprocessors, if any. The preprocessors may specify
-  // alternate suggestions for which hook's template/function to use. If the
-  // hook is a suggestion of a base hook, invoke the variable preprocessors of
-  // the base hook, but retain the suggestion as a high priority suggestion to
-  // be used unless overridden by a variable preprocessor function.
+  // Set base hook for later use. For example if '#theme' => 'node__article'
+  // is called, we run hook_theme_suggestions_node_alter() rather than
+  // hook_theme_suggestions_node__article_alter(), and also pass in the base
+  // hook as the last parameter to the suggestions alter hooks.
+  if (isset($info['base hook'])) {
+    $base_theme_hook = $info['base hook'];
+  }
+  else {
+    $base_theme_hook = $hook;
+  }
+
+  // Invoke hook_theme_suggestions_HOOK().
+  $suggestions = Drupal::moduleHandler()->invokeAll('theme_suggestions_' . $base_theme_hook, array($variables));
+  // If theme() was invoked with a direct theme suggestion like
+  // '#theme' => 'node__article', add it to the suggestions array before
+  // invoking suggestion alter hooks.
+  if (isset($info['base hook'])) {
+    $suggestions[] = $hook;
+  }
+  // Allow suggestions to be altered via hook_theme_suggestions_HOOK_alter().
+  Drupal::moduleHandler()->alter('theme_suggestions_' . $base_theme_hook, $suggestions, $variables);
+
+  // Check if each suggestion exists in the theme registry, and if so,
+  // use it instead of the hook that theme() was called with. For example, a
+  // function may call theme('node', ...), but a module can add
+  // 'node__article' as a suggestion via hook_theme_suggestions_HOOK_alter(),
+  // enabling a theme to have an alternate template file for article nodes.
+  foreach (array_reverse($suggestions) as $suggestion) {
+    if (isset($hooks[$suggestion])) {
+      $info = $hooks[$suggestion];
+      break;
+    }
+  }
+
+  // Invoke the variable preprocessors, if any.
   if (isset($info['base hook'])) {
     $base_hook = $info['base hook'];
     $base_hook_info = $hooks[$base_hook];
@@ -1017,42 +1047,18 @@ function theme($hook, $variables = array()) {
         include_once DRUPAL_ROOT . '/' . $include_file;
       }
     }
+    // Replace the preprocess functions with those from the base hook.
     if (isset($base_hook_info['preprocess functions'])) {
-      $variables['theme_hook_suggestion'] = $hook;
-      $hook = $base_hook;
-      $info = $base_hook_info;
+      // Set a variable for the 'theme_hook_suggestion'. This is used to
+      // maintain backwards compatibility with template engines.
+      $theme_hook_suggestion = $hook;
+      $info['preprocess functions'] = $base_hook_info['preprocess functions'];
     }
   }
   if (isset($info['preprocess functions'])) {
-    $variables['theme_hook_suggestions'] = array();
     foreach ($info['preprocess functions'] as $preprocessor_function) {
       if (function_exists($preprocessor_function)) {
         $preprocessor_function($variables, $hook, $info);
-      }
-    }
-    // If the preprocess functions specified hook suggestions, and the
-    // suggestion exists in the theme registry, use it instead of the hook that
-    // theme() was called with. This allows the preprocess step to route to a
-    // more specific theme hook. For example, a function may call
-    // theme('node', ...), but a preprocess function can add 'node__article' as
-    // a suggestion, enabling a theme to have an alternate template file for
-    // article nodes. Suggestions are checked in the following order:
-    // - The 'theme_hook_suggestion' variable is checked first. It overrides
-    //   all others.
-    // - The 'theme_hook_suggestions' variable is checked in FILO order, so the
-    //   last suggestion added to the array takes precedence over suggestions
-    //   added earlier.
-    $suggestions = array();
-    if (!empty($variables['theme_hook_suggestions'])) {
-      $suggestions = $variables['theme_hook_suggestions'];
-    }
-    if (!empty($variables['theme_hook_suggestion'])) {
-      $suggestions[] = $variables['theme_hook_suggestion'];
-    }
-    foreach (array_reverse($suggestions) as $suggestion) {
-      if (isset($hooks[$suggestion])) {
-        $info = $hooks[$suggestion];
-        break;
       }
     }
   }
@@ -1116,6 +1122,16 @@ function theme($hook, $variables = array()) {
     $template_file = $info['template'] . $extension;
     if (isset($info['path'])) {
       $template_file = $info['path'] . '/' . $template_file;
+    }
+    // Add the theme suggestions to the variables array just before rendering
+    // the template for backwards compatibility with template engines.
+    $variables['theme_hook_suggestions'] = $suggestions;
+    // For backwards compatibility, pass 'theme_hook_suggestion' on to the
+    // template engine. This is only set when calling a direct suggestion like
+    // '#theme' => 'menu_tree__shortcut_default' when the template exists in the
+    // current theme.
+    if (isset($theme_hook_suggestion)) {
+      $variables['theme_hook_suggestion'] = $theme_hook_suggestion;
     }
     $output = $render_function($template_file, $variables);
   }
@@ -1601,7 +1617,8 @@ function template_preprocess_status_messages(&$variables) {
  *     - href: The link URL. If omitted, the 'title' is shown as a plain text
  *       item in the links list.
  *     - html: (optional) Whether or not 'title' is HTML. If set, the title
- *       will not be passed through check_plain().
+ *       will not be passed through
+ *       \Drupal\Component\Utility\String::checkPlain().
  *     - attributes: (optional) Attributes for the anchor, or for the <span>
  *       tag used in its place if no 'href' is supplied. If element 'class' is
  *       included, it must be an array of one or more class names.
@@ -1651,7 +1668,7 @@ function theme_links($variables) {
       }
 
       $output .= '<' . $heading['level'] . new Attribute($heading['attributes']) . '>';
-      $output .= check_plain($heading['text']);
+      $output .= String::checkPlain($heading['text']);
       $output .= '</' . $heading['level'] . '>';
     }
 
@@ -1706,7 +1723,7 @@ function theme_links($variables) {
         $link += array(
           'html' => FALSE,
         );
-        $item = ($link['html'] ? $link['title'] : check_plain($link['title']));
+        $item = ($link['html'] ? $link['title'] : String::checkPlain($link['title']));
         if (isset($link['attributes'])) {
           $item = '<span' . new Attribute($link['attributes']) . '>' . $item . '</span>';
         }
@@ -2538,7 +2555,7 @@ function template_preprocess_html(&$variables) {
   if (theme_get_setting('features.favicon')) {
     $favicon = theme_get_setting('favicon.url');
     $type = theme_get_setting('favicon.mimetype');
-    drupal_add_html_head_link(array('rel' => 'shortcut icon', 'href' => drupal_strip_dangerous_protocols($favicon), 'type' => $type));
+    drupal_add_html_head_link(array('rel' => 'shortcut icon', 'href' => Url::stripDangerousProtocols($favicon), 'type' => $type));
   }
 
   $site_config = \Drupal::config('system.site');
@@ -2552,11 +2569,11 @@ function template_preprocess_html(&$variables) {
   elseif (drupal_get_title()) {
     $head_title = array(
       'title' => strip_tags(drupal_get_title()),
-      'name' => check_plain($site_config->get('name')),
+      'name' => String::checkPlain($site_config->get('name')),
     );
   }
   else {
-    $head_title = array('name' => check_plain($site_config->get('name')));
+    $head_title = array('name' => String::checkPlain($site_config->get('name')));
     if ($site_config->get('slogan')) {
       $head_title['slogan'] = strip_tags(filter_xss_admin($site_config->get('slogan')));
     }
@@ -2565,7 +2582,7 @@ function template_preprocess_html(&$variables) {
   $variables['head_title_array'] = $head_title;
   $variables['head_title'] = implode(' | ', $head_title);
 
-  // Display the html.tpl.php's default mobile metatags for responsive design.
+  // Display the html.html.twig's default mobile metatags for responsive design.
   $elements = array(
     'MobileOptimized' => array(
       '#tag' => 'meta',
@@ -2591,11 +2608,6 @@ function template_preprocess_html(&$variables) {
   );
   foreach ($elements as $name => $element) {
     drupal_add_html_head($element, $name);
-  }
-
-  // Populate the page template suggestions.
-  if ($suggestions = theme_get_suggestions(arg(), 'html')) {
-    $variables['theme_hook_suggestions'] = $suggestions;
   }
 
   drupal_add_library('system', 'html5shiv', TRUE);
@@ -2669,7 +2681,7 @@ function template_preprocess_page(&$variables) {
   $variables['main_menu']         = theme_get_setting('features.main_menu') ? menu_main_menu() : array();
   $variables['secondary_menu']    = theme_get_setting('features.secondary_menu') ? menu_secondary_menu() : array();
   $variables['action_links']      = menu_get_local_actions();
-  $variables['site_name']         = (theme_get_setting('features.name') ? check_plain($site_config->get('name')) : '');
+  $variables['site_name']         = (theme_get_setting('features.name') ? String::checkPlain($site_config->get('name')) : '');
   $variables['site_slogan']       = (theme_get_setting('features.slogan') ? filter_xss_admin($site_config->get('slogan')) : '');
   $variables['tabs']              = menu_local_tabs();
 
@@ -2706,11 +2718,6 @@ function template_preprocess_page(&$variables) {
     $variables['node'] = $node;
   }
 
-  // Populate the page template suggestions.
-  if ($suggestions = theme_get_suggestions(arg(), 'page')) {
-    $variables['theme_hook_suggestions'] = $suggestions;
-  }
-
   // Prepare render array for messages. drupal_get_messages() is called later,
   // when this variable is rendered in a theme function or template file.
   $variables['messages'] = array(
@@ -2731,9 +2738,10 @@ function template_preprocess_page(&$variables) {
 /**
  * Generate an array of suggestions from path arguments.
  *
- * This is typically called for adding to the 'theme_hook_suggestions' or
- * 'attributes' class key variables from within preprocess functions, when
- * wanting to base the additional suggestions on the path of the current page.
+ * This is typically called for adding to the suggestions in
+ * hook_theme_suggestions_HOOK_alter() or adding to 'attributes' class key
+ * variables from within preprocess functions, when wanting to base the
+ * additional suggestions or classes on the path of the current page.
  *
  * @param $args
  *   An array of path arguments, such as from function arg().
@@ -2747,9 +2755,8 @@ function template_preprocess_page(&$variables) {
  *
  * @return
  *   An array of suggestions, suitable for adding to
- *   $variables['theme_hook_suggestions'] within a preprocess function or to
- *   $variables['attributes']['class'] if the suggestions represent extra CSS
- *   classes.
+ *   hook_theme_suggestions_HOOK_alter() or to $variables['attributes']['class']
+ *   if the suggestions represent extra CSS classes.
  */
 function theme_get_suggestions($args, $base, $delimiter = '__') {
 
@@ -2820,11 +2827,18 @@ function template_preprocess_maintenance_page(&$variables) {
   $theme_data = list_themes();
   $regions = $theme_data[$theme]->info['regions'];
 
+  // Initializes attributes which are specific to the html element.
+  $variables['html_attributes'] = new Attribute;
+
+  // HTML element attributes.
+  $variables['html_attributes']['lang'] = $language_interface->id;
+  $variables['html_attributes']['dir'] = $language_interface->direction ? 'rtl' : 'ltr';
+
   // Add favicon
   if (theme_get_setting('features.favicon')) {
     $favicon = theme_get_setting('favicon.url');
     $type = theme_get_setting('favicon.mimetype');
-    drupal_add_html_head_link(array('rel' => 'shortcut icon', 'href' => drupal_strip_dangerous_protocols($favicon), 'type' => $type));
+    drupal_add_html_head_link(array('rel' => 'shortcut icon', 'href' => Url::stripDangerousProtocols($favicon), 'type' => $type));
   }
 
   // Get all region content set with drupal_add_region_content().
@@ -2861,7 +2875,7 @@ function template_preprocess_maintenance_page(&$variables) {
     );
   }
   else {
-    $head_title = array('name' => check_plain($site_name));
+    $head_title = array('name' => String::checkPlain($site_name));
     if ($site_slogan) {
       $head_title['slogan'] = strip_tags(filter_xss_admin($site_slogan));
     }
@@ -2895,7 +2909,7 @@ function template_preprocess_maintenance_page(&$variables) {
   $variables['messages']          = $variables['show_messages'] ? theme('status_messages') : '';
   $variables['main_menu']         = array();
   $variables['secondary_menu']    = array();
-  $variables['site_name']         = (theme_get_setting('features.name') ? check_plain($site_name) : '');
+  $variables['site_name']         = (theme_get_setting('features.name') ? String::checkPlain($site_name) : '');
   $variables['site_slogan']       = (theme_get_setting('features.slogan') ? filter_xss_admin($site_slogan) : '');
   $variables['tabs']              = '';
 
@@ -2914,12 +2928,6 @@ function template_preprocess_maintenance_page(&$variables) {
   else {
     $variables['attributes']['class'][] = 'one-sidebar';
     $variables['attributes']['class'][] = 'sidebar-' . $variables['layout'];
-  }
-
-  // Dead databases will show error messages so supplying this template will
-  // allow themers to override the page and the content completely.
-  if (isset($variables['db_is_active']) && !$variables['db_is_active']) {
-    $variables['theme_hook_suggestion'] = 'maintenance_page__offline';
   }
 
   $variables['head'] = drupal_get_html_head();
@@ -2967,13 +2975,17 @@ function template_preprocess_install_page(&$variables) {
 }
 
 /**
- * Preprocess variables for region.tpl.php
+ * Prepares variables for region templates.
+ *
+ * Default template: region.html.twig.
  *
  * Prepares the values passed to the theme_region function to be passed into a
  * pluggable template engine. Uses the region name to generate a template file
- * suggestions. If none are found, the default region.tpl.php is used.
+ * suggestions.
  *
- * @see region.tpl.php
+ * @param array $variables
+ *   An associative array containing:
+ *   - elements: An associative array containing properties of the region.
  */
 function template_preprocess_region(&$variables) {
   // Create the $content variable that templates expect.
@@ -2982,7 +2994,6 @@ function template_preprocess_region(&$variables) {
 
   $variables['attributes']['class'][] = 'region';
   $variables['attributes']['class'][] = drupal_html_class('region-' . $variables['region']);
-  $variables['theme_hook_suggestions'][] = 'region__' . $variables['region'];
 }
 
 /**

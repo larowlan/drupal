@@ -7,11 +7,9 @@
 
 namespace Drupal\user\Entity;
 
+use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Entity\EntityMalformedException;
-use Drupal\Core\Entity\EntityNG;
-use Drupal\Core\Entity\Annotation\EntityType;
-use Drupal\Core\Annotation\Translation;
 use Drupal\user\UserInterface;
 
 /**
@@ -32,6 +30,7 @@ use Drupal\user\UserInterface;
  *     },
  *     "translation" = "Drupal\user\ProfileTranslationController"
  *   },
+ *   admin_permission = "administer user",
  *   base_table = "users",
  *   uri_callback = "user_uri",
  *   route_base_path = "admin/config/people/accounts",
@@ -48,13 +47,20 @@ use Drupal\user\UserInterface;
  *   }
  * )
  */
-class User extends EntityNG implements UserInterface {
+class User extends ContentEntityBase implements UserInterface {
 
   /**
    * {@inheritdoc}
    */
   public function id() {
     return $this->get('uid')->value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isNew() {
+    return !empty($this->enforceIsNew) || $this->id() === NULL;
   }
 
   /**

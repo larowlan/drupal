@@ -7,7 +7,7 @@
 
 namespace Drupal\Core\Plugin\Discovery;
 
-use Drupal\Component\Plugin\Discovery\AnnotatedClassDiscovery as ComponentAnnotatedClassDiscovery;
+use Drupal\Component\Annotation\Plugin\Discovery\AnnotatedClassDiscovery as ComponentAnnotatedClassDiscovery;
 
 /**
  * Defines a discovery mechanism to find annotated plugins in PSR-0 namespaces.
@@ -52,6 +52,20 @@ class AnnotatedClassDiscovery extends ComponentAnnotatedClassDiscovery {
     $this->rootNamespacesIterator = $root_namespaces;
     $plugin_namespaces = array();
     parent::__construct($plugin_namespaces, $plugin_definition_annotation_name);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getAnnotationReader() {
+    if (!isset($this->annotationReader)) {
+      $reader = parent::getAnnotationReader();
+
+      // Add the Core annotation classes like @Translation.
+      $reader->addNamespace('Drupal\Core\Annotation', array(DRUPAL_ROOT . '/core/lib/Drupal/Core/Annotation'));
+      $this->annotationReader = $reader;
+    }
+    return $this->annotationReader;
   }
 
   /**

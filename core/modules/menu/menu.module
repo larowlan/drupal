@@ -45,7 +45,7 @@ function menu_help($path, $arg) {
     case 'admin/structure/menu/add':
       return '<p>' . t('You can enable the newly-created block for this menu on the <a href="@blocks">Blocks administration page</a>.', array('@blocks' => url('admin/structure/block'))) . '</p>';
   }
-  if ($path == 'admin/structure/menu' && module_exists('block')) {
+  if ($path == 'admin/structure/menu' && \Drupal::moduleHandler()->moduleExists('block')) {
     return '<p>' . t('Each menu has a corresponding block that is managed on the <a href="@blocks">Blocks administration page</a>.', array('@blocks' => url('admin/structure/block'))) . '</p>';
   }
 }
@@ -91,11 +91,6 @@ function menu_menu() {
     'title callback' => 'entity_page_label',
     'title arguments' => array(4),
   );
-  $items['admin/structure/menu/manage/%menu/add'] = array(
-    'title' => 'Add link',
-    'route_name' => 'menu.link_add',
-    'type' => MENU_LOCAL_ACTION,
-  );
   $items['admin/structure/menu/manage/%menu/edit'] = array(
     'title' => 'Edit menu',
     'type' => MENU_DEFAULT_LOCAL_TASK,
@@ -121,7 +116,7 @@ function menu_menu() {
  */
 function menu_entity_info(&$entity_info) {
   $entity_info['menu']['controllers']['list'] = 'Drupal\menu\MenuListController';
-  $entity_info['menu']['uri_callback'] = 'menu_uri';
+  $entity_info['menu']['links']['edit-form'] = 'admin/structure/menu/manage/{menu}';
   $entity_info['menu']['controllers']['form'] = array(
     'add' => 'Drupal\menu\MenuFormController',
     'edit' => 'Drupal\menu\MenuFormController',
@@ -146,18 +141,6 @@ function menu_entity_bundle_info() {
   }
 
   return $bundles;
-}
-
-/**
- * Entity URI callback.
- *
- * @param \Drupal\system\Entity\Menu $menu
- *   A Menu entity.
- */
-function menu_uri(Menu $menu) {
-  return array(
-    'path' => 'admin/structure/menu/manage/' . $menu->id(),
-  );
 }
 
 /**
@@ -226,12 +209,16 @@ function menu_menu_predelete(Menu $menu) {
   menu_delete_links($menu->id());
 
   // Remove menu from active menus variable.
-  $active_menus = variable_get('menu_default_active_menus', array_keys(menu_get_menus()));
-  foreach ($active_menus as $i => $menu_name) {
-    if ($menu->id() == $menu_name) {
-      unset($active_menus[$i]);
-      variable_set('menu_default_active_menus', $active_menus);
-    }
+  $config = \Drupal::config('system.menu');
+  $active_menus = $config->get('active_menus_default') ?: array_keys(menu_get_menus());
+  if (in_array($menu->id(), $active_menus)) {
+    $active_menus = array_diff($active_menus, array($menu->id()));
+    // Prevent the gap left by the removed menu from causing array indices to
+    // be saved.
+    $active_menus = array_values($active_menus);
+    $config
+      ->set('active_menus_default', $active_menus)
+      ->save();
   }
 }
 
@@ -499,7 +486,7 @@ function menu_form_node_form_alter(&$form, $form_state) {
   $form['menu'] = array(
     '#type' => 'details',
     '#title' => t('Menu settings'),
-    '#access' => Drupal::currentUser()->hasPermission('administer menu'),
+    '#access' => \Drupal::currentUser()->hasPermission('administer menu'),
     '#collapsed' => !$link['link_title'],
     '#group' => 'advanced',
     '#attached' => array(
@@ -660,7 +647,7 @@ function menu_get_menus($all = TRUE) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for block.html.twig.
+ * Implements hook_preprocess_HOOK() for block templates.
  */
 function menu_preprocess_block(&$variables) {
   if ($variables['configuration']['module'] == 'menu') {

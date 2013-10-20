@@ -46,9 +46,9 @@ interface QueryInterface extends AlterableInterface {
    * @endcode
    *
    * @param $value
-   *   The value for $field. In most cases, this is a scalar. For more complex
-   *   options, it is an array. The meaning of each element in the array is
-   *   dependent on $operator.
+   *   The value for $field. In most cases, this is a scalar and it's treated as
+   *   case-insensitive. For more complex options, it is an array. The meaning
+   *   of each element in the array is dependent on $operator.
    * @param $operator
    *   Possible values:
    *   - '=', '<>', '>', '>=', '<', '<=', 'STARTS_WITH', 'CONTAINS',
@@ -62,8 +62,8 @@ interface QueryInterface extends AlterableInterface {
    *   Language code (optional).
    *
    * @return \Drupal\Core\Entity\Query\QueryInterface
-   * @see Drupal\Core\Entity\Query\andConditionGroup
-   * @see Drupal\Core\Entity\Query\orConditionGroup
+   * @see \Drupal\Core\Entity\Query\andConditionGroup
+   * @see \Drupal\Core\Entity\Query\orConditionGroup
    */
   public function condition($field, $value = NULL, $operator = NULL, $langcode = NULL);
 

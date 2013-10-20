@@ -35,8 +35,9 @@ abstract class FieldUnitTestBase extends DrupalUnitTestBase {
    */
   function setUp() {
     parent::setUp();
-    $this->installSchema('system', array('sequences', 'variable', 'config_snapshot'));
     $this->installSchema('entity_test', 'entity_test');
+    $this->installSchema('system', array('sequences', 'variable', 'config_snapshot'));
+    $this->installSchema('user', array('users', 'users_roles'));
 
     // Set default storage backend and configure the theme system.
     $this->installConfig(array('field', 'system'));
@@ -73,7 +74,7 @@ abstract class FieldUnitTestBase extends DrupalUnitTestBase {
       'cardinality' => 4,
     ));
     $this->$field->save();
-    $this->$field_id = $this->{$field}['uuid'];
+    $this->$field_id = $this->{$field}->uuid();
     $this->$instance_definition = array(
       'field_name' => $this->$field_name,
       'entity_type' => $entity_type,

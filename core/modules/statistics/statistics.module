@@ -58,7 +58,7 @@ function statistics_node_view(EntityInterface $node, EntityDisplay $display, $vi
   }
 
   if ($view_mode != 'rss') {
-    if (Drupal::currentUser()->hasPermission('view post access counter')) {
+    if (\Drupal::currentUser()->hasPermission('view post access counter')) {
       $statistics = statistics_get($node->id());
       if ($statistics) {
         $links['statistics_counter']['title'] = format_plural($statistics['totalcount'], '1 view', '@count views');
@@ -69,6 +69,17 @@ function statistics_node_view(EntityInterface $node, EntityDisplay $display, $vi
         );
       }
     }
+  }
+}
+
+/**
+ * Implements hook_node_view_alter().
+ */
+function statistics_node_view_alter(&$build, EntityInterface $node, EntityDisplay $display) {
+  // If statistics were added to the node render array, we can't use the render
+  // cache.
+  if (isset($build['links']['statistics'])) {
+    unset($build['#cache']);
   }
 }
 
@@ -237,7 +248,7 @@ function statistics_update_index() {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for block.html.twig.
+ * Implements hook_preprocess_HOOK() for block templates.
  */
 function statistics_preprocess_block(&$variables) {
   if ($variables['configuration']['module'] == 'statistics') {

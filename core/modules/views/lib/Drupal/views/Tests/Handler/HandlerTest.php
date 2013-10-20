@@ -41,7 +41,7 @@ class HandlerTest extends ViewTestBase {
 
   protected function setUp() {
     parent::setUp();
-
+    $this->container->get('comment.manager')->addDefaultField('node', 'page');
     $this->enableViewsTestModule();
   }
 
@@ -222,7 +222,7 @@ class HandlerTest extends ViewTestBase {
    *
    * @param $first
    *   The first value to check.
-   * @param Drupal\views\Plugin\views\HandlerBase $handler
+   * @param \Drupal\views\Plugin\views\HandlerBase $handler
    *   The handler that has the $handler->value property to compare with first.
    * @param string $message
    *   The message to display along with the assertion.
@@ -284,7 +284,7 @@ class HandlerTest extends ViewTestBase {
     // Setup a broken relationship.
     $view->addItem('default', 'relationship', $this->randomName(), $this->randomName(), array(), 'broken_relationship');
     // Setup a valid relationship.
-    $view->addItem('default', 'relationship', 'comment', 'nid', array('relationship' => 'cid'), 'valid_relationship');
+    $view->addItem('default', 'relationship', 'comment', 'node', array('relationship' => 'cid'), 'valid_relationship');
     $view->initHandlers();
     $field = $view->field['title'];
 
@@ -315,7 +315,7 @@ class HandlerTest extends ViewTestBase {
   /**
    * Tests the placeholder function.
    *
-   * @see Drupal\views\Plugin\views\HandlerBase::placeholder()
+   * @see \Drupal\views\Plugin\views\HandlerBase::placeholder()
    */
   public function testPlaceholder() {
     $view = views_get_view('test_view');

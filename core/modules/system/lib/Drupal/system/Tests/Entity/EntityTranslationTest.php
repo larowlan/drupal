@@ -9,6 +9,7 @@ namespace Drupal\system\Tests\Entity;
 
 use Drupal\Core\Language\Language;
 use Drupal\Core\TypedData\TranslatableInterface;
+use Drupal\entity_test\Entity\EntityTestMulRev;
 
 /**
  * Tests entity translation.
@@ -37,6 +38,7 @@ class EntityTranslationTest extends EntityUnitTestBase {
       'entity_test_rev',
       'entity_test_rev_revision',
       'entity_test_mulrev',
+      'entity_test_mulrev_revision',
       'entity_test_mulrev_property_data',
       'entity_test_mulrev_property_revision',
     ));
@@ -483,12 +485,50 @@ class EntityTranslationTest extends EntityUnitTestBase {
     $entity = $this->reloadEntity($entity);
     $instance_id = implode('.', array($entity->entityType(), $entity->bundle(), $this->field_name));
     $instance = $this->entityManager->getStorageController('field_instance')->load($instance_id);
-    $instance['default_value_function'] = 'entity_test_field_default_value';
+    $instance->default_value_function = 'entity_test_field_default_value';
     $instance->save();
     $translation = $entity->addTranslation($langcode2);
     $field = $translation->get($this->field_name);
     $this->assertEqual($field->value, $this->field_name . '_' . $langcode2, 'Language-aware default values correctly populated.');
     $this->assertEqual($field->getLangcode(), $langcode2, 'Field object has the expected langcode.');
+  }
+
+  /**
+   * Check that field translatability is handled properly.
+   */
+  function testFieldDefinitions() {
+    // Check that field translatability can be altered to be enabled or disabled
+    // in field definitions.
+    $entity_type = 'entity_test_mulrev';
+    $this->state->set('entity_test.field_definitions.translatable', array('name' => FALSE));
+    $this->entityManager->clearCachedFieldDefinitions();
+    $definitions = $this->entityManager->getFieldDefinitions($entity_type);
+    $this->assertFalse($definitions['name']['translatable'], 'Field translatability can be disabled programmatically.');
+
+    $this->state->set('entity_test.field_definitions.translatable', array('name' => TRUE));
+    $this->entityManager->clearCachedFieldDefinitions();
+    $definitions = $this->entityManager->getFieldDefinitions($entity_type);
+    $this->assertTrue($definitions['name']['translatable'], 'Field translatability can be enabled programmatically.');
+
+    // Check that field translatability is disabled by default.
+    $base_field_definitions = EntityTestMulRev::baseFieldDefinitions($entity_type);
+    $this->assertTrue(!isset($base_field_definitions['id']['translatable']), 'Translatability for the <em>id</em> field is not defined.');
+    $this->assertFalse($definitions['id']['translatable'], 'Field translatability is disabled by default.');
+
+    // Check that entity ids and langcode fields cannot be translatable.
+    foreach (array('id', 'uuid', 'revision_id', 'type', 'langcode') as $name) {
+      $this->state->set('entity_test.field_definitions.translatable', array($name => TRUE));
+      $this->entityManager->clearCachedFieldDefinitions();
+      $message = format_string('Field %field cannot be translatable.', array('%field' => $name));
+
+      try {
+        $definitions = $this->entityManager->getFieldDefinitions($entity_type);
+        $this->fail($message);
+      }
+      catch (\LogicException $e) {
+        $this->pass($message);
+      }
+    }
   }
 
 }

@@ -17,16 +17,16 @@ use Drupal\Component\Utility\String;
  *
  * To set a boolean attribute on the Attribute class, set it to TRUE.
  * @code
- *  $attributes = new Attribute(array());
+ *  $attributes = new Attribute();
  *  $attributes['disabled'] = TRUE;
- *  echo '<select ' . $attributes . '/>';
+ *  echo '<select' . $attributes . '/>';
  *  // produces <select disabled>;
  *  $attributes['disabled'] = FALSE;
- *  echo '<select ' . $attributes . '/>';
+ *  echo '<select' . $attributes . '/>';
  *  // produces <select>;
  * @endcode
  *
- * @see Drupal\Core\Template\Attribute
+ * @see \Drupal\Core\Template\Attribute
  */
 class AttributeBoolean extends AttributeValueBase {
 

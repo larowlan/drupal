@@ -13,8 +13,6 @@ use Drupal\views\Views;
 use Drupal\views_ui\ViewUI;
 use Drupal\views\ViewStorageInterface;
 use Drupal\views\ViewExecutable;
-use Drupal\Core\Entity\Annotation\EntityType;
-use Drupal\Core\Annotation\Translation;
 
 /**
  * Defines a View configuration entity class.
@@ -27,6 +25,7 @@ use Drupal\Core\Annotation\Translation;
  *     "storage" = "Drupal\views\ViewStorageController",
  *     "access" = "Drupal\views\ViewAccessController"
  *   },
+ *   admin_permission = "administer views",
  *   config_prefix = "views.view",
  *   entity_keys = {
  *     "id" = "id",
@@ -111,7 +110,7 @@ class View extends ConfigEntityBase implements ViewStorageInterface {
   /**
    * Stores a reference to the executable version of this view.
    *
-   * @var Drupal\views\ViewExecutable
+   * @var \Drupal\views\ViewExecutable
    */
   protected $executable;
 

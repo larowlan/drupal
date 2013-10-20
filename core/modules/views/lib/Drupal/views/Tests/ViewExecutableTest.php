@@ -24,11 +24,11 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Tests the ViewExecutable class.
  *
- * @see Drupal\views\ViewExecutable
+ * @see \Drupal\views\ViewExecutable
  */
 class ViewExecutableTest extends ViewUnitTestBase {
 
-  public static $modules = array('system', 'node', 'comment', 'user', 'filter');
+  public static $modules = array('system', 'node', 'comment', 'user', 'filter', 'entity', 'field', 'field_sql_storage', 'text');
 
   /**
    * Views used by this test.
@@ -85,7 +85,9 @@ class ViewExecutableTest extends ViewUnitTestBase {
   protected function setUpFixtures() {
     $this->installSchema('user', array('users'));
     $this->installSchema('node', array('node', 'node_field_data'));
-    $this->installSchema('comment', array('comment', 'node_comment_statistics'));
+    $this->installSchema('comment', array('comment', 'comment_entity_statistics'));
+    $this->installConfig(array('field'));
+    $this->container->get('comment.manager')->addDefaultField('node', 'page');
     parent::setUpFixtures();
 
     $this->installConfig(array('filter'));

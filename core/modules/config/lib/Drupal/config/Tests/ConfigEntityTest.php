@@ -59,11 +59,9 @@ class ConfigEntityTest extends WebTestBase {
     $this->assertIdentical($empty->get('langcode'), $default_langcode);
 
     // Verify Entity properties/methods on the newly created empty entity.
-    $this->assertIdentical($empty->isNewRevision(), FALSE);
     $this->assertIdentical($empty->entityType(), 'config_test');
     $uri = $empty->uri();
     $this->assertIdentical($uri['path'], 'admin/structure/config_test/manage');
-    $this->assertIdentical($empty->isDefaultRevision(), TRUE);
 
     // Verify that an empty entity cannot be saved.
     try {
@@ -108,10 +106,8 @@ class ConfigEntityTest extends WebTestBase {
     $expected['uuid'] = $config_test->uuid();
     $this->assertIdentical($config_test->label(), $expected['label']);
 
-    $this->assertIdentical($config_test->isNewRevision(), FALSE);
     $uri = $config_test->uri();
     $this->assertIdentical($uri['path'], 'admin/structure/config_test/manage/' . $expected['id']);
-    $this->assertIdentical($config_test->isDefaultRevision(), TRUE);
 
     // Verify that the entity can be saved.
     try {
@@ -150,8 +146,7 @@ class ConfigEntityTest extends WebTestBase {
     // Verify that the entity was overwritten.
     $same_id = entity_load('config_test', $config_test->id());
     $this->assertIdentical($same_id->id(), $config_test->id());
-    // Note: Reloading loads from FileStorage, and FileStorage enforces strings.
-    $this->assertIdentical($same_id->label(), '');
+    $this->assertIdentical($same_id->label(), NULL);
     $this->assertNotEqual($same_id->uuid(), $config_test->uuid());
 
     // Delete the overridden entity first.

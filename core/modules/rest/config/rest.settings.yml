@@ -5,22 +5,22 @@ resources:
       supported_formats:
         - hal_json
       supported_auth:
-        - http_basic
+        - basic_auth
     POST:
       supported_formats:
         - hal_json
       supported_auth:
-        - http_basic
+        - basic_auth
     PATCH:
       supported_formats:
         - hal_json
       supported_auth:
-        - http_basic
+        - basic_auth
     DELETE:
       supported_formats:
         - hal_json
       supported_auth:
-        - http_basic
+        - basic_auth
 
 # Multiple formats and multiple authentication providers can be defined for a
 # resource:
@@ -34,7 +34,7 @@ resources:
 #         - xml
 #       supported_auth:
 #         - cookie
-#         - http_basic
+#         - basic_auth
 #
 # hal_json is the only format supported for POST and PATCH methods.
 #

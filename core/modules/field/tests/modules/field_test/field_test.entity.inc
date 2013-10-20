@@ -5,9 +5,6 @@
  * Defines an entity type.
  */
 
-use Drupal\Core\Entity\EntityInterface;
-use Drupal\field_test\Entity\TestEntity;
-
 /**
  * Implements hook_entity_info().
  */
@@ -43,6 +40,8 @@ function field_test_entity_info_translatable($entity_type = NULL, $translatable 
 
 /**
  * Form combining two separate entities.
+ *
+ * @deprecated Use \Drupal\field_test\Form\FieldTestForm::testEntityNestedForm()
  */
 function field_test_entity_nested_form($form, &$form_state, $entity_1, $entity_2) {
   // First entity.

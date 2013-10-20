@@ -101,6 +101,7 @@ class BlockListController extends ConfigEntityListController implements FormInte
     // @todo Move the functionality of _block_rehash() out of the listing page.
     $entities = _block_rehash($this->theme);
 
+    // Sort the blocks using \Drupal\block\Entity\Block::sort().
     uasort($entities, array($this->entityInfo['class'], 'sort'));
     return $entities;
   }
@@ -126,9 +127,9 @@ class BlockListController extends ConfigEntityListController implements FormInte
   }
 
   /**
-   * Implements \Drupal\Core\Form\FormInterface::getFormID().
+   * {@inheritdoc}
    */
-  public function getFormID() {
+  public function getFormId() {
     return 'block_admin_display_form';
   }
 
@@ -342,8 +343,9 @@ class BlockListController extends ConfigEntityListController implements FormInte
     });
     foreach ($plugins as $plugin_id => $plugin_definition) {
       $category = String::checkPlain($plugin_definition['category']);
-      if (!isset($form['place_blocks']['list'][$category])) {
-        $form['place_blocks']['list'][$category] = array(
+      $category_key = 'category-' . $category;
+      if (!isset($form['place_blocks']['list'][$category_key])) {
+        $form['place_blocks']['list'][$category_key] = array(
           '#type' => 'details',
           '#title' => $category,
           'content' => array(
@@ -357,7 +359,7 @@ class BlockListController extends ConfigEntityListController implements FormInte
           ),
         );
       }
-      $form['place_blocks']['list'][$category]['content']['#links'][$plugin_id] = array(
+      $form['place_blocks']['list'][$category_key]['content']['#links'][$plugin_id] = array(
         'title' => $plugin_definition['admin_label'],
         'href' => 'admin/structure/block/add/' . $plugin_id . '/' . $this->theme,
         'attributes' => array(

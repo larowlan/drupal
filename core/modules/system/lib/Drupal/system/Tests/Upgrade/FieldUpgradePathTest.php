@@ -7,7 +7,7 @@
 
 namespace Drupal\system\Tests\Upgrade;
 
-use Drupal\Core\Entity\DatabaseStorageController;
+use Drupal\Core\Entity\FieldableDatabaseStorageController;
 use Drupal\field\Entity\Field;
 
 /**
@@ -67,7 +67,7 @@ class FieldUpgradePathTest extends UpgradePathTestBase {
 
     // Check that the display key in the instance data was removed.
     $body_instance = field_info_instance('node', 'body', 'article');
-    $this->assertTrue(!isset($body_instance['display']));
+    $this->assertTrue(!isset($body_instance->display));
 
     // Check that deleted fields were not added to the display.
     $this->assertFalse(isset($displays['default']['content']['test_deleted_field']));
@@ -110,7 +110,7 @@ class FieldUpgradePathTest extends UpgradePathTestBase {
 
     // Check that the display key in the instance data was removed.
     $body_instance = field_info_instance('node', 'body', 'article');
-    $this->assertTrue(!isset($body_instance['widget']));
+    $this->assertTrue(!isset($body_instance->widget));
 
     // Check that deleted fields were not added to the display.
     $this->assertFalse(isset($form_display['content']['test_deleted_field']));
@@ -278,7 +278,7 @@ class FieldUpgradePathTest extends UpgradePathTestBase {
 
     // Check that pre-existing deleted field table is renamed correctly.
     $field_entity = new Field($deleted_field);
-    $table_name = DatabaseStorageController::_fieldTableName($field_entity);
+    $table_name = FieldableDatabaseStorageController::_fieldTableName($field_entity);
     $this->assertEqual("field_deleted_data_" . substr(hash('sha256', $deleted_field['uuid']), 0, 10), $table_name);
     $this->assertTrue(db_table_exists($table_name));
 

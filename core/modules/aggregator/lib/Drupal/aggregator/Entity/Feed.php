@@ -7,7 +7,7 @@
 
 namespace Drupal\aggregator\Entity;
 
-use Drupal\Core\Entity\EntityNG;
+use Drupal\Core\Entity\ContentEntityBase;
 use Symfony\Component\DependencyInjection\Container;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Entity\Annotation\EntityType;
@@ -38,63 +38,63 @@ use Drupal\aggregator\FeedInterface;
  *   }
  * )
  */
-class Feed extends EntityNG implements FeedInterface {
+class Feed extends ContentEntityBase implements FeedInterface {
 
   /**
    * The feed ID.
    *
    * @todo rename to id.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $fid;
 
   /**
    * Title of the feed.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $title;
 
   /**
    * The feed language code.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $langcode;
 
   /**
    * URL to the feed.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $url;
 
   /**
    * How often to check for new feed items, in seconds.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $refresh;
 
   /**
    * Last time feed was checked for new items, as Unix timestamp.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $checked;
 
   /**
    * Time when this feed was queued for refresh, 0 if not queued.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $queued;
 
   /**
    * The parent website of the feed; comes from the <link> element in the feed.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $link ;
 
@@ -102,40 +102,40 @@ class Feed extends EntityNG implements FeedInterface {
    * The parent website's description;
    * comes from the <description> element in the feed.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $description;
 
   /**
    * An image representing the feed.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $image;
 
   /**
    * Calculated hash of the feed data, used for validating cache.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $hash;
 
   /**
    * Entity tag HTTP response header, used for validating cache.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $etag;
 
   /**
    * When the feed was last modified, as a Unix timestamp.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $modified;
 
   /**
-   * Overrides Drupal\Core\Entity\EntityNG::init().
+   * {@inheritdoc}
    */
   public function init() {
     parent::init();

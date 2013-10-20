@@ -137,19 +137,6 @@ class ModuleApiTest extends WebTestBase {
   }
 
   /**
-   * Test that a menu item load function can invoke hooks defined in hook_hook_info().
-   *
-   * We test this separately from testModuleInvokeAll(), because menu item load
-   * functions execute early in the request handling.
-   */
-  function testModuleInvokeAllDuringLoadFunction() {
-    \Drupal::moduleHandler()->install(array('module_test'), FALSE);
-    $this->resetAll();
-    $this->drupalGet('module-test/hook-dynamic-loading-invoke-all-during-load/module_test');
-    $this->assertText('success!', 'Menu item load function invokes a hook defined in hook_hook_info().');
-  }
-
-  /**
    * Test dependency resolution.
    */
   function testDependencyResolution() {
@@ -186,7 +173,7 @@ class ModuleApiTest extends WebTestBase {
     $this->assertEqual($module_order, array('xmlrpc', 'ban', 'forum'), 'Modules were enabled in the correct order.');
 
     // Now uninstall all three modules explicitly, but in the incorrect order,
-    // and make sure that drupal_uninstal_modules() uninstalled them in the
+    // and make sure that drupal_uninstall_modules() uninstalled them in the
     // correct sequence.
     $result = module_uninstall(array('ban', 'xmlrpc', 'forum'));
     $this->assertTrue($result, 'module_uninstall() returns the correct value.');

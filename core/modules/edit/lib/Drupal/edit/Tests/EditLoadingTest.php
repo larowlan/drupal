@@ -58,7 +58,8 @@ class EditLoadingTest extends WebTestBase {
           'value' => '<p>How are you?</p>',
           'format' => 'filtered_html',
         )
-      )
+      ),
+      'log' => $this->randomString(),
     ));
 
     // Create 2 users, the only difference being the ability to use in-place
@@ -71,7 +72,7 @@ class EditLoadingTest extends WebTestBase {
   /**
    * Test the loading of Edit when a user doesn't have access to it.
    */
-  function testUserWithoutPermission() {
+  public function testUserWithoutPermission() {
     $this->drupalLogin($this->author_user);
     $this->drupalGet('node/1');
 
@@ -112,7 +113,7 @@ class EditLoadingTest extends WebTestBase {
     $edit['body[0][value]'] = '<p>Malicious content.</p>';
     $edit['body[0][format]'] = 'filtered_html';
     $edit['op'] = t('Save');
-    $response = $this->drupalPost('edit/form/' . 'node/1/body/und/full', 'application/vnd.drupal-ajax', $post);
+    $response = $this->drupalPost('edit/form/' . 'node/1/body/und/full', 'application/vnd.drupal-ajax', $edit);
     // @todo Uncomment the below once https://drupal.org/node/2063303 is fixed.
     // $this->assertIdentical('[]', $response);
     $this->assertResponse(403);
@@ -128,7 +129,7 @@ class EditLoadingTest extends WebTestBase {
    *
    * Also ensures lazy loading of in-place editors works.
    */
-  function testUserWithPermission() {
+  public function testUserWithPermission() {
     $this->drupalLogin($this->editor_user);
     $this->drupalGet('node/1');
 
@@ -141,6 +142,11 @@ class EditLoadingTest extends WebTestBase {
     // HTML annotation must always exist (to not break the render cache).
     $this->assertRaw('data-edit-entity="node/1"');
     $this->assertRaw('data-edit-id="node/1/body/und/full"');
+
+    // There should be only one revision so far.
+    $revisions = node_revision_list(node_load(1));
+    $this->assertIdentical(1, count($revisions), 'The node has only one revision.');
+    $original_log = $revisions[1]->log;
 
     // Retrieving the metadata should result in a 200 JSON response.
     $htmlPageDrupalSettings = $this->drupalSettings;
@@ -176,7 +182,7 @@ class EditLoadingTest extends WebTestBase {
 
     // Retrieving the form for this field should result in a 200 response,
     // containing only an editFieldForm command.
-    $post = array('nocssjs' => 'true') + $this->getAjaxPageStatePostData();
+    $post = array('nocssjs' => 'true', 'reset' => 'true') + $this->getAjaxPageStatePostData();
     $response = $this->drupalPost('edit/form/' . 'node/1/body/und/full', 'application/vnd.drupal-ajax', $post);
     $this->assertResponse(200);
     $ajax_commands = drupal_json_decode($response);
@@ -191,16 +197,18 @@ class EditLoadingTest extends WebTestBase {
     $this->assertTrue($form_tokens_found, 'Form tokens found in output.');
 
     if ($form_tokens_found) {
-      $post = array(
-        'form_id' => 'edit_field_form',
-        'form_token' => $token_match[1],
-        'form_build_id' => $build_id_match[1],
+      $edit = array(
         'body[0][summary]' => '',
         'body[0][value]' => '<p>Fine thanks.</p>',
         'body[0][format]' => 'filtered_html',
         'op' => t('Save'),
       );
-      $post += $this->getAjaxPageStatePostData();
+      $post = array(
+        'form_id' => 'edit_field_form',
+        'form_token' => $token_match[1],
+        'form_build_id' => $build_id_match[1],
+      );
+      $post += $edit + $this->getAjaxPageStatePostData();
 
       // Submit field form and check response. This should store the
       // updated entity in TempStore on the server.
@@ -228,6 +236,113 @@ class EditLoadingTest extends WebTestBase {
       // Ensure the text on the original node did change.
       $this->drupalGet('node/1');
       $this->assertText('Fine thanks.');
+
+      // Ensure no new revision was created and the log message is unchanged.
+      $revisions = node_revision_list(node_load(1));
+      $this->assertIdentical(1, count($revisions), 'The node has only one revision.');
+      $this->assertIdentical($original_log, $revisions[1]->log, 'The revision log message is unchanged.');
+
+      // Now configure this node type to create new revisions automatically,
+      // then again retrieve the field form, fill it, submit it (so it ends up
+      // in TempStore) and then save the entity. Now there should be two
+      // revisions.
+      $this->container->get('config.factory')->get('node.type.article')->set('settings.node.options', array('status', 'revision'))->save();
+
+      // Retrieve field form.
+      $post = array('nocssjs' => 'true', 'reset' => 'true');
+      $response = $this->drupalPost('edit/form/' . 'node/1/body/und/full', 'application/vnd.drupal-ajax', $post);
+      $this->assertResponse(200);
+      $ajax_commands = drupal_json_decode($response);
+      $this->assertIdentical(1, count($ajax_commands), 'The field form HTTP request results in one AJAX command.');
+      $this->assertIdentical('editFieldForm', $ajax_commands[0]['command'], 'The first AJAX command is an editFieldForm command.');
+      $this->assertIdentical('<form ', Unicode::substr($ajax_commands[0]['data'], 0, 6), 'The editFieldForm command contains a form.');
+
+      // Submit field form.
+      preg_match('/\sname="form_token" value="([^"]+)"/', $ajax_commands[0]['data'], $token_match);
+      preg_match('/\sname="form_build_id" value="([^"]+)"/', $ajax_commands[0]['data'], $build_id_match);
+      $edit['body[0][value]'] = '<p>kthxbye</p>';
+      $post = array(
+        'form_id' => 'edit_field_form',
+        'form_token' => $token_match[1],
+        'form_build_id' => $build_id_match[1],
+      );
+      $post += $edit + $this->getAjaxPageStatePostData();
+      $response = $this->drupalPost('edit/form/' . 'node/1/body/und/full', 'application/vnd.drupal-ajax', $post);
+      // @todo Uncomment the below once https://drupal.org/node/2063303 is fixed.
+      // $this->assertIdentical('[]', $response);
+      $this->assertResponse(200);
+      $ajax_commands = drupal_json_decode($response);
+      $this->assertIdentical(1, count($ajax_commands), 'The field form HTTP request results in one AJAX command.');
+      $this->assertIdentical('editFieldFormSaved', $ajax_commands[0]['command'], 'The first AJAX command is an editFieldFormSaved command.');
+      $this->assertTrue(strpos($ajax_commands[0]['data'], 'kthxbye'), 'Form value saved and printed back.');
+
+      // Save the entity.
+      $post = array('nocssjs' => 'true');
+      $response = $this->drupalPost('edit/entity/' . 'node/1', 'application/json', $post);
+      // @todo Uncomment the below once https://drupal.org/node/2063303 is fixed.
+      // $this->assertIdentical('[]', $response);
+      $this->assertResponse(200);
+
+      // Test that a revision was created with the correct log message.
+      $revisions = node_revision_list(node_load(1));
+      $this->assertIdentical(2, count($revisions), 'The node has two revisions.');
+      $this->assertIdentical($original_log, $revisions[1]->log, 'The first revision log message is unchanged.');
+      $this->assertIdentical('Updated the <em class="placeholder">Body</em> field through in-place editing.', $revisions[2]->log, 'The second revision log message was correctly generated by Edit module.');
+    }
+  }
+
+  /**
+   * Tests that Edit doesn't make pseudo fields or computed fields editable.
+   */
+  function testPseudoFields() {
+    \Drupal::moduleHandler()->install(array('edit_test'));
+
+    $this->drupalLogin($this->author_user);
+    $this->drupalGet('node/1');
+
+    // Check that the data- attribute is not added.
+    $this->assertNoRaw('data-edit-id="node/1/edit_test_pseudo_field/und/default"');
+  }
+
+  /**
+   * Tests Edit on a node that was concurrently edited on the full node form.
+   */
+  public function testConcurrentEdit() {
+    $this->drupalLogin($this->editor_user);
+
+    $post = array('nocssjs' => 'true') + $this->getAjaxPageStatePostData();
+    $response = $this->drupalPost('edit/form/' . 'node/1/body/und/full', 'application/vnd.drupal-ajax', $post);
+    $ajax_commands = drupal_json_decode($response);
+
+    // Prepare form values for submission. drupalPostAJAX() is not suitable for
+    // handling pages with JSON responses, so we need our own solution here.
+    $form_tokens_found = preg_match('/\sname="form_token" value="([^"]+)"/', $ajax_commands[0]['data'], $token_match) && preg_match('/\sname="form_build_id" value="([^"]+)"/', $ajax_commands[0]['data'], $build_id_match);
+    $this->assertTrue($form_tokens_found, 'Form tokens found in output.');
+
+    if ($form_tokens_found) {
+      $post = array(
+        'form_id' => 'edit_field_form',
+        'form_token' => $token_match[1],
+        'form_build_id' => $build_id_match[1],
+        'body[0][summary]' => '',
+        'body[0][value]' => '<p>Fine thanks.</p>',
+        'body[0][format]' => 'filtered_html',
+        'op' => t('Save'),
+      );
+
+      // Save the node on the regular node edit form.
+      $this->drupalPostForm('node/1/edit', array(), t('Save'));
+      // Ensure different save timestamps for field editing.
+      sleep(2);
+
+      // Submit field form and check response. Should throw a validation error
+      // because the node was changed in the meantime.
+      $response = $this->drupalPost('edit/form/' . 'node/1/body/und/full', 'application/vnd.drupal-ajax', $post);
+      $this->assertResponse(200);
+      $ajax_commands = drupal_json_decode($response);
+      $this->assertIdentical(2, count($ajax_commands), 'The field form HTTP request results in two AJAX commands.');
+      $this->assertIdentical('editFieldFormValidationErrors', $ajax_commands[1]['command'], 'The second AJAX command is an editFieldFormValidationErrors command.');
+      $this->assertTrue(strpos($ajax_commands[1]['data'], t('The content has either been modified by another user, or you have already submitted modifications. As a result, your changes cannot be saved.')), 'Error message returned to user.');
     }
   }
 

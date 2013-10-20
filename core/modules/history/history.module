@@ -10,6 +10,7 @@
  */
 
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\entity\Entity\EntityDisplay;
 
 /**
  * Entities changed before this time are always shown as read.
@@ -18,6 +19,18 @@ use Drupal\Core\Entity\EntityInterface;
  * depending on their state for the current user. Defaults to 30 days ago.
  */
 define('HISTORY_READ_LIMIT', REQUEST_TIME - 30 * 24 * 60 * 60);
+
+/**
+ * Implements hook_help().
+ */
+function history_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#history':
+      $output  = '<h3>' . t('About') . '</h3>';
+      $output .= '<p>'  . t('The History module keeps track of which content a user has read. Its data is available through the Views module. The History module marks content as <em>new</em> or <em>updated</em> depending on the last time the user viewed that content. It also provides a filter to <a href="!views-help">Views</a>  to show new or updated content. History records older than one month will be removed during cron. This means that content older than one month will always be considered <em>read</em>. The module does not provide a user interface.  For more information, see the online documentation for the <a href="!url">History module</a>.', array('!views-help' => \Drupal::url('help.page', array ('name' => 'views')), '!url' => 'https://drupal.org/documentation/modules/history')) . '</p>';
+      return $output;
+  }
+}
 
 /**
  * Retrieves the timestamp for the current user's last view of a specified node.
@@ -114,6 +127,30 @@ function history_cron() {
   db_delete('history')
     ->condition('timestamp', HISTORY_READ_LIMIT, '<')
     ->execute();
+}
+
+/**
+ * Implements hook_node_view_alter().
+ */
+function history_node_view_alter(&$build, EntityInterface $node, EntityDisplay $display) {
+  // Update the history table, stating that this user viewed this node.
+  if (($display->originalMode === 'full') && \Drupal::currentUser()->isAuthenticated()) {
+    $build['#attached'] = array(
+      'js' => array(
+        // When the window's "load" event is triggered, mark the node as read.
+        // This still allows for Drupal behaviors (which are triggered on the
+        // "DOMContentReady" event) to add "new" and "updated" indicators.
+        array(
+          'data' => 'window.addEventListener("load",function(){Drupal.history.markAsRead(' . $node->id() . ');},false);',
+          'type' => 'inline',
+        ),
+      ),
+      'library' => array(
+        array('history', 'drupal.history'),
+      ),
+    );
+  }
+
 }
 
 /**

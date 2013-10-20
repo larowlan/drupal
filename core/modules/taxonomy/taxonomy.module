@@ -5,9 +5,12 @@
  * Enables the organization of content into categories.
  */
 
-use Drupal\Core\Entity\DatabaseStorageController;
+use Drupal\Core\Entity\FieldableDatabaseStorageController;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\field\FieldInterface;
+use Drupal\field\FieldInstanceInterface;
+use Drupal\file\FileInterface;
 use Drupal\node\Entity\Node;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
@@ -258,8 +261,6 @@ function taxonomy_menu() {
   );
   $items['taxonomy/term/%taxonomy_term/edit'] = array(
     'title' => 'Edit',
-    'title callback' => 'entity_page_label',
-    'title arguments' => array(2),
     'route_name' => 'taxonomy.term_edit',
     'type' => MENU_LOCAL_TASK,
     'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
@@ -372,7 +373,7 @@ function taxonomy_check_vocabulary_hierarchy(VocabularyInterface $vocabulary, $c
 /**
  * Generates an array which displays a term detail page.
  *
- * @param Drupal\taxonomy\Entity\Term $term
+ * @param \Drupal\taxonomy\Entity\Term $term
  *   A taxonomy term object.
  * @param string $view_mode
  *   View mode, e.g. 'full', 'teaser'...
@@ -403,6 +404,20 @@ function taxonomy_term_view(Term $term, $view_mode = 'full', $langcode = NULL) {
  */
 function taxonomy_term_view_multiple(array $terms, $view_mode = 'full', $langcode = NULL) {
   return entity_view_multiple($terms, $view_mode, $langcode);
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function taxonomy_theme_suggestions_taxonomy_term(array $variables) {
+  $suggestions = array();
+
+  $term = $variables['elements']['#term'];
+
+  $suggestions[] = 'taxonomy_term__' . $term->bundle();
+  $suggestions[] = 'taxonomy_term__' . $term->id();
+
+  return $suggestions;
 }
 
 /**
@@ -446,20 +461,21 @@ function template_preprocess_taxonomy_term(&$variables) {
   $variables['attributes']['class'][] = 'taxonomy-term';
   $vocabulary_name_css = str_replace('_', '-', $term->bundle());
   $variables['attributes']['class'][] = 'vocabulary-' . $vocabulary_name_css;
-
-  $variables['theme_hook_suggestions'][] = 'taxonomy_term__' . $term->bundle();
-  $variables['theme_hook_suggestions'][] = 'taxonomy_term__' . $term->id();
 }
 
 /**
  * Returns whether the current page is the page of the passed-in term.
  *
- * @param Drupal\taxonomy\Entity\Term $term
+ * @param \Drupal\taxonomy\Entity\Term $term
  *   A taxonomy term entity.
  */
 function taxonomy_term_is_page(Term $term) {
-  $page_term = menu_get_object('taxonomy_term', 2);
-  return (!empty($page_term) ? $page_term->id() == $term->id() : FALSE);
+  $request = \Drupal::request();
+  if ($request->attributes->has('taxonomy_term')) {
+    $page_term = $request->attributes->get('taxonomy_term');
+    return $page_term->id() == $term->id();
+  }
+  return FALSE;
 }
 
 /**
@@ -741,7 +757,7 @@ function taxonomy_term_load_multiple_by_name($name, $vocabulary = NULL) {
  * database access if loaded again during the same page request.
  *
  * @see entity_load_multiple()
- * @see Drupal\Core\Entity\Query\EntityQueryInterface
+ * @see \Drupal\Core\Entity\Query\EntityQueryInterface
  *
  * @deprecated use entity_load_multiple('taxonomy_term', $tids) instead.
  *
@@ -822,6 +838,15 @@ function taxonomy_term_load($tid) {
     return NULL;
   }
   return entity_load('taxonomy_term', $tid);
+}
+
+/**
+ * Implements hook_file_download_access().
+ */
+function taxonomy_file_download_access($field, EntityInterface $entity, FileInterface $file) {
+  if ($entity->entityType() == 'taxonomy_term') {
+    return $entity->access('view');
+  }
 }
 
 /**
@@ -908,7 +933,7 @@ function taxonomy_options_list(FieldDefinitionInterface $field_definition, Entit
  * Possible error codes:
  * - 'taxonomy_term_illegal_value': The value is not part of the list of allowed values.
  */
-function taxonomy_field_validate(EntityInterface $entity = NULL, $field, $instance, $langcode, $items, &$errors) {
+function taxonomy_field_validate(EntityInterface $entity = NULL, FieldInterface $field, FieldInstanceInterface $instance, $langcode, $items, &$errors) {
   // Build an array of existing term IDs so they can be loaded with
   // entity_load_multiple('taxonomy_term');
   foreach ($items as $delta => $item) {
@@ -925,7 +950,7 @@ function taxonomy_field_validate(EntityInterface $entity = NULL, $field, $instan
       $validate = TRUE;
       if (!empty($item['target_id']) && $item['target_id'] != 'autocreate') {
         $validate = FALSE;
-        foreach ($field['settings']['allowed_values'] as $settings) {
+        foreach ($instance->getFieldSetting('allowed_values') as $settings) {
           // If no parent is specified, check if the term is in the vocabulary.
           if (isset($settings['vocabulary']) && empty($settings['parent'])) {
             if ($settings['vocabulary'] == $terms[$item['target_id']]->bundle()) {
@@ -947,9 +972,9 @@ function taxonomy_field_validate(EntityInterface $entity = NULL, $field, $instan
         }
       }
       if (!$validate) {
-        $errors[$field['field_name']][$langcode][$delta][] = array(
+        $errors[$instance->getFieldName()][$langcode][$delta][] = array(
           'error' => 'taxonomy_term_reference_illegal_value',
-          'message' => t('%name: illegal value.', array('%name' => $instance['label'])),
+          'message' => t('%name: illegal value.', array('%name' => $instance->getFieldLabel())),
         );
       }
     }
@@ -966,7 +991,7 @@ function taxonomy_field_is_empty($item, $field_type) {
 /**
  * Returns the set of valid terms for a taxonomy field.
  *
- * @param \Drupal\Core\Entity\Field\FieldDefinitionInterface $field_definition
+ * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
  *   The field definition.
  * @param \Drupal\Core\Entity\EntityInterface $entity
  *   The entity object the field is attached to.
@@ -991,7 +1016,7 @@ function taxonomy_allowed_values(FieldDefinitionInterface $field_definition, Ent
 /**
  * Title callback for term pages.
  *
- * @param Drupal\taxonomy\Entity\Term $term
+ * @param \Drupal\taxonomy\Entity\Term $term
  *   A taxonomy term entity.
  *
  * @return
@@ -1006,7 +1031,7 @@ function taxonomy_term_title(Term $term) {
  */
 function taxonomy_autocomplete_validate($element, &$form_state) {
   // Split the values into an array.
-  // @see Drupal\taxonomy\Plugin\field\widget\TaxonomyAutocompleteWidget:massageFormValues()
+  // @see \Drupal\taxonomy\Plugin\Field\FieldWidget\TaxonomyAutocompleteWidget:massageFormValues()
   $typed_terms = array();
   if ($tags = $element['#value']) {
     $typed_terms = drupal_explode_tags($tags);
@@ -1028,7 +1053,7 @@ function taxonomy_field_settings_form($field, $instance) {
     '#tree' => TRUE,
   );
 
-  foreach ($field['settings']['allowed_values'] as $delta => $tree) {
+  foreach ($field->getFieldSetting('allowed_values') as $delta => $tree) {
     $form['allowed_values'][$delta]['vocabulary'] = array(
       '#type' => 'select',
       '#title' => t('Vocabulary'),
@@ -1099,7 +1124,7 @@ function taxonomy_node_insert(EntityInterface $node) {
 function taxonomy_build_node_index($node) {
   // We maintain a denormalized table of term/node relationships, containing
   // only data for current, published nodes.
-  if (!\Drupal::config('taxonomy.settings')->get('maintain_index_table') || !(\Drupal::entityManager()->getStorageController('node') instanceof DatabaseStorageController)) {
+  if (!\Drupal::config('taxonomy.settings')->get('maintain_index_table') || !(\Drupal::entityManager()->getStorageController('node') instanceof FieldableDatabaseStorageController)) {
     return;
   }
 
@@ -1112,7 +1137,7 @@ function taxonomy_build_node_index($node) {
     foreach (field_info_instances('node', $node->getType()) as $instance) {
       $field = $instance->getField();
       $field_name = $field->getFieldName();
-      if ($field['module'] == 'taxonomy') {
+      if ($field->module == 'taxonomy') {
         foreach ($node->getTranslationLanguages() as $language) {
           foreach ($node->getTranslation($language->id)->$field_name as $item) {
             if (!$item->isEmpty()) {

@@ -25,7 +25,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   If a template file should be used, the file has to be placed in the
  *   module's templates folder.
  *   Example: theme = "mymodule_row" of module "mymodule" will implement either
- *   theme_mymodule_row() or mymodule-row.tpl.php in the
+ *   theme_mymodule_row() or mymodule-row.html.twig in the
  *   [..]/modules/mymodule/templates folder.
  * - register_theme: (optional) When set to TRUE (default) the theme is
  *   registered automatically. When set to FALSE the plugin reuses an existing
@@ -48,7 +48,7 @@ abstract class PluginBase extends ComponentPluginBase implements ContainerFactor
   /**
    * The top object of a view.
    *
-   * @var Drupal\views\ViewExecutable
+   * @var \Drupal\views\ViewExecutable
    */
   public $view = NULL;
 
@@ -59,7 +59,7 @@ abstract class PluginBase extends ComponentPluginBase implements ContainerFactor
    *
    * @todo find a better description
    *
-   * @var Drupal\views\Plugin\views\display\DisplayPluginBase
+   * @var \Drupal\views\Plugin\views\display\DisplayPluginBase
    */
   public $displayHandler;
 

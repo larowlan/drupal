@@ -6,6 +6,7 @@
  */
 
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Component\Utility\String;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Routing\RequestHelper;
@@ -18,17 +19,38 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Route;
 
 /**
- * @defgroup menu Menu system
+ * @defgroup menu Menu and routing system
  * @{
  * Define the navigation menus, and route page requests to code based on URLs.
  *
- * The Drupal menu system drives both the navigation system from a user
- * perspective and the callback system that Drupal uses to respond to URLs
- * passed from the browser. For this reason, a good understanding of the
- * menu system is fundamental to the creation of complex modules. As a note,
- * this is related to, but separate from menu.module, which allows menus
- * (which in this context are hierarchical lists of links) to be customized from
- * the Drupal administrative interface.
+ * The Drupal routing system defines how Drupal responds to URLs passed to the
+ * browser. The menu system, which depends on the routing system, is used for
+ * navigation. The Menu module allows menus to be created in the user interface
+ * as hierarchical lists of links.
+ *
+ * @section registering_paths Registering router paths
+ * To register a path, you need to add lines similar to this in a
+ * module.routing.yml file:
+ * @code
+ * block.admin_display:
+ *   path: '/admin/structure/block'
+ *   defaults:
+ *     _content: '\Drupal\block\Controller\BlockListController::listing'
+ *   requirements:
+ *     _permission: 'administer blocks'
+ * @endcode
+ * @todo Add more information here, especially about controllers and what all
+ *   the stuff in the routing.yml file means.
+ *
+ * @section Defining menu links
+ * Once you have a route defined, you can use hook_menu() to define links
+ * for your module's paths in the main Navigation menu or other menus. See
+ * the hook_menu() documentation for more details.
+ *
+ * @todo The rest of this topic has not been reviewed or updated for Drupal 8.x
+ *   and is not correct!
+ * @todo It is quite likely that hook_menu() will be replaced with a different
+ *   hook, configuration system, or plugin system before the 8.0 release.
  *
  * Drupal's menu system follows a simple hierarchy defined by paths.
  * Implementations of hook_menu() define menu items and assign them to
@@ -146,7 +168,7 @@ const MENU_IS_LOCAL_ACTION = 0x0100;
  */
 
 /**
- * Menu type -- A "normal" menu item that's shown in menu and breadcrumbs.
+ * Menu type -- A "normal" menu item that's shown in menus.
  *
  * Normal menu items show up in the menu tree and can be moved/hidden by
  * the administrator. Use this for most menu items. It is the default value if
@@ -158,7 +180,7 @@ define('MENU_NORMAL_ITEM', MENU_VISIBLE_IN_TREE | MENU_VISIBLE_IN_BREADCRUMB);
  * Menu type -- A hidden, internal callback, typically used for API calls.
  *
  * Callbacks simply register a path so that the correct function is fired
- * when the URL is accessed. They do not appear in menus or breadcrumbs.
+ * when the URL is accessed. They do not appear in menus.
  */
 const MENU_CALLBACK = 0x0000;
 
@@ -200,7 +222,7 @@ define('MENU_LOCAL_ACTION', MENU_IS_LOCAL_TASK | MENU_IS_LOCAL_ACTION | MENU_VIS
 /**
  * Menu type -- A task specific to the parent, which is never rendered.
  *
- * Sibling local tasks are not rendered themselves, but affect the breadcrumb
+ * Sibling local tasks are not rendered themselves, but affect the active
  * trail and need their sibling tasks rendered as tabs.
  */
 define('MENU_SIBLING_LOCAL_TASK', MENU_IS_LOCAL_TASK | MENU_IS_LOCAL_ACTION | MENU_VISIBLE_IN_BREADCRUMB);
@@ -437,7 +459,7 @@ function menu_unserialize($data, $map) {
  * @param $router_item
  *   The router item. Usually a router entry from menu_get_item() is either
  *   modified or set to a different path. This allows the navigation block,
- *   the page title, the breadcrumb, and the page help to be modified in one
+ *   the page title, the active trail, and the page help to be modified in one
  *   call.
  */
 function menu_set_item($path, $router_item) {
@@ -898,7 +920,6 @@ function _menu_link_translate(&$item, $translate = FALSE) {
       // current path, and we can take over the argument map for a link like
       // 'foo/%/bar'. This inheritance is only valid for breadcrumb links.
       // @see _menu_tree_check_access()
-      // @see menu_get_active_breadcrumb()
       elseif ($translate && ($current_router_item = menu_get_item())) {
         // If $translate is TRUE, then this link is in the active trail.
         // Only translate paths within the current path.
@@ -976,7 +997,7 @@ function menu_item_route_access(Route $route, $href, &$map) {
   // Attempt to match this path to provide a fully built request to the
   // access checker.
   try {
-    $request->attributes->add(\Drupal::service('router.dynamic')->matchRequest($request));
+    $request->attributes->add(\Drupal::service('router')->matchRequest($request));
   }
   catch (NotFoundHttpException $e) {
     return FALSE;
@@ -1281,7 +1302,7 @@ function menu_tree_get_path($menu_name) {
  * @param $only_active_trail
  *   (optional) Whether to only return the links in the active trail (TRUE)
  *   instead of all links on every level of the menu link tree (FALSE). Defaults
- *   to FALSE. Internally used for breadcrumbs only.
+ *   to FALSE.
  *
  * @return
  *   An array of menu links, in the order they should be rendered. The array
@@ -1328,7 +1349,7 @@ function menu_tree_page_data($menu_name, $max_depth = NULL, $only_active_trail =
     // template_preprocess_page(). So in order to not build a giant menu tree
     // that needs to be checked for access on all levels, we simply check
     // whether we have the menu already in cache, or otherwise, build a minimum
-    // tree containing the breadcrumb/active trail only.
+    // tree containing the active trail only.
     // @see menu_set_active_trail()
     if (!isset($tree[$cid]) && $only_active_trail) {
       $cid .= ':trail';
@@ -1430,8 +1451,7 @@ function menu_tree_page_data($menu_name, $max_depth = NULL, $only_active_trail =
  *   - active_trail: An array of mlids, representing the coordinates of the
  *     currently active menu link.
  *   - only_active_trail: Whether to only return links that are in the active
- *     trail. This option is ignored, if 'expanded' is non-empty. Internally
- *     used for breadcrumbs.
+ *     trail. This option is ignored, if 'expanded' is non-empty.
  *   - min_depth: The minimum depth of menu links in the resulting tree.
  *     Defaults to 1, which is the default to build a whole tree for a menu
  *     (excluding menu container itself).
@@ -1641,7 +1661,7 @@ function _menu_tree_data(&$links, $parents, $depth) {
   $tree = array();
   while ($item = array_pop($links)) {
     // We need to determine if we're on the path to root so we can later build
-    // the correct active trail and breadcrumb.
+    // the correct active trail.
     $item['in_active_trail'] = in_array($item['mlid'], $parents);
     // Add the current link to the tree.
     $tree[$item['mlid']] = array(
@@ -1730,10 +1750,10 @@ function theme_menu_local_task($variables) {
     // Add text to indicate active tab for non-visual users.
     $active = '<span class="visually-hidden">' . t('(active tab)') . '</span>';
 
-    // If the link does not contain HTML already, check_plain() it now.
+    // If the link does not contain HTML already, String::checkPlain() it now.
     // After we set 'html'=TRUE the link will not be sanitized by l().
     if (empty($link['localized_options']['html'])) {
-      $link['title'] = check_plain($link['title']);
+      $link['title'] = String::checkPlain($link['title']);
     }
     $link['localized_options']['html'] = TRUE;
     $link_text = t('!local-task-title!active', array('!local-task-title' => $link['title'], '!active' => $active));
@@ -1743,7 +1763,7 @@ function theme_menu_local_task($variables) {
     $a_tag = l($link_text, $link['href'], $link['localized_options']);
   }
   else {
-    $a_tag = Drupal::l($link_text, $link['route_name'], $link['route_parameters'], $link['localized_options']);
+    $a_tag = \Drupal::l($link_text, $link['route_name'], $link['route_parameters'], $link['localized_options']);
   }
 
   return '<li' . (!empty($variables['element']['#active']) ? ' class="active"' : '') . '>' . $a_tag . '</li>';
@@ -1765,12 +1785,21 @@ function theme_menu_local_action($variables) {
   $link += array(
     'href' => '',
     'localized_options' => array(),
+    'route_parameters' => array(),
   );
   $link['localized_options']['attributes']['class'][] = 'button';
   $link['localized_options']['attributes']['class'][] = 'button-action';
 
   $output = '<li>';
-  $output .= l($link['title'], $link['href'], $link['localized_options']);
+  // @todo Remove this check and the call to l() when all pages are converted to
+  //   routes.
+  // @todo Figure out how to support local actions without a href properly.
+  if ($link['href'] === '' && !empty($link['route_name'])) {
+    $output .= Drupal::l($link['title'], $link['route_name'], $link['route_parameters'], $link['localized_options']);
+  }
+  else {
+    $output .= l($link['title'], $link['href'], $link['localized_options']);
+  }
   $output .= "</li>";
 
   return $output;
@@ -1935,10 +1964,10 @@ function menu_navigation_links($menu_name, $level = 0) {
 /**
  * Collects the local tasks (tabs), action links, and the root path.
  *
- * @param $level
+ * @param int $level
  *   The level of tasks you ask for. Primary tasks are 0, secondary are 1.
  *
- * @return
+ * @return array
  *   An array containing
  *   - tabs: Local tasks for the requested level.
  *   - actions: Action links for the requested level.
@@ -1958,220 +1987,43 @@ function menu_local_tasks($level = 0) {
   );
 
   if (!isset($data)) {
-    $data = array();
-    // Set defaults in case there are no actions or tabs.
-    $actions = $empty['actions'];
-    $tabs = array();
-
     // Look for route-based tabs.
     $data['tabs'] = array();
     $data['actions'] = array();
 
-    $route_name = Drupal::request()->attributes->get(RouteObjectInterface::ROUTE_NAME);
+    $route_name = \Drupal::request()->attributes->get(RouteObjectInterface::ROUTE_NAME);
     if (!empty($route_name)) {
-      $manager = Drupal::service('plugin.manager.menu.local_task');
+      $manager = \Drupal::service('plugin.manager.menu.local_task');
       $local_tasks = $manager->getTasksBuild($route_name);
       foreach ($local_tasks as $level => $items) {
         $data['tabs'][$level] = empty($data['tabs'][$level]) ? $items : array_merge($data['tabs'][$level], $items);
       }
     }
 
-    // @todo Remove the code below once the old menu router system got removed.
+    // @todo Remove when all local tasks/actions are converted to plugins.
     $router_item = menu_get_item();
-
     // If this router item points to its parent, start from the parents to
     // compute tabs and actions.
     if ($router_item && ($router_item['type'] & MENU_LINKS_TO_PARENT)) {
       $router_item = menu_get_item($router_item['tab_parent_href']);
     }
-
     // If we failed to fetch a router item or the current user doesn't have
     // access to it, don't bother computing the tabs.
-    if (!$router_item || !$router_item['access']) {
+    if ((!$route_name && !$router_item) || ($router_item && !$router_item['access'])) {
       return $empty;
     }
-    // @todo remove all code using {menu_router} and anything using MENU_*
-    // constants when all local actions and local tasks are converted to
-    // plugins. The remaining code should just invoke those managers plus do the
-    // invocations of hook_menu_local_tasks() and hook_menu_local_tasks_alter().
-
-    // Get all tabs (also known as local tasks) and the root page.
-    $result = db_select('menu_router', NULL, array('fetch' => PDO::FETCH_ASSOC))
-      ->fields('menu_router')
-      ->condition('tab_root', $router_item['tab_root'])
-      ->condition('context', MENU_CONTEXT_INLINE, '<>')
-      ->orderBy('weight')
-      ->orderBy('title')
-      ->execute();
-    $map = $router_item['original_map'];
-    $children = array();
-    $tasks = array();
-    $root_path = $router_item['path'];
-
-    foreach ($result as $item) {
-      _menu_translate($item, $map, TRUE);
-      if ($item['tab_parent']) {
-        // All tabs, but not the root page.
-        $children[$item['tab_parent']][$item['path']] = $item;
-      }
-      // Store the translated item for later use.
-      $tasks[$item['path']] = $item;
+    if ($router_item) {
+      _menu_get_legacy_tasks($router_item, $data, $root_path);
     }
-
-    // Find all tabs below the current path.
-    $path = $router_item['path'];
-    // Tab parenting may skip levels, so the number of parts in the path may not
-    // equal the depth. Thus we use the $depth counter (offset by 1000 for ksort).
-    $depth = 1001;
-    $actions = array();
-    while (isset($children[$path])) {
-      $tabs_current = array();
-      $actions_current = array();
-      $next_path = '';
-      $tab_count = 0;
-      $action_count = 0;
-      foreach ($children[$path] as $item) {
-        // Local tasks can be normal items too, so bitmask with
-        // MENU_IS_LOCAL_TASK before checking.
-        if (!($item['type'] & MENU_IS_LOCAL_TASK)) {
-          // This item is not a tab, skip it.
-          continue;
-        }
-        if ($item['access']) {
-          $link = $item;
-          // The default task is always active. As tabs can be normal items
-          // too, so bitmask with MENU_LINKS_TO_PARENT before checking.
-          if (($item['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT) {
-            // Find the first parent which is not a default local task or action.
-            for ($p = $item['tab_parent']; ($tasks[$p]['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT; $p = $tasks[$p]['tab_parent']);
-            // Use the path of the parent instead.
-            $link['href'] = $tasks[$p]['href'];
-            // Mark the link as active, if the current path happens to be the
-            // path of the default local task itself (i.e., instead of its
-            // tab_parent_href or tab_root_href). Normally, links for default
-            // local tasks link to their parent, but the path of default local
-            // tasks can still be accessed directly, in which case this link
-            // would not be marked as active, since l() only compares the href
-            // with current_path().
-            if ($link['href'] != current_path()) {
-              $link['localized_options']['attributes']['class'][] = 'active';
-            }
-            $tabs_current[$link['href']] = array(
-              '#theme' => 'menu_local_task',
-              '#link' => $link,
-              '#active' => TRUE,
-              '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
-            );
-            $next_path = $item['path'];
-            $tab_count++;
-          }
-          else {
-            // Actions can be normal items too, so bitmask with
-            // MENU_IS_LOCAL_ACTION before checking.
-            if (($item['type'] & MENU_IS_LOCAL_ACTION) == MENU_IS_LOCAL_ACTION) {
-              // The item is an action, display it as such.
-              $actions_current[$link['href']] = array(
-                '#theme' => 'menu_local_action',
-                '#link' => $link,
-                '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
-              );
-              $action_count++;
-            }
-            else {
-              // Otherwise, it's a normal tab.
-              $tabs_current[$link['href']] = array(
-                '#theme' => 'menu_local_task',
-                '#link' => $link,
-                '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
-              );
-              $tab_count++;
-            }
-          }
-        }
-      }
-      $path = $next_path;
-      $tabs[$depth] = $tabs_current;
-      $actions = array_merge($actions, $actions_current);
-      $depth++;
-    }
-    $data['actions'] = $actions;
-    // Find all tabs at the same level or above the current one.
-    $parent = $router_item['tab_parent'];
-    $path = $router_item['path'];
-    $current = $router_item;
-    $depth = 1000;
-    while (isset($children[$parent])) {
-      $tabs_current = array();
-      $next_path = '';
-      $next_parent = '';
-      $count = 0;
-      foreach ($children[$parent] as $item) {
-        // Skip local actions.
-        if ($item['type'] & MENU_IS_LOCAL_ACTION) {
-          continue;
-        }
-        if ($item['access']) {
-          $count++;
-          $link = $item;
-          // Local tasks can be normal items too, so bitmask with
-          // MENU_LINKS_TO_PARENT before checking.
-          if (($item['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT) {
-            // Find the first parent which is not a default local task.
-            for ($p = $item['tab_parent']; ($tasks[$p]['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT; $p = $tasks[$p]['tab_parent']);
-            // Use the path of the parent instead.
-            $link['href'] = $tasks[$p]['href'];
-            if ($item['path'] == $router_item['path']) {
-              $root_path = $tasks[$p]['path'];
-            }
-          }
-          // We check for the active tab.
-          if ($item['path'] == $path) {
-            // Mark the link as active, if the current path is a (second-level)
-            // local task of a default local task. Since this default local task
-            // links to its parent, l() will not mark it as active, as it only
-            // compares the link's href to current_path().
-            if ($link['href'] != current_path()) {
-              $link['localized_options']['attributes']['class'][] = 'active';
-            }
-            $tabs_current[$link['href']] = array(
-              '#theme' => 'menu_local_task',
-              '#link' => $link,
-              '#active' => TRUE,
-              '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
-            );
-            $next_path = $item['tab_parent'];
-            if (isset($tasks[$next_path])) {
-              $next_parent = $tasks[$next_path]['tab_parent'];
-            }
-          }
-          else {
-            $tabs_current[$link['href']] = array(
-              '#theme' => 'menu_local_task',
-              '#link' => $link,
-              '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
-            );
-          }
-        }
-      }
-      $path = $next_path;
-      $parent = $next_parent;
-      $tabs[$depth] = $tabs_current;
-      $depth--;
-    }
-    // Sort by depth.
-    ksort($tabs);
-    // Remove the depth, we are interested only in their relative placement.
-    $tabs = array_values($tabs);
-    $data['tabs'] += $tabs;
 
     // Allow modules to dynamically add further tasks.
     $module_handler = \Drupal::moduleHandler();
     foreach ($module_handler->getImplementations('menu_local_tasks') as $module) {
       $function = $module . '_menu_local_tasks';
-      $function($data, $router_item, $root_path);
+      $function($data, $route_name);
     }
     // Allow modules to alter local tasks.
-    $module_handler->alter('menu_local_tasks', $data, $router_item, $root_path);
+    $module_handler->alter('menu_local_tasks', $data, $route_name);
   }
 
   if (isset($data['tabs'][$level])) {
@@ -2185,6 +2037,190 @@ function menu_local_tasks($level = 0) {
     return array('actions' => $data['actions']) + $empty;
   }
   return $empty;
+}
+
+/**
+ * Finds legacy local tasks/actions.
+ *
+ * @param array $router_item
+ *   The current router item.
+ * @param array $data
+ *   An associative array of local tasks/actions.
+ * @param string $root_path
+ *
+ * @deprecated Remove once all local tasks/actions are converted to plugins.
+ */
+function _menu_get_legacy_tasks($router_item, &$data, &$root_path) {
+  // Get all tabs (also known as local tasks) and the root page.
+  $result = db_select('menu_router', NULL, array('fetch' => PDO::FETCH_ASSOC))
+    ->fields('menu_router')
+    ->condition('tab_root', $router_item['tab_root'])
+    ->condition('context', MENU_CONTEXT_INLINE, '<>')
+    ->orderBy('weight')
+    ->orderBy('title')
+    ->execute();
+  $map = $router_item['original_map'];
+  $children = array();
+  $tasks = array();
+  $root_path = $router_item['path'];
+
+  foreach ($result as $item) {
+    _menu_translate($item, $map, TRUE);
+    if ($item['tab_parent']) {
+      // All tabs, but not the root page.
+      $children[$item['tab_parent']][$item['path']] = $item;
+    }
+    // Store the translated item for later use.
+    $tasks[$item['path']] = $item;
+  }
+
+  // Find all tabs below the current path.
+  $path = $router_item['path'];
+  // Tab parenting may skip levels, so the number of parts in the path may not
+  // equal the depth. Thus we use the $depth counter (offset by 1000 for ksort).
+  $depth = 1001;
+  $tabs = array();
+  $actions = array();
+  while (isset($children[$path])) {
+    $tabs_current = array();
+    $actions_current = array();
+    $next_path = '';
+    $tab_count = 0;
+    $action_count = 0;
+    foreach ($children[$path] as $item) {
+      // Local tasks can be normal items too, so bitmask with
+      // MENU_IS_LOCAL_TASK before checking.
+      if (!($item['type'] & MENU_IS_LOCAL_TASK)) {
+        // This item is not a tab, skip it.
+        continue;
+      }
+      if ($item['access']) {
+        $link = $item;
+        // The default task is always active. As tabs can be normal items
+        // too, so bitmask with MENU_LINKS_TO_PARENT before checking.
+        if (($item['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT) {
+          // Find the first parent which is not a default local task or action.
+          for ($p = $item['tab_parent']; ($tasks[$p]['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT; $p = $tasks[$p]['tab_parent']);
+          // Use the path of the parent instead.
+          $link['href'] = $tasks[$p]['href'];
+          // Mark the link as active, if the current path happens to be the
+          // path of the default local task itself (i.e., instead of its
+          // tab_parent_href or tab_root_href). Normally, links for default
+          // local tasks link to their parent, but the path of default local
+          // tasks can still be accessed directly, in which case this link
+          // would not be marked as active, since l() only compares the href
+          // with current_path().
+          if ($link['href'] != current_path()) {
+            $link['localized_options']['attributes']['class'][] = 'active';
+          }
+          $tabs_current[$link['href']] = array(
+            '#theme' => 'menu_local_task',
+            '#link' => $link,
+            '#active' => TRUE,
+            '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
+          );
+          $next_path = $item['path'];
+          $tab_count++;
+        }
+        else {
+          // Actions can be normal items too, so bitmask with
+          // MENU_IS_LOCAL_ACTION before checking.
+          if (($item['type'] & MENU_IS_LOCAL_ACTION) == MENU_IS_LOCAL_ACTION) {
+            // The item is an action, display it as such.
+            $key = isset($link['route_name']) ? $link['route_name'] : $link['href'];
+            $actions_current[$key] = array(
+              '#theme' => 'menu_local_action',
+              '#link' => $link,
+              '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
+            );
+            $action_count++;
+          }
+          else {
+            // Otherwise, it's a normal tab.
+            $tabs_current[$link['href']] = array(
+              '#theme' => 'menu_local_task',
+              '#link' => $link,
+              '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
+            );
+            $tab_count++;
+          }
+        }
+      }
+    }
+    $path = $next_path;
+    $tabs[$depth] = $tabs_current;
+    $actions = array_merge($actions, $actions_current);
+    $depth++;
+  }
+  $data['actions'] = $actions;
+  // Find all tabs at the same level or above the current one.
+  $parent = $router_item['tab_parent'];
+  $path = $router_item['path'];
+  $current = $router_item;
+  $depth = 1000;
+  while (isset($children[$parent])) {
+    $tabs_current = array();
+    $next_path = '';
+    $next_parent = '';
+    $count = 0;
+    foreach ($children[$parent] as $item) {
+      // Skip local actions.
+      if ($item['type'] & MENU_IS_LOCAL_ACTION) {
+        continue;
+      }
+      if ($item['access']) {
+        $count++;
+        $link = $item;
+        // Local tasks can be normal items too, so bitmask with
+        // MENU_LINKS_TO_PARENT before checking.
+        if (($item['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT) {
+          // Find the first parent which is not a default local task.
+          for ($p = $item['tab_parent']; ($tasks[$p]['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT; $p = $tasks[$p]['tab_parent']);
+          // Use the path of the parent instead.
+          $link['href'] = $tasks[$p]['href'];
+          if ($item['path'] == $router_item['path']) {
+            $root_path = $tasks[$p]['path'];
+          }
+        }
+        // We check for the active tab.
+        if ($item['path'] == $path) {
+          // Mark the link as active, if the current path is a (second-level)
+          // local task of a default local task. Since this default local task
+          // links to its parent, l() will not mark it as active, as it only
+          // compares the link's href to current_path().
+          if ($link['href'] != current_path()) {
+            $link['localized_options']['attributes']['class'][] = 'active';
+          }
+          $tabs_current[$link['href']] = array(
+            '#theme' => 'menu_local_task',
+            '#link' => $link,
+            '#active' => TRUE,
+            '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
+          );
+          $next_path = $item['tab_parent'];
+          if (isset($tasks[$next_path])) {
+            $next_parent = $tasks[$next_path]['tab_parent'];
+          }
+        }
+        else {
+          $tabs_current[$link['href']] = array(
+            '#theme' => 'menu_local_task',
+            '#link' => $link,
+            '#weight' => isset($link['weight']) ? $link['weight'] : NULL,
+          );
+        }
+      }
+    }
+    $path = $next_path;
+    $parent = $next_parent;
+    $tabs[$depth] = $tabs_current;
+    $depth--;
+  }
+  // Sort by depth.
+  ksort($tabs);
+  // Remove the depth, we are interested only in their relative placement.
+  $tabs = array_values($tabs);
+  $data['tabs'] += $tabs;
 }
 
 /**
@@ -2318,22 +2354,9 @@ function menu_secondary_local_tasks() {
  */
 function menu_get_local_actions() {
   $links = menu_local_tasks();
-  $router_item = menu_get_item();
+  $route_name = Drupal::request()->attributes->get(RouteObjectInterface::ROUTE_NAME);
   $manager = \Drupal::service('plugin.manager.menu.local_action');
-  $local_actions = $manager->getActionsForRoute($router_item['route_name']);
-  foreach ($local_actions as $plugin) {
-    $route_path = $manager->getPath($plugin);
-    $action_router_item = menu_get_item($route_path);
-    $links['actions'][$route_path] = array(
-      '#theme' => 'menu_local_action',
-      '#link' => array(
-        'title' => $manager->getTitle($plugin),
-        'href' => $route_path,
-      ),
-      '#access' => $action_router_item['access'],
-    );
-  }
-  return $links['actions'];
+  return $manager->getActionsForRoute($route_name) + $links['actions'];
 }
 
 /**
@@ -2441,9 +2464,7 @@ function menu_set_active_item($path) {
  *
  * Any trail set by this function will only be used for functionality that calls
  * menu_get_active_trail(). Drupal core only uses trails set here for
- * breadcrumbs and the page title and not for menu trees or page content.
- * Additionally, breadcrumbs set by drupal_set_breadcrumb() will override any
- * trail set here.
+ * the page title and not for menu trees or page content.
  *
  * To affect the trail used by menu trees, use menu_tree_set_path(). To affect
  * the page content, use menu_set_active_item() instead.
@@ -2640,57 +2661,6 @@ function menu_get_active_trail() {
 }
 
 /**
- * Gets the breadcrumb for the current page, as determined by the active trail.
- *
- * @see menu_set_active_trail()
- */
-function menu_get_active_breadcrumb() {
-  $breadcrumb = array();
-
-  // No breadcrumb for the front page.
-  if (drupal_is_front_page()) {
-    return $breadcrumb;
-  }
-
-  $item = menu_get_item();
-  if (!empty($item['access'])) {
-    $active_trail = menu_get_active_trail();
-
-    // Allow modules to alter the breadcrumb, if possible, as that is much
-    // faster than rebuilding an entirely new active trail.
-    drupal_alter('menu_breadcrumb', $active_trail, $item);
-
-    // Don't show a link to the current page in the breadcrumb trail.
-    $end = end($active_trail);
-    if (\Drupal::request()->attributes->get('_system_path') == $end['href']) {
-      array_pop($active_trail);
-    }
-
-    // Remove the tab root (parent) if the current path links to its parent.
-    // Normally, the tab root link is included in the breadcrumb, as soon as we
-    // are on a local task or any other child link. However, if we are on a
-    // default local task (e.g., node/%/view), then we do not want the tab root
-    // link (e.g., node/%) to appear, as it would be identical to the current
-    // page. Since this behavior also needs to work recursively (i.e., on
-    // default local tasks of default local tasks), and since the last non-task
-    // link in the trail is used as page title (see menu_get_active_title()),
-    // this condition cannot be cleanly integrated into menu_get_active_trail().
-    // menu_get_active_trail() already skips all links that link to their parent
-    // (commonly MENU_DEFAULT_LOCAL_TASK). In order to also hide the parent link
-    // itself, we always remove the last link in the trail, if the current
-    // router item links to its parent.
-    if (($item['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT) {
-      array_pop($active_trail);
-    }
-
-    foreach ($active_trail as $parent) {
-      $breadcrumb[] = l($parent['title'], $parent['href'], $parent['localized_options']);
-    }
-  }
-  return $breadcrumb;
-}
-
-/**
  * Gets the title of the current page, as determined by the active trail.
  */
 function menu_get_active_title() {
@@ -2870,7 +2840,7 @@ function menu_get_router() {
  * @todo This function should be removed/refactored.
  */
 function _menu_navigation_links_rebuild($menu) {
-  if (!module_exists('menu_link')) {
+  if (!\Drupal::moduleHandler()->moduleExists('menu_link')) {
     // The Menu link module may not be available during install, so rebuild
     // when possible.
     return;
@@ -2906,6 +2876,7 @@ function _menu_navigation_links_rebuild($menu) {
       if ($existing_item) {
         $existing_item = reset($existing_item);
         $existing_item->options = unserialize($existing_item->options);
+        $existing_item->route_parameters = unserialize($existing_item->route_parameters);
 
         $router_item['mlid'] = $existing_item->mlid;
         $router_item['uuid'] = $existing_item->uuid;

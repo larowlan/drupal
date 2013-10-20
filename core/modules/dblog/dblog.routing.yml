@@ -6,7 +6,7 @@ dblog.overview:
     _permission: 'access site reports'
 
 dblog.event:
-  path: 'admin/reports/event/{event_id}'
+  path: '/admin/reports/event/{event_id}'
   defaults:
     _content: '\Drupal\dblog\Controller\DbLogController::eventDetails'
   requirements:
@@ -26,4 +26,13 @@ dblog.access_denied:
     _title: "Top 'access denied' errors"
     _content: '\Drupal\dblog\Controller\DbLogController::accessDenied'
   requirements:
+    _permission: 'access site reports'
+
+dblog.search:
+  path: '/admin/reports/search'
+  defaults:
+    _content: '\Drupal\dblog\Controller\DbLogController::search'
+    _title: 'Top search phrases'
+  requirements:
+    _module_dependencies: 'search'
     _permission: 'access site reports'

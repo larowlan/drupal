@@ -1467,7 +1467,9 @@ function watchdog_exception($type, Exception $exception, $message = NULL, $varia
 
    // Use a default value if $message is not set.
    if (empty($message)) {
-     // The exception message is run through check_plain() by _drupal_decode_exception().
+     // The exception message is run through
+     // \Drupal\Component\Utility\String::checkPlain() by
+     // _drupal_decode_exception().
      $message = '%type: !message in %function (line %line of %file).';
    }
    // $variables must be an array so that we can add the exception information.
@@ -1672,7 +1674,7 @@ function drupal_get_title() {
 
   // During a bootstrap, menu.inc is not included and thus we cannot provide a title.
   if (!isset($title) && function_exists('menu_get_active_title')) {
-    $title = check_plain(menu_get_active_title());
+    $title = String::checkPlain(menu_get_active_title());
   }
 
   return $title;
@@ -1689,7 +1691,8 @@ function drupal_get_title() {
  * @param $output
  *   Optional flag - normally should be left as Title::CHECK_PLAIN. Only set to
  *   PASS_THROUGH if you have already removed any possibly dangerous code
- *   from $title using a function like check_plain() or filter_xss(). With this
+ *   from $title using a function like
+ *   \Drupal\Component\Utility\String::checkPlain() or filter_xss(). With this
  *   flag the string will be passed through unchanged.
  *
  * @return
@@ -1699,7 +1702,7 @@ function drupal_set_title($title = NULL, $output = Title::CHECK_PLAIN) {
   $stored_title = &drupal_static(__FUNCTION__);
 
   if (isset($title)) {
-    $stored_title = ($output == PASS_THROUGH) ? $title : check_plain($title);
+    $stored_title = ($output == PASS_THROUGH) ? $title : String::checkPlain($title);
   }
 
   return $stored_title;
@@ -2277,7 +2280,7 @@ function _drupal_load_test_overrides($test_prefix) {
   global $conf, $config_directories;
 
   // Do not use the parent site's config directories. Use only the child site's.
-  // @see Drupal\simpletest\TestBase::prepareConfigDirectories()
+  // @see \Drupal\simpletest\TestBase::prepareConfigDirectories()
   $path_prefix = 'simpletest/' . substr($test_prefix, 10);
   $config_directories = array();
   foreach (array(CONFIG_ACTIVE_DIRECTORY, CONFIG_STAGING_DIRECTORY) as $type) {
@@ -2353,7 +2356,7 @@ function drupal_language_initialize() {
 /**
  * Returns the language object for a given language type.
  *
- * @see Drupal\Core\Language\LanguageManager
+ * @see \Drupal\Core\Language\LanguageManager
  *
  * @param string $type
  *   The type of language object needed, e.g. Language::TYPE_INTERFACE.
@@ -2425,7 +2428,7 @@ function language_list($flags = Language::STATE_CONFIGURABLE) {
 
     // Fill in master language list based on current configuration.
     $default = language_default();
-    if (language_multilingual() || module_exists('language')) {
+    if (language_multilingual() || \Drupal::moduleHandler()->moduleExists('language')) {
       // Use language module configuration if available.
       $language_entities = config_get_storage_names_with_prefix('language.entity');
 
@@ -2561,7 +2564,7 @@ function language_is_locked($langcode) {
 /**
  * Returns the default language used on the site.
  *
- * @return Drupal\Core\Language\Language
+ * @return \Drupal\Core\Language\Language
  *   A language object.
  */
 function language_default() {
@@ -3086,7 +3089,7 @@ function drupal_check_memory_limit($required, $memory_limit = NULL) {
  * @deprecated Use \Drupal::lock() instead, or even better have the lock service
  *   injected into your object.
  *
- * @return Drupal\Core\Lock\LockBackendInterface
+ * @return \Drupal\Core\Lock\LockBackendInterface
  */
 function lock() {
   return \Drupal::lock();

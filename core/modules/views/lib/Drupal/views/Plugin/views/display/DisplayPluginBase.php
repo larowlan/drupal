@@ -1585,24 +1585,20 @@ abstract class DisplayPluginBase extends PluginBase {
           $this->view->query->buildOptionsForm($form['query']['options'], $form_state);
         }
         break;
-      case 'field_language':
+      case 'field_langcode':
         $form['#title'] .= t('Field Language');
 
-        $entities = entity_get_info();
-        $entity_tables = array();
-        $has_translation_handlers = FALSE;
-        foreach ($entities as $type => $entity_info) {
-          $entity_tables[] = $entity_info['base_table'];
-
-          if (!empty($entity_info['translation'])) {
-            $has_translation_handlers = TRUE;
+        $translatable_entity_tables = array();
+        foreach (\Drupal::entityManager()->getDefinitions() as $entity_info) {
+          if (isset($entity_info['base_table']) && !empty($entity_info['translatable'])) {
+            $translatable_entity_tables[] = $entity_info['base_table'];
           }
         }
 
         // Doesn't make sense to show a field setting here if we aren't querying
         // an entity base table. Also, we make sure that there's at least one
         // entity type with a translation handler attached.
-        if (in_array($this->view->storage->get('base_table'), $entity_tables) && $has_translation_handlers) {
+        if (in_array($this->view->storage->get('base_table'), $translatable_entity_tables)) {
           $languages = array(
             '***CURRENT_LANGUAGE***' => t("Current user's language"),
             '***DEFAULT_LANGUAGE***' => t("Default site language"),
@@ -2545,8 +2541,7 @@ abstract class DisplayPluginBase extends PluginBase {
    */
   public function access($account = NULL) {
     if (!isset($account)) {
-      global $user;
-      $account = $user;
+      $account = \Drupal::currentUser();
     }
 
     // Full override.
@@ -2723,6 +2718,34 @@ abstract class DisplayPluginBase extends PluginBase {
     return TRUE;
   }
 
+ /**
+  * Is the output of the view empty.
+  *
+  * If a view has no result and neither the empty, nor the footer nor the header
+  * does show anything return FALSE.
+  *
+  * @return bool
+  *   Returns TRUE if the output is empty, else FALSE.
+  */
+ public function outputIsEmpty() {
+   if (!empty($this->view->result)) {
+     return FALSE;
+   }
+
+   // Check whether all of the area handlers are empty.
+   foreach (array('empty', 'footer', 'header') as $type) {
+     $handlers = $this->getHandlers($type);
+     foreach ($handlers as $handler) {
+       // If one is not empty, return FALSE now.
+       if (!$handler->isEmpty()) {
+         return FALSE;
+       }
+     }
+   }
+
+   return TRUE;
+ }
+
   /**
    * Provide the block system with any exposed widget blocks for this display.
    */
@@ -2745,7 +2768,7 @@ abstract class DisplayPluginBase extends PluginBase {
   /**
    * Render the exposed form as block.
    *
-   * @return string|NULL
+   * @return string|null
    *  The rendered exposed form as string or NULL otherwise.
    */
   public function viewExposedFormBlocks() {

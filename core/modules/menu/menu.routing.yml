@@ -9,6 +9,7 @@ menu.overview_page:
   path: '/admin/structure/menu'
   defaults:
     _entity_list: 'menu'
+    _title: 'Menus'
   requirements:
     _permission: 'administer menu'
 
@@ -23,6 +24,7 @@ menu.link_add:
   path: '/admin/structure/menu/manage/{menu}/add'
   defaults:
     _content: '\Drupal\menu\Controller\MenuController::addLink'
+    _title: 'Add menu link'
   requirements:
     _entity_create_access: 'menu_link'
 
@@ -34,14 +36,14 @@ menu.link_edit:
     _entity_access: 'menu_link.update'
 
 menu.link_reset:
-  path: 'admin/structure/menu/item/{menu_link}/reset'
+  path: '/admin/structure/menu/item/{menu_link}/reset'
   defaults:
     _entity_form: 'menu_link.reset'
   requirements:
     _entity_access: 'menu_link.reset'
 
 menu.link_delete:
-  path: 'admin/structure/menu/item/{menu_link}/delete'
+  path: '/admin/structure/menu/item/{menu_link}/delete'
   defaults:
     _entity_form: 'menu_link.delete'
   requirements:
@@ -62,7 +64,7 @@ menu.menu_edit:
     _entity_access: 'menu.update'
 
 menu.delete_menu:
-  path: 'admin/structure/menu/manage/{menu}/delete'
+  path: '/admin/structure/menu/manage/{menu}/delete'
   defaults:
     _entity_form: 'menu.delete'
     _title: 'Delete menu'

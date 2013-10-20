@@ -7,7 +7,7 @@
 
 use Drupal\Core\Language\Language;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityNG;
+use Drupal\Core\Entity\ContentEntityInterface;
 
 /**
  * Translations overview page callback.
@@ -23,7 +23,7 @@ function content_translation_overview(EntityInterface $entity) {
   $languages = language_list();
   $original = $entity->getUntranslated()->language()->id;
   $translations = $entity->getTranslationLanguages();
-  $field_ui = module_exists('field_ui') && user_access('administer ' . $entity->entityType() . ' fields');
+  $field_ui = \Drupal::moduleHandler()->moduleExists('field_ui') && user_access('administer ' . $entity->entityType() . ' fields');
 
   $path = $controller->getViewPath($entity);
   $base_path = $controller->getBasePath($entity);
@@ -33,17 +33,10 @@ function content_translation_overview(EntityInterface $entity) {
   $rows = array();
 
   if (language_multilingual()) {
-    // If we have a view path defined for the current entity get the switch
-    // links based on it.
-    if ($path) {
-      $links = _content_translation_get_switch_links($path);
-    }
-
     // Determine whether the current entity is translatable.
     $translatable = FALSE;
     foreach (field_info_instances($entity->entityType(), $entity->bundle()) as $instance) {
-      $field = $instance->getField();
-      if ($field['translatable']) {
+      if ($instance->isFieldTranslatable()) {
         $translatable = TRUE;
         break;
       }
@@ -75,8 +68,7 @@ function content_translation_overview(EntityInterface $entity) {
         // Existing translation in the translation set: display status.
         $source = isset($entity->translation[$langcode]['source']) ? $entity->translation[$langcode]['source'] : '';
         $is_original = $langcode == $original;
-        $translation = $translations[$langcode];
-        $label = $entity->label($langcode);
+        $label = $entity->getTranslation($langcode)->label();
         $link = isset($links->links[$langcode]['href']) ? $links->links[$langcode] : array('href' => $path, 'language' => $language);
         $row_title = l($label, $link['href'], $link);
 
@@ -203,7 +195,6 @@ function content_translation_add_page(EntityInterface $entity, Language $source 
   $form_state['langcode'] = $target->id;
   $form_state['content_translation']['source'] = $source;
   $form_state['content_translation']['target'] = $target;
-  $controller = content_translation_controller($entity->entityType());
   $form_state['content_translation']['translation_form'] = !$entity->access('update');
   return \Drupal::entityManager()->getForm($entity, $operation, $form_state);
 }
@@ -242,8 +233,10 @@ function content_translation_edit_page(EntityInterface $entity, Language $langua
  *   The language to be used as target.
  */
 function content_translation_prepare_translation(EntityInterface $entity, Language $source, Language $target) {
-  $source_translation = $entity->getTranslation($source->id);
-  $entity->addTranslation($target->id, $source_translation->getPropertyValues());
+  if ($entity instanceof ContentEntityInterface) {
+    $source_translation = $entity->getTranslation($source->id);
+    $entity->addTranslation($target->id, $source_translation->getPropertyValues());
+  }
 }
 
 /**
@@ -252,7 +245,6 @@ function content_translation_prepare_translation(EntityInterface $entity, Langua
  * @deprecated Use \Drupal\content_translation\Form\ContentTranslationForm::deleteTranslation()
  */
 function content_translation_delete_confirm(array $form, array $form_state, EntityInterface $entity, Language $language) {
-  $langcode = $language->id;
   $controller = content_translation_controller($entity->entityType());
 
   return confirm_form(
@@ -273,12 +265,12 @@ function content_translation_delete_confirm_submit(array $form, array &$form_sta
   $controller = content_translation_controller($entity->entityType());
 
   // Remove the translated values.
-  $controller->removeTranslation($entity, $language->id);
+  $entity->removeTranslation($language->id);
   $entity->save();
 
   // Remove any existing path alias for the removed translation.
   // @todo This should be taken care of by the Path module.
-  if (module_exists('path')) {
+  if (\Drupal::moduleHandler()->moduleExists('path')) {
     $conditions = array('source' => $controller->getViewPath($entity), 'langcode' => $language->id);
     \Drupal::service('path.crud')->delete($conditions);
   }

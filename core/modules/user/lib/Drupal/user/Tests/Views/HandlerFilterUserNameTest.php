@@ -65,7 +65,7 @@ class HandlerFilterUserNameTest extends ViewTestBase {
   protected function setUp() {
     parent::setUp();
 
-    ViewTestData::importTestViews(get_class($this), array('user_test_views'));
+    ViewTestData::createTestViews(get_class($this), array('user_test_views'));
 
     $this->enableViewsTestModule();
 
@@ -166,7 +166,6 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     // Pass in just valid usernames.
     $users = $this->names;
     $options['query']['uid'] = implode(', ', $users);
-    $users = array_map('strtolower', $users);
 
     $this->drupalGet($path, $options);
     $this->assertNoRaw('Unable to find user');

@@ -7,16 +7,15 @@
 
 namespace Drupal\content_translation\Routing;
 
-use Drupal\Core\Routing\RouteBuildEvent;
-use Drupal\Core\Routing\RoutingEvents;
 use Drupal\Core\Entity\EntityManager;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Drupal\Core\Routing\RouteSubscriberBase;
 use Symfony\Component\Routing\Route;
+use Symfony\Component\Routing\RouteCollection;
 
 /**
  * Subscriber for entity translation routes.
  */
-class ContentTranslationRouteSubscriber implements EventSubscriberInterface {
+class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
 
   /**
    * The entity type manager.
@@ -38,31 +37,24 @@ class ContentTranslationRouteSubscriber implements EventSubscriberInterface {
   /**
    * {@inheritdoc}
    */
-  public static function getSubscribedEvents() {
-    $events[RoutingEvents::DYNAMIC] = 'routes';
-    return $events;
-  }
-
-  /**
-   * Adds routes for entity translations.
-   */
-  public function routes(RouteBuildEvent $event) {
-    $collection = $event->getRouteCollection();
+  protected function routes(RouteCollection $collection) {
     foreach ($this->entityManager->getDefinitions() as $entity_type => $entity_info) {
       if ($entity_info['translatable'] && isset($entity_info['translation'])) {
-        $path = '/' . str_replace($entity_info['menu_path_wildcard'], '{entity}', $entity_info['menu_base_path']) . '/translations';
+        $path = '/' . str_replace($entity_info['menu_path_wildcard'], '{' . $entity_type . '}', $entity_info['menu_base_path']) . '/translations';
         $route = new Route(
          $path,
           array(
             '_content' => '\Drupal\content_translation\Controller\ContentTranslationController::overview',
             '_title' => 'Translate',
             'account' => 'NULL',
+            '_entity_type' => $entity_type,
           ),
           array(
             '_access_content_translation_overview' => $entity_type,
             '_permission' => 'translate any entity',
           ),
           array(
+            '_access_mode' => 'ANY',
             'parameters' => array(
               'entity' => array(
                 'type' => 'entity:' . $entity_type,
@@ -79,6 +71,7 @@ class ContentTranslationRouteSubscriber implements EventSubscriberInterface {
             'source' => NULL,
             'target' => NULL,
             '_title' => 'Add',
+            '_entity_type' => $entity_type,
 
           ),
           array(
@@ -86,6 +79,7 @@ class ContentTranslationRouteSubscriber implements EventSubscriberInterface {
             '_access_content_translation_manage' => 'create',
           ),
           array(
+            '_access_mode' => 'ANY',
             'parameters' => array(
               'entity' => array(
                 'type' => 'entity:' . $entity_type,
@@ -101,12 +95,14 @@ class ContentTranslationRouteSubscriber implements EventSubscriberInterface {
             '_content' => '\Drupal\content_translation\Controller\ContentTranslationController::edit',
             'language' => NULL,
             '_title' => 'Edit',
+            '_entity_type' => $entity_type,
           ),
           array(
             '_permission' => 'translate any entity',
             '_access_content_translation_manage' => 'update',
           ),
           array(
+            '_access_mode' => 'ANY',
             'parameters' => array(
               'entity' => array(
                 'type' => 'entity:' . $entity_type,
@@ -122,6 +118,7 @@ class ContentTranslationRouteSubscriber implements EventSubscriberInterface {
             '_content' => '\Drupal\content_translation\Form\ContentTranslationForm::deleteTranslation',
             'language' => NULL,
             '_title' => 'Delete',
+            '_entity_type' => $entity_type,
           ),
           array(
             '_permission' => 'translate any entity',
@@ -133,6 +130,7 @@ class ContentTranslationRouteSubscriber implements EventSubscriberInterface {
                 'type' => 'entity:' . $entity_type,
               ),
             ),
+            '_access_mode' => 'ANY',
           )
         );
         $collection->add("content_translation.delete_$entity_type", $route);

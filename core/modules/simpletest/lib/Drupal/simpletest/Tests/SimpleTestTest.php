@@ -54,7 +54,6 @@ class SimpleTestTest extends WebTestBase {
    * Test the internal browsers functionality.
    */
   function testInternalBrowser() {
-    global $conf;
     if (!$this->inCURL()) {
       // Retrieve the test page and check its title and headers.
       $this->drupalGet('test-page');
@@ -64,8 +63,11 @@ class SimpleTestTest extends WebTestBase {
       )));
       $this->assertNoTitle('Foo');
 
+      $old_user_id = $this->container->get('current_user')->id();
       $user = $this->drupalCreateUser();
       $this->drupalLogin($user);
+      // Check that current user service updated.
+      $this->assertNotEqual($old_user_id, $this->container->get('current_user')->id(), 'Current user service updated.');
       $headers = $this->drupalGetHeaders(TRUE);
       $this->assertEqual(count($headers), 2, 'There was one intermediate request.');
       $this->assertTrue(strpos($headers[0][':status'], '302') !== FALSE, 'Intermediate response code was 302.');
@@ -76,6 +78,8 @@ class SimpleTestTest extends WebTestBase {
 
       // Test the maximum redirection option.
       $this->drupalLogout();
+      // Check that current user service updated to anonymous user.
+      $this->assertEqual(0, $this->container->get('current_user')->id(), 'Current user service updated.');
       $edit = array(
         'name' => $user->getUsername(),
         'pass' => $user->pass_raw
@@ -94,7 +98,6 @@ class SimpleTestTest extends WebTestBase {
       global $base_url;
       $this->drupalGet(url($base_url . '/core/install.php', array('external' => TRUE, 'absolute' => TRUE)));
       $this->assertResponse(403, 'Cannot access install.php.');
-
     }
   }
 
@@ -183,8 +186,8 @@ class SimpleTestTest extends WebTestBase {
 
     $this->pass(t('Test ID is @id.', array('@id' => $this->testId)));
 
-    // Generates a warning.
-    $i = 1 / 0;
+    // Call trigger_error() without the required argument to trigger an E_WARNING.
+    trigger_error();
 
     // Call an assert function specific to that class.
     $this->assertNothing();
@@ -214,8 +217,9 @@ class SimpleTestTest extends WebTestBase {
     $this->assertAssertion(t('Created permissions: @perms', array('@perms' => $this->valid_permission)), 'Role', 'Pass', 'SimpleTestTest.php', 'Drupal\simpletest\Tests\SimpleTestTest->stubTest()');
     $this->assertAssertion(t('Invalid permission %permission.', array('%permission' => $this->invalid_permission)), 'Role', 'Fail', 'SimpleTestTest.php', 'Drupal\simpletest\Tests\SimpleTestTest->stubTest()');
 
-    // Check that a warning is caught by simpletest.
-    $this->assertAssertion('Division by zero', 'Warning', 'Fail', 'SimpleTestTest.php', 'Drupal\simpletest\Tests\SimpleTestTest->stubTest()');
+    // Check that a warning is caught by simpletest. The exact error message
+    // differs between PHP versions so only the function name is checked.
+    $this->assertAssertion('trigger_error()', 'Warning', 'Fail', 'SimpleTestTest.php', 'Drupal\simpletest\Tests\SimpleTestTest->stubTest()');
 
     // Check that the backtracing code works for specific assert function.
     $this->assertAssertion('This is nothing.', 'Other', 'Pass', 'SimpleTestTest.php', 'Drupal\simpletest\Tests\SimpleTestTest->stubTest()');

@@ -1,7 +1,9 @@
 id: node.article.default
+uuid: 1756324d-52bd-499c-8b06-6d6a87ea71bd
 targetEntityType: node
 bundle: article
 mode: default
+status: 1
 content:
   body:
     type: text_textarea_with_summary

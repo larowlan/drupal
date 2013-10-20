@@ -6,6 +6,8 @@
  */
 
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Language\Language;
+use Drupal\taxonomy\Entity\Term;
 use Drupal\field\Field;
 use Drupal\node\NodeInterface;
 
@@ -146,18 +148,18 @@ function forum_menu() {
 /**
  * Implements hook_menu_local_tasks().
  */
-function forum_menu_local_tasks(&$data, $router_item, $root_path) {
-  global $user;
+function forum_menu_local_tasks(&$data, $route_name) {
+  $user = \Drupal::currentUser();
 
   // Add action link to 'node/add/forum' on 'forum' sub-pages.
-  if ($root_path == 'forum' || $root_path == 'forum/%') {
+  if (in_array($route_name, array('forum.index', 'forum.page'))) {
     $request = \Drupal::request();
     $forum_term = $request->attributes->get('taxonomy_term');
     $vid = \Drupal::config('forum.settings')->get('vocabulary');
     $links = array();
     // Loop through all bundles for forum taxonomy vocabulary field.
     $field = Field::fieldInfo()->getField('node', 'taxonomy_forums');
-    foreach ($field['bundles'] as $type) {
+    foreach ($field->getBundles() as $type) {
       if (node_access('create', $type)) {
         $links[$type] = array(
           '#theme' => 'menu_local_action',
@@ -169,8 +171,7 @@ function forum_menu_local_tasks(&$data, $router_item, $root_path) {
         if ($forum_term && $forum_term->bundle() == $vid) {
           // We are viewing a forum term (specific forum), append the tid to the
           // url.
-          $links[$type]['#link']['href'] .= '/' . $forum_term->id();
-
+          $links[$type]['#link']['localized_options']['query']['forum_id'] = $forum_term->id();
         }
       }
     }
@@ -373,7 +374,7 @@ function forum_node_update(EntityInterface $node) {
 function forum_node_insert(EntityInterface $node) {
   if (\Drupal::service('forum_manager')->checkNodeType($node)) {
     if (!empty($node->forum_tid)) {
-      $nid = db_insert('forum')
+      db_insert('forum')
         ->fields(array(
           'tid' => $node->forum_tid,
           'vid' => $node->getRevisionId(),
@@ -457,7 +458,9 @@ function forum_permission() {
  * $comment->save() calls hook_comment_publish() for all published comments.
  */
 function forum_comment_publish($comment) {
-  \Drupal::service('forum_manager')->updateIndex($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    \Drupal::service('forum_manager')->updateIndex($comment->entity_id->value);
+  }
 }
 
 /**
@@ -469,8 +472,8 @@ function forum_comment_publish($comment) {
 function forum_comment_update($comment) {
   // $comment->save() calls hook_comment_publish() for all published comments,
   // so we need to handle all other values here.
-  if (!$comment->status->value) {
-    \Drupal::service('forum_manager')->updateIndex($comment->nid->target_id);
+  if (!$comment->status->value && $comment->entity_type->value == 'node') {
+    \Drupal::service('forum_manager')->updateIndex($comment->entity_id->value);
   }
 }
 
@@ -478,14 +481,18 @@ function forum_comment_update($comment) {
  * Implements hook_comment_unpublish().
  */
 function forum_comment_unpublish($comment) {
-  \Drupal::service('forum_manager')->updateIndex($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    \Drupal::service('forum_manager')->updateIndex($comment->entity_id->value);
+  }
 }
 
 /**
  * Implements hook_comment_delete().
  */
 function forum_comment_delete($comment) {
-  \Drupal::service('forum_manager')->updateIndex($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    \Drupal::service('forum_manager')->updateIndex($comment->entity_id->value);
+  }
 }
 
 /**
@@ -548,7 +555,7 @@ function forum_form_node_form_alter(&$form, &$form_state, $form_id) {
       // If there is no default forum already selected, try to get the forum
       // ID from the URL (e.g., if we are on a page like node/add/forum/2, we
       // expect "2" to be the ID of the forum that was requested).
-      $requested_forum_id = Drupal::request()->query->get('forum_id');
+      $requested_forum_id = \Drupal::request()->query->get('forum_id');
       $widget['#default_value'] = is_numeric($requested_forum_id) ? $requested_forum_id : '';
     }
   }
@@ -572,12 +579,39 @@ function forum_block_view_pre_render($elements) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for block.html.twig.
+ * Implements hook_preprocess_HOOK() for block templates.
  */
 function forum_preprocess_block(&$variables) {
   if ($variables['configuration']['module'] == 'forum') {
     $variables['attributes']['role'] = 'navigation';
   }
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function forum_theme_suggestions_forums(array $variables) {
+  $suggestions = array();
+  $tid = $variables['term']->id();
+
+  // Provide separate template suggestions based on what's being output. Topic
+  // ID is also accounted for. Check both variables to be safe then the inverse.
+  // Forums with topic IDs take precedence.
+  if ($variables['forums'] && !$variables['topics']) {
+    $suggestions[] = 'forums__containers';
+    $suggestions[] = 'forums__' . $tid;
+    $suggestions[] = 'forums__containers__' . $tid;
+  }
+  elseif (!$variables['forums'] && $variables['topics']) {
+    $suggestions[] = 'forums__topics';
+    $suggestions[] = 'forums__' . $tid;
+    $suggestions[] = 'forums__topics__' . $tid;
+  }
+  else {
+    $suggestions[] = 'forums__' . $tid;
+  }
+
+  return $suggestions;
 }
 
 /**
@@ -627,23 +661,6 @@ function template_preprocess_forums(&$variables) {
     else {
       $variables['topics'] = array();
     }
-
-    // Provide separate template suggestions based on what's being output. Topic id is also accounted for.
-    // Check both variables to be safe then the inverse. Forums with topic ID's take precedence.
-    if ($variables['forums'] && !$variables['topics']) {
-      $variables['theme_hook_suggestions'][] = 'forums__containers';
-      $variables['theme_hook_suggestions'][] = 'forums__' . $variables['tid'];
-      $variables['theme_hook_suggestions'][] = 'forums__containers__' . $variables['tid'];
-    }
-    elseif (!$variables['forums'] && $variables['topics']) {
-      $variables['theme_hook_suggestions'][] = 'forums__topics';
-      $variables['theme_hook_suggestions'][] = 'forums__' . $variables['tid'];
-      $variables['theme_hook_suggestions'][] = 'forums__topics__' . $variables['tid'];
-    }
-    else {
-      $variables['theme_hook_suggestions'][] = 'forums__' . $variables['tid'];
-    }
-
   }
   else {
     $variables['forums'] = array();
@@ -665,7 +682,7 @@ function template_preprocess_forums(&$variables) {
  *   - tid: Taxonomy term ID of the current forum.
  */
 function template_preprocess_forum_list(&$variables) {
-  global $user;
+  $user = \Drupal::currentUser();
   $row = 0;
   // Sanitize each forum so that the template can safely print the data.
   foreach ($variables['forums'] as $id => $forum) {
@@ -773,7 +790,7 @@ function template_preprocess_forum_topic_list(&$variables) {
       $variables['topics'][$id]->new_url = '';
       if ($topic->new_replies) {
         $variables['topics'][$id]->new_text = format_plural($topic->new_replies, '1 new post<span class="visually-hidden"> in topic %title</span>', '@count new posts<span class="visually-hidden"> in topic %title</span>', array('%title' => $variables['topics'][$id]->label()));
-        $variables['topics'][$id]->new_url = url('node/' . $topic->id(), array('query' => comment_new_page_count($topic->comment_count, $topic->new_replies, $topic), 'fragment' => 'new'));
+        $variables['topics'][$id]->new_url = url('node/' . $topic->id(), array('query' => comment_new_page_count($topic->comment_count, $topic->new_replies, $topic, 'comment_node_forum'), 'fragment' => 'new'));
       }
 
     }
@@ -817,7 +834,7 @@ function template_preprocess_forum_icon(&$variables) {
     $variables['icon_title'] = $variables['new_posts'] ? t('New comments') : t('Normal topic');
   }
 
-  if ($variables['comment_mode'] == COMMENT_NODE_CLOSED || $variables['comment_mode'] == COMMENT_NODE_HIDDEN) {
+  if ($variables['comment_mode'] == COMMENT_CLOSED || $variables['comment_mode'] == COMMENT_HIDDEN) {
     $icon_status_class = 'closed';
     $variables['icon_title'] = t('Closed topic');
   }
@@ -867,4 +884,21 @@ function template_preprocess_forum_submitted(&$variables) {
  */
 function theme_forum_form(array $variables) {
   return drupal_render_children($variables['form']);
+}
+
+/**
+ * Implements hook_library_info().
+ *
+ * Forum specific libraries.
+ */
+function forum_library_info() {
+  $libraries['forum.index'] = array(
+    'title' => 'Forum index',
+    'version' => \Drupal::VERSION,
+    'css' => array(
+      drupal_get_path('module', 'forum') . '/css/forum.module.css' => array(),
+    ),
+  );
+
+  return $libraries;
 }

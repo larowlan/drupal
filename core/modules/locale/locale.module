@@ -596,7 +596,7 @@ function locale_js_alter(&$javascript) {
  *
  * @param array $files
  *   An array of local file paths.
- * @return string|NULL
+ * @return string|null
  *   The filepath to the translation file or NULL if no translation is
  *   applicable.
  */
@@ -818,7 +818,7 @@ function locale_form_language_admin_edit_form_alter(&$form, &$form_state) {
  * Form submission handler for language_admin_edit_form().
  */
 function locale_form_language_admin_edit_form_alter_submit($form, $form_state) {
-  variable_set('locale_translate_english', $form_state['values']['locale_translate_english']);
+  \Drupal::config('locale.settings')->set('translate_english', intval($form_state['values']['locale_translate_english']))->save();
 }
 
 /**
@@ -828,7 +828,7 @@ function locale_form_language_admin_edit_form_alter_submit($form, $form_state) {
  *   Returns TRUE if content should be translated to English, FALSE otherwise.
  */
 function locale_translate_english() {
-  return variable_get('locale_translate_english', FALSE);
+  return \Drupal::config('locale.settings')->get('translate_english');
 }
 
 /**
@@ -871,7 +871,7 @@ function locale_system_file_system_settings_submit(&$form, $form_state) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for node.html.twig.
+ * Implements hook_preprocess_HOOK() for node templates.
  */
 function locale_preprocess_node(&$variables) {
   if ($variables['node']->language()->id != Language::LANGCODE_NOT_SPECIFIED) {
@@ -1252,7 +1252,7 @@ function _locale_parse_js_file($filepath) {
   }
 
   // Loop through all matches and process them.
-  foreach ($matches as $key => $match) {
+  foreach ($matches as $match) {
 
     // Remove the quotes and string concatenations from the string and context.
     $string =  implode('', preg_split('~(?<!\\\\)[\'"]\s*\+\s*[\'"]~s', substr($match['string'], 1, -1)));

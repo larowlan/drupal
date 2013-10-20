@@ -8,13 +8,13 @@
 namespace Drupal\aggregator;
 
 use Drupal\Component\Utility\String;
-use Drupal\Core\Entity\EntityFormControllerNG;
+use Drupal\Core\Entity\ContentEntityFormController;
 use Drupal\Core\Language\Language;
 
 /**
  * Form controller for the aggregator feed edit forms.
  */
-class FeedFormController extends EntityFormControllerNG {
+class FeedFormController extends ContentEntityFormController {
 
   /**
    * {@inheritdoc}
@@ -111,7 +111,7 @@ class FeedFormController extends EntityFormControllerNG {
     $insert = (bool) $feed->id();
     if (!empty($form_state['values']['category'])) {
       // Store category values for post save operations.
-      // @see Drupal\Core\Entity\FeedStorageController::postSave()
+      // @see \Drupal\Core\Entity\FeedStorageController::postSave()
       $feed->categories = $form_state['values']['category'];
     }
     $feed->save();

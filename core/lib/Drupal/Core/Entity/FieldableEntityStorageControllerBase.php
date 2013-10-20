@@ -7,8 +7,10 @@
 
 namespace Drupal\Core\Entity;
 
+use Drupal\Core\Field\PrepareCacheInterface;
 use Drupal\field\FieldInterface;
 use Drupal\field\FieldInstanceInterface;
+use Drupal\Core\Field\ConfigFieldItemListInterface;
 use Symfony\Component\DependencyInjection\Container;
 
 abstract class FieldableEntityStorageControllerBase extends EntityStorageControllerBase implements FieldableEntityStorageControllerInterface {
@@ -77,20 +79,28 @@ abstract class FieldableEntityStorageControllerBase extends EntityStorageControl
       // Let the storage controller actually load the values.
       $this->doLoadFieldItems($queried_entities, $age);
 
-      // Invoke the field type's prepareCache() method.
-      foreach ($queried_entities as $entity) {
-        $this->invokeFieldItemPrepareCache($entity);
-      }
-
       // Build cache data.
+      // @todo: Improve this logic to avoid instantiating field objects once
+      // the field logic is improved to not do that anyway.
       if ($use_cache) {
         foreach ($queried_entities as $id => $entity) {
           $data = array();
-          $instances = field_info_instances($this->entityType, $entity->bundle());
           foreach ($entity->getTranslationLanguages() as $langcode => $language) {
             $translation = $entity->getTranslation($langcode);
-            foreach ($instances as $instance) {
-              $data[$langcode][$instance['field_name']] = $translation->{$instance['field_name']}->getValue();
+            foreach ($translation as $field_name => $items) {
+              if ($items instanceof ConfigFieldItemListInterface && !$items->isEmpty()) {
+                foreach ($items as $delta => $item) {
+                  // If the field item needs to prepare the cache data, call the
+                  // corresponding method, otherwise use the values as cache
+                  // data.
+                  if ($item instanceof PrepareCacheInterface) {
+                    $data[$langcode][$field_name][$delta] = $item->getCacheData();
+                  }
+                  else {
+                    $data[$langcode][$field_name][$delta] = $item->getValue();
+                  }
+                }
+              }
             }
           }
           $cid = "field:{$this->entityType}:$id";
@@ -292,5 +302,44 @@ abstract class FieldableEntityStorageControllerBase extends EntityStorageControl
    * {@inheritdoc}
    */
   public function onFieldPurge(FieldInterface $field) { }
+
+  /**
+   * Checks translation statuses and invoke the related hooks if needed.
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity being saved.
+   */
+  protected function invokeTranslationHooks(ContentEntityInterface $entity) {
+    $translations = $entity->getTranslationLanguages(FALSE);
+    $original_translations = $entity->original->getTranslationLanguages(FALSE);
+    $all_translations = array_keys($translations + $original_translations);
+
+    // Notify modules of translation insertion/deletion.
+    foreach ($all_translations as $langcode) {
+      if (isset($translations[$langcode]) && !isset($original_translations[$langcode])) {
+        $this->invokeHook('translation_insert', $entity->getTranslation($langcode));
+      }
+      elseif (!isset($translations[$langcode]) && isset($original_translations[$langcode])) {
+        $this->invokeHook('translation_delete', $entity->getTranslation($langcode));
+      }
+    }
+  }
+
+  /**
+   * Invokes a method on the Field objects within an entity.
+   *
+   * @param string $method
+   *   The method name.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity object.
+   */
+  protected function invokeFieldMethod($method, ContentEntityInterface $entity) {
+    foreach (array_keys($entity->getTranslationLanguages()) as $langcode) {
+      $translation = $entity->getTranslation($langcode);
+      foreach ($translation as $field) {
+        $field->$method();
+      }
+    }
+  }
 
 }

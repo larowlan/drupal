@@ -7,7 +7,7 @@
 
 namespace Drupal\taxonomy\Entity;
 
-use Drupal\Core\Entity\EntityNG;
+use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\Annotation\EntityType;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Annotation\Translation;
@@ -54,47 +54,47 @@ use Drupal\taxonomy\TermInterface;
  *   permission_granularity = "bundle"
  * )
  */
-class Term extends EntityNG implements TermInterface {
+class Term extends ContentEntityBase implements TermInterface {
 
   /**
    * The taxonomy term ID.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $tid;
 
   /**
    * The term UUID.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $uuid;
 
   /**
    * The taxonomy vocabulary ID this term belongs to.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $vid;
 
   /**
    * Name of the term.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $name;
 
   /**
    * Description of the term.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $description;
 
   /**
    * The text format name for the term's description.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $format;
 
@@ -104,7 +104,7 @@ class Term extends EntityNG implements TermInterface {
    * This property stores the weight of this term in relation to other terms of
    * the same vocabulary.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $weight;
 
@@ -118,7 +118,7 @@ class Term extends EntityNG implements TermInterface {
    * term does not have any parents. When omitting this variable during an
    * update, the existing hierarchy for the term remains unchanged.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $parent;
 
@@ -130,7 +130,7 @@ class Term extends EntityNG implements TermInterface {
   }
 
   /**
-   * Overides \Drupal\Core\Entity\EntityNG::init().
+   * {@inheritdoc}
    */
   protected function init() {
     parent::init();
@@ -157,9 +157,7 @@ class Term extends EntityNG implements TermInterface {
         foreach ($children as $child) {
           // If the term has multiple parents, we don't delete it.
           $parents = taxonomy_term_load_parents($child->id());
-          // Because the parent has already been deleted, the parent count might
-          // be 0.
-          if (count($parents) <= 1) {
+          if (empty($parents)) {
             $orphans[] = $child->id();
           }
         }
@@ -189,7 +187,7 @@ class Term extends EntityNG implements TermInterface {
    * {@inheritdoc}
    */
   public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
-    parent::preSave($storage_controller, $update);
+    parent::postSave($storage_controller, $update);
 
     // Only change the parents if a value is set, keep the existing values if
     // not.

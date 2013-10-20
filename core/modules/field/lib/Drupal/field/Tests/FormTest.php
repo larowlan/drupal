@@ -129,14 +129,14 @@ class FormTest extends FieldTestBase {
       "{$field_name}[0][value]" => $value,
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    preg_match('|entity_test/manage/(\d+)/edit|', $this->url, $match);
+    preg_match('|entity_test/manage/(\d+)|', $this->url, $match);
     $id = $match[1];
     $this->assertText(t('entity_test @id has been created.', array('@id' => $id)), 'Entity was created');
     $entity = entity_load('entity_test', $id);
     $this->assertEqual($entity->{$field_name}->value, $value, 'Field value was saved');
 
     // Display edit form.
-    $this->drupalGet('entity_test/manage/' . $id . '/edit');
+    $this->drupalGet('entity_test/manage/' . $id);
     $this->assertFieldByName("{$field_name}[0][value]", $value, 'Widget is displayed with the correct default value');
     $this->assertNoField("{$field_name}[1][value]", 'No extraneous widget is displayed');
 
@@ -160,7 +160,7 @@ class FormTest extends FieldTestBase {
       'name' => $this->randomName(),
       "{$field_name}[0][value]" => $value
     );
-    $this->drupalPostForm('entity_test/manage/' . $id . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('entity_test/manage/' . $id, $edit, t('Save'));
     $this->assertText(t('entity_test @id has been updated.', array('@id' => $id)), 'Entity was updated');
     $this->container->get('entity.manager')->getStorageController('entity_test')->resetCache(array($id));
     $entity = entity_load('entity_test', $id);
@@ -194,7 +194,7 @@ class FormTest extends FieldTestBase {
       "{$field_name}[0][value]" => '',
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    preg_match('|entity_test/manage/(\d+)/edit|', $this->url, $match);
+    preg_match('|entity_test/manage/(\d+)|', $this->url, $match);
     $id = $match[1];
     $this->assertText(t('entity_test @id has been created.', array('@id' => $id)), 'Entity was created.');
     $entity = entity_load('entity_test', $id);
@@ -225,7 +225,7 @@ class FormTest extends FieldTestBase {
       "{$field_name}[0][value]" => $value,
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    preg_match('|entity_test/manage/(\d+)/edit|', $this->url, $match);
+    preg_match('|entity_test/manage/(\d+)|', $this->url, $match);
     $id = $match[1];
     $this->assertText(t('entity_test @id has been created.', array('@id' => $id)), 'Entity was created');
     $entity = entity_load('entity_test', $id);
@@ -238,7 +238,7 @@ class FormTest extends FieldTestBase {
       'name' => $this->randomName(),
       "{$field_name}[0][value]" => $value,
     );
-    $this->drupalPostForm('entity_test/manage/' . $id . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('entity_test/manage/' . $id, $edit, t('Save'));
     $this->assertRaw(t('!name field is required.', array('!name' => $this->instance['label'])), 'Required field with no value fails validation');
   }
 
@@ -315,7 +315,7 @@ class FormTest extends FieldTestBase {
 
     // Submit the form and create the entity.
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    preg_match('|entity_test/manage/(\d+)/edit|', $this->url, $match);
+    preg_match('|entity_test/manage/(\d+)|', $this->url, $match);
     $id = $match[1];
     $this->assertText(t('entity_test @id has been created.', array('@id' => $id)), 'Entity was created');
     $entity = entity_load('entity_test', $id);
@@ -467,7 +467,7 @@ class FormTest extends FieldTestBase {
       $field_name => '1, 2, 3',
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    preg_match('|entity_test/manage/(\d+)/edit|', $this->url, $match);
+    preg_match('|entity_test/manage/(\d+)|', $this->url, $match);
     $id = $match[1];
 
     // Check that the values were saved.
@@ -475,7 +475,7 @@ class FormTest extends FieldTestBase {
     $this->assertFieldValues($entity_init, $field_name, array(1, 2, 3));
 
     // Display the form, check that the values are correctly filled in.
-    $this->drupalGet('entity_test/manage/' . $id . '/edit');
+    $this->drupalGet('entity_test/manage/' . $id);
     $this->assertFieldByName($field_name, '1, 2, 3', 'Widget is displayed.');
 
     // Submit the form with more values than the field accepts.
@@ -505,7 +505,8 @@ class FormTest extends FieldTestBase {
       ->setComponent($field_name)
       ->save();
 
-    // Create a field with no edit access - see field_test_field_access().
+    // Create a field with no edit access. See
+    // field_test_entity_field_access().
     $field_no_access = array(
       'name' => 'field_no_edit_access',
       'entity_type' => $entity_type,
@@ -547,7 +548,7 @@ class FormTest extends FieldTestBase {
       "{$field_name}[0][value]" => 1,
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    preg_match("|$entity_type/manage/(\d+)/edit|", $this->url, $match);
+    preg_match("|$entity_type/manage/(\d+)|", $this->url, $match);
     $id = $match[1];
 
     // Check that the default value was saved.
@@ -562,7 +563,7 @@ class FormTest extends FieldTestBase {
       "{$field_name}[0][value]" => 2,
       'revision' => TRUE,
     );
-    $this->drupalPostForm($entity_type . '/manage/' . $id . '/edit', $edit, t('Save'));
+    $this->drupalPostForm($entity_type . '/manage/' . $id, $edit, t('Save'));
 
     // Check that the new revision has the expected values.
     $this->container->get('entity.manager')->getStorageController($entity_type)->resetCache(array($id));
@@ -577,9 +578,9 @@ class FormTest extends FieldTestBase {
   }
 
   /**
-   * Tests the Hidden widget.
+   * Tests hiding a field in a form.
    */
-  function testFieldFormHiddenWidget() {
+  function testHiddenField() {
     $entity_type = 'entity_test_rev';
     $field = $this->field_single;
     $field['entity_type'] = $entity_type;
@@ -591,20 +592,17 @@ class FormTest extends FieldTestBase {
     entity_create('field_entity', $field)->save();
     $this->instance = entity_create('field_instance', $this->instance);
     $this->instance->save();
-    entity_get_form_display($this->instance['entity_type'], $this->instance['bundle'], 'default')
-      ->setComponent($this->instance['field_name'], array(
-        'type' => 'hidden',
-      ))
-      ->save();
+    // We explicitly do not assign a widget in a form display, so the field
+    // stays hidden in forms.
 
     // Display the entity creation form.
     $this->drupalGet($entity_type . '/add');
 
     // Create an entity and test that the default value is assigned correctly to
     // the field that uses the hidden widget.
-    $this->assertNoField("{$field_name}[0][value]", 'The hidden widget is not displayed');
+    $this->assertNoField("{$field_name}[0][value]", 'The field does not appear in the form');
     $this->drupalPostForm(NULL, array('user_id' => 1, 'name' => $this->randomName()), t('Save'));
-    preg_match('|' . $entity_type . '/manage/(\d+)/edit|', $this->url, $match);
+    preg_match('|' . $entity_type . '/manage/(\d+)|', $this->url, $match);
     $id = $match[1];
     $this->assertText(t('entity_test_rev @id has been created.', array('@id' => $id)), 'Entity was created');
     $entity = entity_load($entity_type, $id);
@@ -612,16 +610,16 @@ class FormTest extends FieldTestBase {
 
     // Update the instance to remove the default value and switch to the
     // default widget.
-    $this->instance['default_value'] = NULL;
+    $this->instance->default_value = NULL;
     $this->instance->save();
-    entity_get_form_display($this->instance['entity_type'], $this->instance['bundle'], 'default')
-      ->setComponent($this->instance['field_name'], array(
+    entity_get_form_display($entity_type, $this->instance->bundle, 'default')
+      ->setComponent($this->instance->getFieldName(), array(
         'type' => 'test_field_widget',
       ))
       ->save();
 
     // Display edit form.
-    $this->drupalGet($entity_type . '/manage/' . $id . '/edit');
+    $this->drupalGet($entity_type . '/manage/' . $id);
     $this->assertFieldByName("{$field_name}[0][value]", 99, 'Widget is displayed with the correct default value');
 
     // Update the entity.
@@ -633,16 +631,14 @@ class FormTest extends FieldTestBase {
     $entity = entity_load($entity_type, $id);
     $this->assertEqual($entity->{$field_name}->value, $value, 'Field value was updated');
 
-    // Update the form display and switch to the Hidden widget again.
-    entity_get_form_display($this->instance['entity_type'], $this->instance['bundle'], 'default')
-      ->setComponent($this->instance['field_name'], array(
-        'type' => 'hidden',
-      ))
+    // Set the field back to hidden.
+    entity_get_form_display($entity_type, $this->instance->bundle, 'default')
+      ->removeComponent($this->instance->getFieldName())
       ->save();
 
     // Create a new revision.
     $edit = array('revision' => TRUE);
-    $this->drupalPostForm($entity_type . '/manage/' . $id . '/edit', $edit, t('Save'));
+    $this->drupalPostForm($entity_type . '/manage/' . $id, $edit, t('Save'));
 
     // Check that the expected value has been carried over to the new revision.
     entity_get_controller($entity_type)->resetCache(array($id));

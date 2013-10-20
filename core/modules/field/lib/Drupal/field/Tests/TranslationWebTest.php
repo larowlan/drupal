@@ -106,7 +106,7 @@ class TranslationWebTest extends FieldTestBase {
     $available_langcodes = array_flip(field_available_languages($this->entity_type, $this->field));
     unset($available_langcodes[Language::LANGCODE_NOT_SPECIFIED]);
     unset($available_langcodes[Language::LANGCODE_NOT_APPLICABLE]);
-    $field_name = $this->field['field_name'];
+    $field_name = $this->field->getFieldName();
 
     // Store the field translations.
     $entity->langcode->value = key($available_langcodes);
@@ -122,7 +122,7 @@ class TranslationWebTest extends FieldTestBase {
       "{$field_name}[0][value]" => $entity->{$field_name}->value,
       'revision' => TRUE,
     );
-    $this->drupalPostForm($this->entity_type . '/manage/' . $entity->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm($this->entity_type . '/manage/' . $entity->id(), $edit, t('Save'));
 
     // Check translation revisions.
     $this->checkTranslationRevisions($entity->id(), $entity->getRevisionId(), $available_langcodes);
@@ -134,7 +134,7 @@ class TranslationWebTest extends FieldTestBase {
    * by the passed arguments were correctly stored.
    */
   private function checkTranslationRevisions($id, $revision_id, $available_langcodes) {
-    $field_name = $this->field['field_name'];
+    $field_name = $this->field->getFieldName();
     $entity = entity_revision_load($this->entity_type, $revision_id);
     foreach ($available_langcodes as $langcode => $value) {
       $passed = $entity->getTranslation($langcode)->{$field_name}->value == $value + 1;

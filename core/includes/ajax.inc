@@ -204,9 +204,9 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  *   $commands[] = ajax_command_replace('#object-1', 'some html here');
  *   // Add a visual "changed" marker to the '#object-1' element.
  *   $commands[] = ajax_command_changed('#object-1');
- *   // Menu 'page callback' and #ajax['callback'] functions are supposed to
- *   // return render arrays. If returning an Ajax commands array, it must be
- *   // encapsulated in a render array structure.
+ *   // #ajax['callback'] functions are supposed to return render arrays. If
+ *   // returning an Ajax commands array, it must be encapsulated in a render
+ *   // array structure.
  *   return array('#type' => 'ajax', '#commands' => $commands);
  * @endcode
  *
@@ -231,7 +231,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  *   functions.
  */
 function ajax_render($commands = array()) {
-  // Ajax responses aren't rendered with html.tpl.php, so we have to call
+  // Ajax responses aren't rendered with html.html.twig, so we have to call
   // drupal_get_css() and drupal_get_js() here, in order to have new files added
   // during this request to be loaded by the page. We only want to send back
   // files that the page hasn't already loaded, so we implement simple diffing
@@ -289,7 +289,7 @@ function ajax_render($commands = array()) {
     $commands = array_merge($extra_commands, $commands);
   }
 
-  // Now add a command to merge changes and additions to Drupal.settings.
+  // Now add a command to merge changes and additions to drupalSettings.
   $scripts = drupal_add_js();
   if (!empty($scripts['settings'])) {
     $settings = drupal_merge_js_settings($scripts['settings']['data']);
@@ -808,7 +808,7 @@ function ajax_command_css($selector, $argument) {
  * Creates a Drupal Ajax 'settings' command.
  *
  * The 'settings' command instructs the client either to use the given array as
- * the settings for ajax-loaded content or to extend Drupal.settings with the
+ * the settings for ajax-loaded content or to extend drupalSettings with the
  * given array, depending on the value of the $merge parameter.
  *
  * This command is implemented by Drupal.AjaxCommands.prototype.settings()
@@ -820,9 +820,9 @@ function ajax_command_css($selector, $argument) {
  *   array.
  * @param $merge
  *   Whether or not the passed settings in $argument should be merged into the
- *   global Drupal.settings on the page. By default (FALSE), the settings that
+ *   global drupalSettings on the page. By default (FALSE), the settings that
  *   are passed to Drupal.attachBehaviors will not include the global
- *   Drupal.settings.
+ *   drupalSettings.
  *
  * @return
  *   An array suitable for use with the ajax_render() function.

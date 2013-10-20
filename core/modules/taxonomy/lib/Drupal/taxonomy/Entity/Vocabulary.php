@@ -22,7 +22,6 @@ use Drupal\taxonomy\VocabularyInterface;
  *   module = "taxonomy",
  *   controllers = {
  *     "storage" = "Drupal\taxonomy\VocabularyStorageController",
- *     "access" = "Drupal\taxonomy\VocabularyAccessController",
  *     "list" = "Drupal\taxonomy\VocabularyListController",
  *     "form" = {
  *       "default" = "Drupal\taxonomy\VocabularyFormController",
@@ -30,6 +29,7 @@ use Drupal\taxonomy\VocabularyInterface;
  *       "delete" = "Drupal\taxonomy\Form\VocabularyDeleteForm"
  *     }
  *   },
+ *   admin_permission = "administer taxonomy",
  *   config_prefix = "taxonomy.vocabulary",
  *   bundle_of = "taxonomy_term",
  *   entity_keys = {
@@ -112,10 +112,10 @@ class Vocabulary extends ConfigEntityBase implements VocabularyInterface {
       // Reflect machine name changes in the definitions of existing 'taxonomy'
       // fields.
       $fields = field_read_fields();
-      foreach ($fields as $field_name => $field) {
+      foreach ($fields as $field) {
         $update_field = FALSE;
-        if ($field['type'] == 'taxonomy_term_reference') {
-          foreach ($field['settings']['allowed_values'] as $key => &$value) {
+        if ($field->getFieldType() == 'taxonomy_term_reference') {
+          foreach ($field->settings['allowed_values'] as &$value) {
             if ($value['vocabulary'] == $this->getOriginalID()) {
               $value['vocabulary'] = $this->id();
               $update_field = TRUE;
@@ -155,18 +155,18 @@ class Vocabulary extends ConfigEntityBase implements VocabularyInterface {
     // Load all Taxonomy module fields and delete those which use only this
     // vocabulary.
     $taxonomy_fields = field_read_fields(array('module' => 'taxonomy'));
-    foreach ($taxonomy_fields as $field_name => $taxonomy_field) {
+    foreach ($taxonomy_fields as $taxonomy_field) {
       $modified_field = FALSE;
       // Term reference fields may reference terms from more than one
       // vocabulary.
-      foreach ($taxonomy_field['settings']['allowed_values'] as $key => $allowed_value) {
+      foreach ($taxonomy_field->settings['allowed_values'] as $key => $allowed_value) {
         if (isset($vocabularies[$allowed_value['vocabulary']])) {
-          unset($taxonomy_field['settings']['allowed_values'][$key]);
+          unset($taxonomy_field->settings['allowed_values'][$key]);
           $modified_field = TRUE;
         }
       }
       if ($modified_field) {
-        if (empty($taxonomy_field['settings']['allowed_values'])) {
+        if (empty($taxonomy_field->settings['allowed_values'])) {
           $taxonomy_field->delete();
         }
         else {

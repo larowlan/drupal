@@ -43,10 +43,7 @@ function field_test_menu() {
   $items = array();
   $items['test-entity/nested/%entity_test/%entity_test'] = array(
     'title' => 'Nested entity form',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('field_test_entity_nested_form', 2, 3),
-    'access arguments' => array('administer entity_test content'),
-    'type' => MENU_NORMAL_ITEM,
+    'route_name' => 'field_test.entity_nested_form',
   );
 
   return $items;
@@ -173,7 +170,7 @@ function field_test_field_widget_form_alter(&$element, &$form_state, $context) {
 /**
  * Implements hook_query_TAG_alter() for tag 'efq_table_prefixing_test'.
  *
- * @see Drupal\system\Tests\Entity\EntityFieldQueryTest::testTablePrefixing()
+ * @see \Drupal\system\Tests\Entity\EntityFieldQueryTest::testTablePrefixing()
  */
 function field_test_query_efq_table_prefixing_test_alter(&$query) {
   // Add an additional join onto the entity base table. This will cause an
@@ -185,7 +182,7 @@ function field_test_query_efq_table_prefixing_test_alter(&$query) {
 /**
  * Implements hook_query_TAG_alter() for tag 'efq_metadata_test'.
  *
- * @see Drupal\system\Tests\Entity\EntityQueryTest::testMetaData()
+ * @see \Drupal\system\Tests\Entity\EntityQueryTest::testMetaData()
  */
 function field_test_query_efq_metadata_test_alter(&$query) {
   global $efq_test_metadata;

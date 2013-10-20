@@ -25,11 +25,6 @@ function views_ui_menu() {
     'route_name' => 'views_ui.list',
   );
 
-  $items['admin/structure/views/add'] = array(
-    'route_name' => 'views_ui.add',
-    'type' => MENU_SIBLING_LOCAL_TASK,
-  );
-
   // @todo - remove all items of type MENU_VISIBLE_IN_BREADCRUMB
   // when there is a route-aware breadcrumb builder.
   $items['admin/structure/views/settings'] = array(
@@ -196,13 +191,13 @@ function views_ui_library_info() {
     'version' => \Drupal::VERSION,
     'js' => array(
       $path . 'ajax.js' => array('group' => JS_DEFAULT),
+      $path . 'dialog.views.js' => array('group' => JS_DEFAULT),
       $path . 'views-admin.js' => array('group' => JS_DEFAULT),
     ),
     'dependencies' => array(
       array('system', 'jquery'),
       array('system', 'drupal'),
       array('system', 'drupalSettings'),
-      array('system', 'drupal.debounce'),
       array('system', 'jquery.once'),
       array('system', 'jquery.form'),
       array('system', 'drupal.ajax'),
@@ -210,11 +205,19 @@ function views_ui_library_info() {
     ),
   );
 
+  $libraries['views_ui.listing'] = array(
+    'title' => 'Views UI listing',
+    'version' => Drupal::VERSION,
+    'js' => array(
+      $path . 'views_ui.listing.js' => array('group' => JS_DEFAULT),
+    ),
+  );
+
   return $libraries;
 }
 
 /**
- * Implements hook_preprocess_HOOK() for views-view.html.twig.
+ * Implements hook_preprocess_HOOK() for views templates.
  */
 function views_ui_preprocess_views_view(&$variables) {
   $view = $variables['view'];

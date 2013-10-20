@@ -7,7 +7,7 @@
 
 namespace Drupal\custom_block\Entity;
 
-use Drupal\Core\Entity\EntityNG;
+use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
 use Drupal\Core\Entity\Annotation\EntityType;
 use Drupal\Core\Annotation\Translation;
@@ -34,6 +34,7 @@ use Drupal\custom_block\CustomBlockInterface;
  *     },
  *     "translation" = "Drupal\custom_block\CustomBlockTranslationController"
  *   },
+ *   admin_permission = "administer blocks",
  *   base_table = "custom_block",
  *   revision_table = "custom_block_revision",
  *   route_base_path = "admin/structure/block/custom-blocks/manage/{bundle}",
@@ -53,19 +54,19 @@ use Drupal\custom_block\CustomBlockInterface;
  *   }
  * )
  */
-class CustomBlock extends EntityNG implements CustomBlockInterface {
+class CustomBlock extends ContentEntityBase implements CustomBlockInterface {
 
   /**
    * The block ID.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $id;
 
   /**
    * The block revision ID.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $revision_id;
 
@@ -76,42 +77,42 @@ class CustomBlock extends EntityNG implements CustomBlockInterface {
    * has been specified. Only default revisions are saved to the block_custom
    * table.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $isDefaultRevision = TRUE;
 
   /**
    * The block UUID.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $uuid;
 
   /**
    * The custom block type (bundle).
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $type;
 
   /**
    * The block language code.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $langcode;
 
   /**
    * The block description.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $info;
 
   /**
    * The block revision log message.
    *
-   * @var \Drupal\Core\Entity\Field\FieldInterface
+   * @var \Drupal\Core\Field\FieldItemListInterface
    */
   public $log;
 

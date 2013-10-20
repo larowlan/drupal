@@ -9,7 +9,7 @@ namespace Drupal\Core\Entity\Query\Sql;
 
 use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\Core\Entity\EntityStorageControllerInterface;
-use Drupal\Core\Entity\DatabaseStorageController;
+use Drupal\Core\Entity\FieldableDatabaseStorageController;
 use Drupal\Core\Entity\Plugin\DataType\EntityReference;
 use Drupal\Core\Entity\Query\QueryException;
 use Drupal\field\Entity\Field;
@@ -117,7 +117,8 @@ class Tables implements TablesInterface {
         if ($key < $count) {
           $next = $specifiers[$key + 1];
           // Is this a field column?
-          if (isset($field['columns'][$next]) || in_array($next, Field::getReservedColumns())) {
+          $columns = $field->getColumns();
+          if (isset($columns[$next]) || in_array($next, Field::getReservedColumns())) {
             // Use it.
             $column = $next;
             // Do not process it again.
@@ -150,7 +151,7 @@ class Tables implements TablesInterface {
             // column, i.e. target_id or fid.
             // Otherwise, the code executing the relationship will throw an
             // exception anyways so no need to do it here.
-            if (!$column && isset($propertyDefinitions[$relationship_specifier]) && $entity->{$field['field_name']}->get('entity') instanceof EntityReference) {
+            if (!$column && isset($propertyDefinitions[$relationship_specifier]) && $entity->{$field->getFieldName()}->get('entity') instanceof EntityReference) {
               $column = current(array_keys($propertyDefinitions));
             }
             // Prepare the next index prefix.
@@ -162,7 +163,7 @@ class Tables implements TablesInterface {
           $column = 'value';
         }
         $table = $this->ensureFieldTable($index_prefix, $field, $type, $langcode, $base_table, $entity_id_field, $field_id_field);
-        $sql_column = DatabaseStorageController::_fieldColumnName($field, $column);
+        $sql_column = FieldableDatabaseStorageController::_fieldColumnName($field, $column);
       }
       // This is an entity property (non-configurable field).
       else {
@@ -248,10 +249,10 @@ class Tables implements TablesInterface {
    * @throws \Drupal\Core\Entity\Query\QueryException
    */
   protected function ensureFieldTable($index_prefix, &$field, $type, $langcode, $base_table, $entity_id_field, $field_id_field) {
-    $field_name = $field['field_name'];
+    $field_name = $field->getFieldName();
     if (!isset($this->fieldTables[$index_prefix . $field_name])) {
-      $table = $this->sqlQuery->getMetaData('age') == EntityStorageControllerInterface::FIELD_LOAD_CURRENT ? DatabaseStorageController::_fieldTableName($field) : DatabaseStorageController::_fieldRevisionTableName($field);
-      if ($field['cardinality'] != 1) {
+      $table = $this->sqlQuery->getMetaData('age') == EntityStorageControllerInterface::FIELD_LOAD_CURRENT ? FieldableDatabaseStorageController::_fieldTableName($field) : FieldableDatabaseStorageController::_fieldRevisionTableName($field);
+      if ($field->getFieldCardinality() != 1) {
         $this->sqlQuery->addMetaData('simple_query', FALSE);
       }
       $entity_type = $this->sqlQuery->getMetaData('entity_type');

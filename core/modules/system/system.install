@@ -6,7 +6,6 @@
  */
 
 use Drupal\Component\Utility\Crypt;
-use Drupal\Component\Uuid\Uuid;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Language\Language;
 use Drupal\Core\StreamWrapper\PublicStream;
@@ -15,7 +14,6 @@ use Drupal\Core\StreamWrapper\PublicStream;
  * Implements hook_requirements().
  */
 function system_requirements($phase) {
-  global $base_url;
   $requirements = array();
 
   // Report Drupal version
@@ -127,7 +125,11 @@ function system_requirements($phase) {
       '@system_requirements' => 'http://drupal.org/requirements',
     ));
 
-    $description .= theme('item_list', array('items' => $missing_extensions));
+    $item_list = array(
+      '#theme' => 'item_list',
+      '#items' => $missing_extensions,
+    );
+    $description .= drupal_render($item_list);
 
     $requirements['php_extensions']['value'] = t('Disabled');
     $requirements['php_extensions']['severity'] = REQUIREMENT_ERROR;
@@ -242,7 +244,11 @@ function system_requirements($phase) {
         $description = $conf_errors[0];
       }
       else {
-        $description = theme('item_list', array('items' => $conf_errors));
+        $item_list = array(
+          '#theme' => 'item_list',
+          '#items' => $conf_errors,
+        );
+        $description = drupal_render($item_list);
       }
       $requirements['settings.php'] = array(
         'value' => t('Not protected'),
@@ -365,7 +371,8 @@ function system_requirements($phase) {
       continue;
     }
     if ($phase == 'install') {
-      file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
+      $mode = isset($GLOBALS['install_state']['mode']) ? $GLOBALS['install_state']['mode'] : NULL;
+      file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS, $mode);
     }
     $is_writable = is_writable($directory);
     $is_directory = is_dir($directory);
@@ -498,7 +505,7 @@ function system_requirements($phase) {
 
   if ($phase == 'runtime') {
     // Check for update status module.
-    if (!module_exists('update')) {
+    if (!\Drupal::moduleHandler()->moduleExists('update')) {
       $requirements['update status'] = array(
         'value' => t('Not enabled'),
         'severity' => REQUIREMENT_WARNING,
@@ -1550,7 +1557,7 @@ function system_update_8020() {
       ->condition('aid', 'system_block_ip_action')
       ->execute();
     // Enable the new Ban module.
-    Drupal::moduleHandler()->install(array('ban'));
+    \Drupal::moduleHandler()->install(array('ban'));
   }
   else {
     // Drop old table.
@@ -1563,7 +1570,7 @@ function system_update_8020() {
  */
 function system_update_8021() {
   // Enable the module without re-installing the schema.
-  Drupal::moduleHandler()->install(array('action'));
+  \Drupal::moduleHandler()->install(array('action'));
   // Rename former System module actions.
   $map = array(
     'system_message_action' => 'action_message_action',
@@ -1742,12 +1749,13 @@ function system_update_8031() {
 }
 
 /**
- * Remove the drupal_js_cache_files variable.
+ * Remove the drupal_js_cache_files and css_js_query_string variables.
  *
  * @ingroup config_upgrade
  */
 function system_update_8032() {
   update_variable_del('drupal_js_cache_files');
+  update_variable_del('css_js_query_string');
 }
 
 /**
@@ -1757,7 +1765,7 @@ function system_update_8032() {
  */
 function system_update_8033() {
   update_variables_to_config('system.menu', array(
-    'active_menus_default' => 'active_menus_default'
+    'menu_default_active_menus' => 'active_menus_default'
   ));
 }
 
@@ -1777,8 +1785,8 @@ function system_update_8034() {
  * Move filter_allowed_protocols variable to config.
  *
  * This config is provided now by the system module because it is used by
- * drupal_strip_dangerous_protocols() and must to be available before the filter
- * module be installed.
+ * \Drupal\Component\Utility\Url::stripDangerousProtocols() and must to be
+ * available before the filter module be installed.
  *
  * @ingroup config_upgrade
  */
@@ -1864,7 +1872,7 @@ function system_update_8041() {
  * Enable the new Entity module.
  */
 function system_update_8042() {
-  Drupal::moduleHandler()->install(array('entity'));
+  \Drupal::moduleHandler()->install(array('entity'));
 }
 
 /**
@@ -1897,7 +1905,7 @@ function system_update_8044() {
  * @ingroup config_upgrade
  */
 function system_update_8045() {
-  $uuid = new Uuid();
+  $uuid = \Drupal::service('uuid');
   // Fetch all date types from {date_format_type}.
   $date_formats = db_query('SELECT * FROM {date_format_type}')->fetchAllAssoc('type', PDO::FETCH_ASSOC);
   if (!empty($date_formats)) {
@@ -1978,7 +1986,7 @@ function system_update_8047() {
  */
 function system_update_8048() {
   // Enable the module without re-installing the schema.
-  Drupal::moduleHandler()->install(array('menu_link'));
+  \Drupal::moduleHandler()->install(array('menu_link'));
 
   // Add the langcode column if it doesn't exist.
   if (!db_field_exists('menu_inks', 'langcode')) {

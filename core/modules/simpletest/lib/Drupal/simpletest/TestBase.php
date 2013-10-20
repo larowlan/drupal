@@ -748,6 +748,9 @@ abstract class TestBase {
       }
     }
     else {
+      if (defined("$class::SORT_METHODS")) {
+        sort($class_methods);
+      }
       foreach ($class_methods as $method) {
         // If the current method starts with "test", run it - it's a test.
         if (strtolower(substr($method, 0, 4)) == 'test') {
@@ -1357,7 +1360,8 @@ abstract class TestBase {
         $this->container->get('event_dispatcher'),
         $this->container->get('config.factory'),
         $this->container->get('entity.manager'),
-        $this->container->get('lock')
+        $this->container->get('lock'),
+        $this->container->get('uuid')
       );
     }
     // Always recalculate the changelist when called.

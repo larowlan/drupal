@@ -9,13 +9,13 @@ namespace Drupal\taxonomy\Form;
 
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\taxonomy\VocabularyStorageControllerInterface;
-use Drupal\Core\Entity\EntityNGConfirmFormBase;
+use Drupal\Core\Entity\ContentEntityConfirmFormBase;
 use Drupal\Core\Cache\Cache;
 
 /**
  * Provides a deletion confirmation form for taxonomy term.
  */
-class TermDeleteForm extends EntityNGConfirmFormBase {
+class TermDeleteForm extends ContentEntityConfirmFormBase {
 
   /**
    * The taxonomy vocabulary storage controller.
@@ -46,7 +46,7 @@ class TermDeleteForm extends EntityNGConfirmFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormID() {
+  public function getFormId() {
     return 'taxonomy_term_confirm_delete';
   }
 

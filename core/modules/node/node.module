@@ -242,7 +242,7 @@ function node_admin_paths() {
  *
  * @param $result
  *   A database result object from a query to fetch node entities. If your
- *   query joins the {node_comment_statistics} table so that the comment_count
+ *   query joins the {comment_entity_statistics} table so that the comment_count
  *   field is available, a title attribute will be added to show the number of
  *   comments.
  * @param $title
@@ -279,7 +279,7 @@ function node_mark($nid, $timestamp) {
   global $user;
   $cache = &drupal_static(__FUNCTION__, array());
 
-  if ($user->isAnonymous() || !module_exists('history')) {
+  if ($user->isAnonymous() || !\Drupal::moduleHandler()->moduleExists('history')) {
     return MARK_READ;
   }
   if (!isset($cache[$nid])) {
@@ -443,7 +443,7 @@ function node_add_body_field(NodeTypeInterface $type, $label = 'Body') {
  */
 function node_field_extra_fields() {
   $extra = array();
-  $module_language_enabled = module_exists('language');
+  $module_language_enabled = \Drupal::moduleHandler()->moduleExists('language');
   $description = t('Node module element');
 
   foreach (node_type_get_types() as $bundle) {
@@ -515,7 +515,7 @@ function node_type_update_nodes($old_id, $new_id) {
  *   An array of node entities indexed by nid.
  *
  * @see entity_load_multiple()
- * @see Drupal\Core\Entity\Query\EntityQueryInterface
+ * @see \Drupal\Core\Entity\Query\EntityQueryInterface
  */
 function node_load_multiple(array $nids = NULL, $reset = FALSE) {
   return entity_load_multiple('node', $nids, $reset);
@@ -564,52 +564,6 @@ function node_revision_delete($revision_id) {
 }
 
 /**
- * Page callback: Generates an array which displays a node detail page.
- *
- * @param \Drupal\Core\Entity\EntityInterface $node
- *   A node entity.
- * @param $message
- *   (optional) A flag which sets a page title relevant to the revision being
- *   viewed.  Default is FALSE.
- *
- * @return
- *   A $page element suitable for use by drupal_render().
- *
- * @see node_menu()
- *
- * @deprecated Use \Drupal\node\Controller\NodeController::revisionShow()
- */
-function node_show(EntityInterface $node, $message = FALSE) {
-  // For markup consistency with other pages, use node_view_multiple() rather than node_view().
-  $page = array('nodes' => node_view_multiple(array($node->id() => $node), 'full'));
-
-  if ($message) {
-    $page['#title'] = t('Revision of %title from %date', array('%title' => $node->label(), '%date' => format_date($node->getRevisionCreationTime())));
-  }
-
-  // Update the history table, stating that this user viewed this node.
-  global $user;
-  if (\Drupal::moduleHandler()->moduleExists('history') && $user->isAuthenticated()) {
-    $page['#attached'] = array(
-      'js' => array(
-        // When the window's "load" event is triggered, mark the node as read.
-        // This still allows for Drupal behaviors (which are triggered on the
-        // "DOMContentReady" event) to add "new" and "updated" indicators.
-        array(
-          'data' => 'window.addEventListener("load",function(){Drupal.history.markAsRead(' . $node->id() . ');},false);',
-          'type' => 'inline',
-        ),
-      ),
-      'library' => array(
-        array('history', 'drupal.history'),
-      )
-    );
-  }
-
-  return $page;
-}
-
-/**
  * Checks whether the current page is the full page view of the passed-in node.
  *
  * @param \Drupal\Core\Entity\EntityInterface $node
@@ -624,7 +578,7 @@ function node_is_page(EntityInterface $node) {
 }
 
 /**
- * Implements hook_preprocess_HOOK() for block.html.twig.
+ * Implements hook_preprocess_HOOK() for block templates.
  */
 function node_preprocess_block(&$variables) {
   if ($variables['configuration']['module'] == 'node') {
@@ -637,6 +591,19 @@ function node_preprocess_block(&$variables) {
         break;
     }
   }
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function node_theme_suggestions_node(array $variables) {
+  $suggestions = array();
+  $node = $variables['elements']['#node'];
+
+  $suggestions[] = 'node__' . $node->bundle();
+  $suggestions[] = 'node__' . $node->id();
+
+  return $suggestions;
 }
 
 /**
@@ -728,11 +695,6 @@ function template_preprocess_node(&$variables) {
   if (isset($variables['preview'])) {
     $variables['attributes']['class'][] = 'preview';
   }
-
-  // Clean up name so there are no underscores.
-  $variables['theme_hook_suggestions'][] = 'node__' . $node->bundle();
-  $variables['theme_hook_suggestions'][] = 'node__' . $node->id();
-
   $variables['content_attributes']['class'][] = 'content';
 }
 
@@ -959,10 +921,8 @@ function node_menu() {
   $items['admin/content'] = array(
     'title' => 'Content',
     'description' => 'Find and manage content.',
-    'page callback' => 'node_admin_nodes',
-    'access arguments' => array('access content overview'),
+    'route_name' => 'node.content_overview',
     'weight' => -10,
-    'file' => 'node.admin.inc',
   );
   $items['admin/content/node'] = array(
     'title' => 'Content',
@@ -1052,9 +1012,10 @@ function node_menu() {
 /**
  * Implements hook_menu_local_tasks().
  */
-function node_menu_local_tasks(&$data, $router_item, $root_path) {
+function node_menu_local_tasks(&$data, $route_name) {
   // Add action link to 'node/add' on 'admin/content' page.
-  if ($root_path == 'admin/content') {
+  // @todo Switch to inspecting route name in https://drupal.org/node/2021161.
+  if (current_path() == 'admin/content') {
     $item = menu_get_item('node/add');
     if ($item['access']) {
       $data['actions'][] = array(
@@ -1113,7 +1074,7 @@ function node_last_changed($nid, $langcode = NULL) {
  */
 function node_revision_list(EntityInterface $node) {
   $revisions = array();
-  $result = db_query('SELECT nfr.vid, nfr.title, nfr.log, nfr.revision_uid AS uid, n.vid AS current_vid, nfr.revision_timestamp, u.name FROM {node_field_revision} nfr LEFT JOIN {node} n ON n.vid = nfr.vid INNER JOIN {users} u ON u.uid = nfr.revision_uid WHERE nfr.nid = :nid AND nfr.default_langcode = 1 ORDER BY nfr.vid DESC', array(':nid' => $node->id()));
+  $result = db_query('SELECT nr.vid, nfr.title, nr.log, nr.revision_uid AS uid, n.vid AS current_vid, nr.revision_timestamp, u.name FROM {node_field_revision} nfr JOIN {node_revision} nr ON nr.vid = nfr.vid LEFT JOIN {node} n ON n.vid = nfr.vid INNER JOIN {users} u ON u.uid = nr.revision_uid WHERE nfr.nid = :nid AND nfr.default_langcode = 1 ORDER BY nfr.vid DESC', array(':nid' => $node->id()));
   foreach ($result as $revision) {
     $revisions[$revision->vid] = $revision;
   }
@@ -1449,40 +1410,6 @@ function node_view_multiple($nodes, $view_mode = 'teaser', $langcode = NULL) {
 }
 
 /**
- * Page callback: Displays a single node.
- *
- * @param \Drupal\Core\Entity\EntityInterface $node
- *   The node entity.
- *
- * @return
- *   A page array suitable for use by drupal_render().
- *
- * @see node_menu()
- *
- * @deprecated Use \Drupal\node\Controller\NodeController::viewPage()
- */
-function node_page_view(EntityInterface $node) {
-  foreach ($node->uriRelationships() as $rel) {
-    $uri = $node->uri($rel);
-    // Set the node path as the canonical URL to prevent duplicate content.
-    drupal_add_html_head_link(array('rel' => $rel, 'href' => url($uri['path'], $uri['options'])), TRUE);
-
-    if ($rel == 'canonical') {
-      // Set the non-aliased canonical path as a default shortlink.
-      drupal_add_html_head_link(array('rel' => 'shortlink', 'href' => url($uri['path'], array_merge($uri['options'], array('alias' => TRUE)))), TRUE);
-    }
-  }
-
-  $build = node_show($node);
-
-  // If there is a menu link to this node, the link becomes the last part
-  // of the active trail, and the link name becomes the page title.
-  // Thus, we must explicitly set the page title to be the node title.
-  $build['#title'] = String::checkPlain($node->label());
-  return $build;
-}
-
-/**
  * Implements hook_form_FORM_ID_alter().
  *
  * Alters the System module's site information settings form to add a global
@@ -1594,7 +1521,7 @@ function node_form_system_themes_admin_form_submit($form, &$form_state) {
  *   - "update"
  *   - "delete"
  *   - "create"
- * @param Drupal\Core\Entity\EntityInterface|string|stdClass $node
+ * @param \Drupal\Core\Entity\EntityInterface|string|stdClass $node
  *   The node entity on which the operation is to be performed, or the node type
  *   object, or node type string (e.g., 'forum') for the 'create' operation.
  * @param $account
@@ -2132,7 +2059,7 @@ function node_file_download_access($field, EntityInterface $entity, File $file) 
  */
 function node_language_delete($language) {
   // On nodes with this language, unset the language.
-  db_update('node')
+  db_update('node_revision')
     ->fields(array('langcode' => ''))
     ->condition('langcode', $language->id)
     ->execute();
@@ -2183,22 +2110,6 @@ function node_library_info() {
 }
 
 /**
- * Implements hook_system_info_alter().
- *
- * The Content Translation module is deprecated in Drupal 8 in favor of the
- * Entity Translation and is planned for removal. Until an upgrade path is
- * available, it will still be possible to enable it, if necessary, through the
- * module API or by tweaking the system module list configuration by hand.
- * Morever every D8 site where Content Translation is installed (not necessarily
- * enabled) will still be able to see it as usual in the module page.
- */
-function node_system_info_alter(&$info, $file, $type) {
-  if ($type == 'module' && $file->name == 'translation') {
-    $info['hidden'] = !module_exists('translation');
-  }
-}
-
-/**
  * Marks a node to be re-indexed by the node_search plugin.
  *
  * @param int $nid
@@ -2212,20 +2123,13 @@ function node_reindex_node_search($nid) {
 }
 
 /**
- * Implements hook_node_update().
- */
-function node_node_update(EntityInterface $node) {
-  // Reindex the node when it is updated. The node is automatically indexed
-  // when it is added, simply by being added to the node table.
-  node_reindex_node_search($node->id());
-}
-
-/**
  * Implements hook_comment_insert().
  */
 function node_comment_insert($comment) {
   // Reindex the node when comments are added.
-  node_reindex_node_search($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    node_reindex_node_search($comment->entity_id->value);
+  }
 }
 
 /**
@@ -2233,7 +2137,9 @@ function node_comment_insert($comment) {
  */
 function node_comment_update($comment) {
   // Reindex the node when comments are changed.
-  node_reindex_node_search($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    node_reindex_node_search($comment->entity_id->value);
+  }
 }
 
 /**
@@ -2241,7 +2147,9 @@ function node_comment_update($comment) {
  */
 function node_comment_delete($comment) {
   // Reindex the node when comments are deleted.
-  node_reindex_node_search($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    node_reindex_node_search($comment->entity_id->value);
+  }
 }
 
 /**
@@ -2249,7 +2157,9 @@ function node_comment_delete($comment) {
  */
 function node_comment_publish($comment) {
   // Reindex the node when comments are published.
-  node_reindex_node_search($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    node_reindex_node_search($comment->entity_id->value);
+  }
 }
 
 /**
@@ -2257,5 +2167,7 @@ function node_comment_publish($comment) {
  */
 function node_comment_unpublish($comment) {
   // Reindex the node when comments are unpublished.
-  node_reindex_node_search($comment->nid->target_id);
+  if ($comment->entity_type->value == 'node') {
+    node_reindex_node_search($comment->entity_id->value);
+  }
 }

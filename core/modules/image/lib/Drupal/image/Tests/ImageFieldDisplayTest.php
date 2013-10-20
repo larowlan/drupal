@@ -165,8 +165,8 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
     $instance = $this->createImageField($field_name, 'article', array(), $instance_settings, $widget_settings);
 
     $this->drupalGet('node/add/article');
-    $this->assertText(t('Files must be less than 50 KB.'), 'Image widget max file size is displayed on article form.');
-    $this->assertText(t('Allowed file types: ' . $test_image_extension . '.'), 'Image widget allowed file types displayed on article form.');
+    $this->assertText(t('50 KB limit.'), 'Image widget max file size is displayed on article form.');
+    $this->assertText(t('Allowed types: ' . $test_image_extension . '.'), 'Image widget allowed file types displayed on article form.');
     $this->assertText(t('Images must be between 10x10 and 100x100 pixels.'), 'Image widget allowed resolution displayed on article form.');
 
     // We have to create the article first and then edit it because the alt
@@ -248,7 +248,7 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
     // Clear field info cache so the new default image is detected.
     field_info_cache_clear();
     $field = field_info_field('node', $field_name);
-    $file = file_load($field['settings']['default_image']);
+    $file = file_load($field->getFieldSetting('default_image'));
     $this->assertTrue($file->isPermanent(), 'The default image status is permanent.');
     $image = array(
       '#theme' => 'image',
@@ -281,7 +281,7 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
     // Clear field info cache so the new default image is detected.
     field_info_cache_clear();
     $field = field_info_field('node', $field_name);
-    $this->assertFalse($field['settings']['default_image'], 'Default image removed from field.');
+    $this->assertFalse($field->getFieldSetting('default_image'), 'Default image removed from field.');
     // Create an image field that uses the private:// scheme and test that the
     // default image works as expected.
     $private_field_name = strtolower($this->randomName());
@@ -295,7 +295,7 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
     field_info_cache_clear();
 
     $private_field = field_info_field('node', $private_field_name);
-    $file = file_load($private_field['settings']['default_image']);
+    $file = file_load($private_field->getFieldSetting('default_image'));
     $this->assertEqual('private', file_uri_scheme($file->getFileUri()), 'Default image uses private:// scheme.');
     $this->assertTrue($file->isPermanent(), 'The default image status is permanent.');
     // Create a new node with no image attached and ensure that default private

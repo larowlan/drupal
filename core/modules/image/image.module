@@ -6,6 +6,7 @@
  */
 
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Component\Plugin\Exception\UnknownPluginException;
 use Drupal\field\Entity\Field;
 use Drupal\field\Entity\FieldInstance;
 use Drupal\file\Entity\File;
@@ -72,8 +73,14 @@ function image_help($path, $arg) {
       $effect = \Drupal::service('plugin.manager.image.effect')->getDefinition($arg[7]);
       return isset($effect['description']) ? ('<p>' . $effect['description'] . '</p>') : NULL;
     case 'admin/config/media/image-styles/manage/%/effects/%':
-      $effect = entity_load('image_style', $arg[5])->getEffect($arg[7])->getPluginDefinition();
-      return isset($effect['description']) ? ('<p>' . $effect['description'] . '</p>') : NULL;
+      try {
+        $effect = entity_load('image_style', $arg[5])->getEffect($arg[7]);
+      }
+      catch (UnknownPluginException $e) {
+        return NULL;
+      }
+      $effect_definition = $effect->getPluginDefinition();
+      return isset($effect_definition['description']) ? ('<p>' . $effect_definition['description'] . '</p>') : NULL;
   }
 }
 
@@ -92,11 +99,6 @@ function image_menu() {
     'title' => 'List',
     'description' => 'List the current image styles on the site.',
     'type' => MENU_DEFAULT_LOCAL_TASK,
-  );
-  $items['admin/config/media/image-styles/add'] = array(
-    'route_name' => 'image.style_add',
-    'type' => MENU_SIBLING_LOCAL_TASK,
-    'weight' => 1,
   );
   $items['admin/config/media/image-styles/manage/%image_style'] = array(
     'title' => 'Edit style',
@@ -221,19 +223,16 @@ function image_file_download($uri) {
   // Private file access for image style derivatives.
   if (strpos($path, 'styles/') === 0) {
     $args = explode('/', $path);
-    // Discard the first part of the path (styles).
-    array_shift($args);
-    // Get the style name from the second part.
-    $style_name = array_shift($args);
-    // Remove the scheme from the path.
-    array_shift($args);
+
+    // Discard "styles", style name, and scheme from the path
+    $args = array_slice($args, 3);
 
     // Then the remaining parts are the path to the image.
     $original_uri = file_uri_scheme($uri) . '://' . implode('/', $args);
 
     // Check that the file exists and is an image.
     $image = \Drupal::service('image.factory')->get($uri);
-    if ($image->getExtension()) {
+    if ($image->isSupported()) {
       // Check the permissions of the original to grant access to this image.
       $headers = \Drupal::moduleHandler()->invokeAll('file_download', array($original_uri));
       // Confirm there's at least one module granting access and none denying access.
@@ -449,8 +448,12 @@ function image_field_entity_update(FieldInterface $field) {
   // The value of a managed_file element can be an array if #extended == TRUE.
   $fid_new = (isset($field->settings['default_image']['fids']) ? $field->settings['default_image']['fids'] : $field->settings['default_image']);
   $fid_old = (isset($prior_field->settings['default_image']['fids']) ? $prior_field->settings['default_image']['fids'] : $prior_field->settings['default_image']);
+  // Ensure sure that fid_new and old are arrays, because default_image might
+  // be the fallback value 0, see image_field_info().
+  $fid_old = (array) $fid_old;
+  $fid_new = (array) $fid_new;
 
-  $file_new = $fid_new ? file_load($fid_new) : FALSE;
+  $file_new = $fid_new ? file_load(reset($fid_new)) : FALSE;
 
   if ($fid_new != $fid_old) {
 
@@ -462,7 +465,7 @@ function image_field_entity_update(FieldInterface $field) {
     }
 
     // Is there an old file?
-    if ($fid_old && ($file_old = file_load($fid_old[0]))) {
+    if ($fid_old && ($file_old = file_load(reset($fid_old)))) {
       file_usage()->delete($file_old, 'image', 'default_image', $field->uuid);
     }
   }
