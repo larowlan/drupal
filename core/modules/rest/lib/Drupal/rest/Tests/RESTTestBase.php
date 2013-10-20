@@ -29,10 +29,18 @@ abstract class RESTTestBase extends WebTestBase {
    */
   protected $defaultMimeType;
 
+  /**
+   * The default authentication provider to use for testing REST operations.
+   *
+   * @var array
+   */
+  protected $defaultAuth;
+
   protected function setUp() {
     parent::setUp();
     $this->defaultFormat = 'hal_json';
     $this->defaultMimeType = 'application/hal+json';
+    $this->defaultAuth = array('cookie');
     // Create a test content type for node testing.
     $this->drupalCreateContentType(array('name' => 'resttest', 'type' => 'resttest'));
   }
@@ -198,19 +206,20 @@ abstract class RESTTestBase extends WebTestBase {
    * @param array $auth
    *   (Optional) The list of valid authentication methods.
    */
-  protected function enableService($resource_type, $method = 'GET', $format = NULL, $auth = array()) {
+  protected function enableService($resource_type, $method = 'GET', $format = NULL, $auth = NULL) {
     // Enable REST API for this entity type.
     $config = \Drupal::config('rest.settings');
     $settings = array();
+
     if ($resource_type) {
-      if ($format) {
-        $settings[$resource_type][$method]['supported_formats'][] = $format;
+      if ($format == NULL) {
+        $format = $this->defaultFormat;
       }
-      else {
-        $settings[$resource_type][$method] = array();
+      $settings[$resource_type][$method]['supported_formats'][] = $format;
+
+      if ($auth == NULL) {
+        $auth = $this->defaultAuth;
       }
-    }
-    if (is_array($auth) && !empty($auth)) {
       $settings[$resource_type][$method]['supported_auth'] = $auth;
     }
 
