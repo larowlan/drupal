@@ -98,6 +98,14 @@ class ContactPersonalTest extends WebTestBase {
     // Check the page title is properly displayed.
     $this->assertRaw(t('Contact @username', array('@username' => $this->admin_user->getUsername())));
 
+    $original_email = $this->contact_user->getEmail();
+    $this->contact_user->setEmail(FALSE)->save();
+    // Test denied access to user with no email.
+    $this->drupalGet('user/' . $this->contact_user->id() . '/contact');
+    $this->assertResponse(403);
+    // Restore original email address.
+    $this->contact_user->setEmail($original_email)->save();
+
     // Test denied access to admin user's own contact form.
     $this->drupalLogout();
     $this->drupalLogin($this->admin_user);
