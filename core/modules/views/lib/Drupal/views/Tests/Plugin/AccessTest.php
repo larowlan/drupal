@@ -8,6 +8,7 @@
 namespace Drupal\views\Tests\Plugin;
 
 use Drupal\views\Tests\ViewTestData;
+use Drupal\views\Views;
 
 /**
  * Basic test for pluggable access.
@@ -23,6 +24,13 @@ class AccessTest extends PluginTestBase {
    * @var array
    */
   public static $testViews = array('test_access_none', 'test_access_static', 'test_access_dynamic');
+
+  /**
+   * Modules to enable.
+   *
+   * @return array
+   */
+  public static $modules = array('node');
 
   public static function getInfo() {
     return array(
@@ -55,7 +63,7 @@ class AccessTest extends PluginTestBase {
    * Tests none access plugin.
    */
   function testAccessNone() {
-    $view = views_get_view('test_access_none');
+    $view = Views::getView('test_access_none');
     $view->setDisplay();
 
     $this->assertTrue($view->display_handler->access($this->admin_user), 'Admin-Account should be able to access the view everytime');
@@ -73,7 +81,7 @@ class AccessTest extends PluginTestBase {
    * @see \Drupal\views_test\Plugin\views\access\StaticTest
    */
   function testStaticAccessPlugin() {
-    $view = views_get_view('test_access_static');
+    $view = Views::getView('test_access_static');
     $view->setDisplay();
 
     $access_plugin = $view->display_handler->getPlugin('access');
@@ -86,7 +94,9 @@ class AccessTest extends PluginTestBase {
     $display['display_options']['access']['options']['access'] = TRUE;
     $access_plugin->options['access'] = TRUE;
     $view->save();
-    $this->container->get('router.builder')->rebuild();
+    // Saving a view will cause the router to be rebuilt when the kernel
+    // termination event fires. Simulate that here.
+    $this->container->get('router.builder')->rebuildIfNeeded();
 
     $this->assertTrue($access_plugin->access($this->normal_user));
 

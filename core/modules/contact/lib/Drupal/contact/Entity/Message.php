@@ -9,16 +9,17 @@ namespace Drupal\contact\Entity;
 
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\contact\MessageInterface;
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\FieldDefinition;
 
 /**
  * Defines the contact message entity.
  *
- * @EntityType(
+ * @ContentEntityType(
  *   id = "contact_message",
  *   label = @Translation("Contact message"),
  *   controllers = {
- *     "storage" = "Drupal\Core\Entity\FieldableNullStorageController",
+ *     "storage" = "Drupal\Core\Entity\ContentEntityNullStorage",
  *     "view_builder" = "Drupal\contact\MessageViewBuilder",
  *     "form" = {
  *       "default" = "Drupal\contact\MessageFormController"
@@ -29,9 +30,6 @@ use Drupal\Core\Field\FieldDefinition;
  *   },
  *   bundle_entity_type = "contact_category",
  *   fieldable = TRUE,
- *   bundle_keys = {
- *     "bundle" = "id"
- *   },
  *   links = {
  *     "admin-form" = "contact.category_edit"
  *   }
@@ -142,7 +140,7 @@ class Message extends ContentEntityBase implements MessageInterface {
   /**
    * {@inheritdoc}
    */
-  public static function baseFieldDefinitions($entity_type) {
+  public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields['category'] = FieldDefinition::create('entity_reference')
       ->setLabel(t('Category ID'))
       ->setDescription(t('The ID of the associated category.'))

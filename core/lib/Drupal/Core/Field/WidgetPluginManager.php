@@ -21,7 +21,7 @@ class WidgetPluginManager extends DefaultPluginManager {
   /**
    * The field type manager to define field.
    *
-   * @var \Drupal\Core\Field\FieldTypePluginManager
+   * @var \Drupal\Core\Field\FieldTypePluginManagerInterface
    */
   protected $fieldTypeManager;
 
@@ -44,14 +44,14 @@ class WidgetPluginManager extends DefaultPluginManager {
    *   The module handler.
    * @param \Drupal\Core\Language\LanguageManager $language_manager
    *   The language manager.
-   * @param \Drupal\Core\Field\FieldTypePluginManager $field_type_manager
+   * @param \Drupal\Core\Field\FieldTypePluginManagerInterface $field_type_manager
    *   The 'field type' plugin manager.
    */
-  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, LanguageManager $language_manager, FieldTypePluginManager $field_type_manager) {
-    parent::__construct('Plugin/Field/FieldWidget', $namespaces, 'Drupal\Core\Field\Annotation\FieldWidget');
+  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, LanguageManager $language_manager, FieldTypePluginManagerInterface $field_type_manager) {
+    parent::__construct('Plugin/Field/FieldWidget', $namespaces, $module_handler, 'Drupal\Core\Field\Annotation\FieldWidget');
 
     $this->setCacheBackend($cache_backend, $language_manager, 'field_widget_types_plugins');
-    $this->alterInfo($module_handler, 'field_widget_info');
+    $this->alterInfo('field_widget_info');
 
     $this->factory = new WidgetFactory($this);
     $this->fieldTypeManager = $field_type_manager;
@@ -75,8 +75,8 @@ class WidgetPluginManager extends DefaultPluginManager {
    *     - settings: (array) Settings specific to the widget. Each setting
    *       defaults to the default value specified in the widget definition.
    *
-   * @return \Drupal\Core\Field\WidgetInterface
-   *   A Widget object.
+   * @return \Drupal\Core\Field\WidgetInterface|null
+   *   A Widget object or NULL when plugin is not found.
    */
   public function getInstance(array $options) {
     // Fill in defaults for missing properties.
@@ -103,6 +103,9 @@ class WidgetPluginManager extends DefaultPluginManager {
     if (!isset($definition['class']) || !in_array($field_type, $definition['field_types'])) {
       // Grab the default widget for the field type.
       $field_type_definition = $this->fieldTypeManager->getDefinition($field_type);
+      if (empty($field_type_definition['default_widget'])) {
+        return NULL;
+      }
       $plugin_id = $field_type_definition['default_widget'];
     }
 
@@ -171,7 +174,7 @@ class WidgetPluginManager extends DefaultPluginManager {
       $options = array();
       $field_types = $this->fieldTypeManager->getDefinitions();
       $widget_types = $this->getDefinitions();
-      uasort($widget_types, 'drupal_sort_weight');
+      uasort($widget_types, array('Drupal\Component\Utility\SortArray', 'sortByWeightElement'));
       foreach ($widget_types as $name => $widget_type) {
         foreach ($widget_type['field_types'] as $widget_field_type) {
           // Check that the field type exists.
@@ -200,8 +203,13 @@ class WidgetPluginManager extends DefaultPluginManager {
    *   definition, or an empty array if type or settings are undefined.
    */
   public function getDefaultSettings($type) {
-    $info = $this->getDefinition($type);
-    return isset($info['settings']) ? $info['settings'] : array();
+    $plugin_definition = $this->getDefinition($type);
+    if (!empty($plugin_definition['class'])) {
+      $plugin_class = DefaultFactory::getPluginClass($type, $plugin_definition);
+      return $plugin_class::defaultSettings();
+    }
+
+    return array();
   }
 
 }

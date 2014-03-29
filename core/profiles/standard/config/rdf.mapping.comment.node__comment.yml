@@ -1,5 +1,4 @@
 id: comment.node__comment
-uuid: 89b35613-4578-4027-b800-c12c6955cf2b
 targetEntityType: comment
 bundle: node__comment
 types:
@@ -25,3 +24,6 @@ fieldMappings:
     properties:
       - 'schema:author'
     mapping_type: 'rel'
+dependencies:
+  module:
+    - comment

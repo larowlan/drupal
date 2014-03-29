@@ -19,7 +19,7 @@ abstract class BlockTestBase extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('block', 'test_page_test');
+  public static $modules = array('block', 'filter', 'test_page_test');
 
   /**
    * A list of theme regions to test.
@@ -66,7 +66,7 @@ abstract class BlockTestBase extends WebTestBase {
       'sidebar_second',
       'footer',
     );
-    $block_storage = $this->container->get('entity.manager')->getStorageController('block');
+    $block_storage = $this->container->get('entity.manager')->getStorage('block');
     $blocks = $block_storage->loadByProperties(array('theme' => \Drupal::config('system.theme')->get('default')));
     foreach ($blocks as $block) {
       $block->delete();

@@ -20,7 +20,7 @@ abstract class CommentTestBase extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = array('comment', 'comment_test_views');
+  public static $modules = array('node', 'comment', 'comment_test_views');
 
   /**
    * Stores a comment used by the tests.
@@ -40,6 +40,7 @@ abstract class CommentTestBase extends ViewTestBase {
     $this->account2 = $this->drupalCreateUser();
     $this->drupalLogin($this->account);
 
+    $this->drupalCreateContentType(array('type' => 'page', 'name' => t('Basic page')));
     $this->container->get('comment.manager')->addDefaultField('node', 'page');
 
     $this->node_user_posted = $this->drupalCreateNode();

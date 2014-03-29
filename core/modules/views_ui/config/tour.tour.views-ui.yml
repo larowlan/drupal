@@ -1,10 +1,10 @@
 id: views-ui
-uuid: 261db4f0-603c-440d-8211-17a095614851
 module: views_ui
 label: 'Views ui'
 langcode: en
-paths:
-  - 'admin/structure/views/view/*'
+routes:
+  - route_name: views_ui.edit
+  - route_name: views_ui.edit_display
 tips:
   views-ui-active-display:
     id: views-ui-active-display
@@ -87,3 +87,6 @@ tips:
     location: left
     attributes:
       data-id: views-display-extra-actions
+dependencies:
+  module:
+    - views_ui

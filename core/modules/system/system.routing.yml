@@ -1,7 +1,7 @@
 system.ajax:
   path: '/system/ajax'
   defaults:
-    _controller: '\Drupal\system\Controller\FormAjaxController::content'
+    _content: '\Drupal\system\Controller\FormAjaxController::content'
   options:
     _theme: ajax_base_page
   requirements:
@@ -283,11 +283,16 @@ system.php:
     _controller: 'Drupal\system\Controller\SystemInfoController::php'
   requirements:
     _permission: 'administer site configuration'
+  # This page should not be treated as administrative since it outputs its own
+  # content (outside of any administration theme).
+  options:
+    _admin_route: FALSE
 
 system.admin_index:
   path: '/admin/index'
   defaults:
     _content: 'Drupal\system\Controller\AdminController::index'
+    _title: 'Administration'
   requirements:
     _permission: 'access administration pages'
 
@@ -318,7 +323,7 @@ system.themes_page:
 system.theme_set_default:
   path: '/admin/appearance/default'
   defaults:
-    _title: 'Set default theme'
+    _title: 'Set as default theme'
     _content: '\Drupal\system\Controller\SystemController::themeSetDefault'
   requirements:
     _permission: 'administer themes'
@@ -341,6 +346,8 @@ system.theme_settings_theme:
 
 '<front>':
   path: '/'
+  defaults:
+    _title: Home
   requirements:
     _access: 'TRUE'
 
@@ -348,6 +355,7 @@ system.modules_uninstall:
   path: '/admin/modules/uninstall'
   defaults:
     _form: 'Drupal\system\Form\ModulesUninstallForm'
+    _title: 'Uninstall'
   requirements:
     _permission: 'administer modules'
 
@@ -384,6 +392,8 @@ system.batch_page.normal:
     _content: '\Drupal\system\Controller\BatchController::batchPage'
   requirements:
     _access: 'TRUE'
+  options:
+    _admin_route: TRUE
 
 system.batch_page.json:
   path: '/batch'
@@ -392,6 +402,8 @@ system.batch_page.json:
   requirements:
     _access: 'TRUE'
     _format: 'json'
+  options:
+    _admin_route: TRUE
 
 system.update:
   path: '/core/update.php'

@@ -17,7 +17,7 @@ class TermFieldTest extends TaxonomyTestBase {
    *
    * @var array
    */
-  public static $modules = array('entity_test');
+  public static $modules = array('entity_test', 'field_ui');
 
   protected $instance;
   protected $vocabulary;
@@ -37,13 +37,14 @@ class TermFieldTest extends TaxonomyTestBase {
       'view test entity',
       'administer entity_test content',
       'administer taxonomy',
+      'administer entity_test fields',
     ));
     $this->drupalLogin($web_user);
     $this->vocabulary = $this->createVocabulary();
 
     // Setup a field and instance.
     $this->field_name = drupal_strtolower($this->randomName());
-    $this->field = entity_create('field_entity', array(
+    $this->field = entity_create('field_config', array(
       'name' => $this->field_name,
       'entity_type' => 'entity_test',
       'type' => 'taxonomy_term_reference',
@@ -57,7 +58,7 @@ class TermFieldTest extends TaxonomyTestBase {
       )
     ));
     $this->field->save();
-    entity_create('field_instance', array(
+    entity_create('field_instance_config', array(
       'field_name' => $this->field_name,
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
@@ -80,14 +81,14 @@ class TermFieldTest extends TaxonomyTestBase {
   function testTaxonomyTermFieldValidation() {
     // Test validation with a valid value.
     $term = $this->createTerm($this->vocabulary);
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $entity->{$this->field_name}->target_id = $term->id();
     $violations = $entity->{$this->field_name}->validate();
     $this->assertEqual(count($violations) , 0, 'Correct term does not cause validation error.');
 
     // Test validation with an invalid valid value (wrong vocabulary).
     $bad_term = $this->createTerm($this->createVocabulary());
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $entity->{$this->field_name}->target_id = $bad_term->id();
     $violations = $entity->{$this->field_name}->validate();
     $this->assertEqual(count($violations) , 1, 'Wrong term causes validation error.');
@@ -102,7 +103,7 @@ class TermFieldTest extends TaxonomyTestBase {
 
     // Display creation form.
     $this->drupalGet('entity_test/add');
-    $this->assertFieldByName($this->field_name, '', 'Widget is displayed.');
+    $this->assertFieldByName($this->field_name, NULL, 'Widget is displayed.');
 
     // Submit with some value.
     $edit = array(
@@ -117,17 +118,29 @@ class TermFieldTest extends TaxonomyTestBase {
 
     // Display the object.
     $entity = entity_load('entity_test', $id);
-    $entities = array($id => $entity);
-    $display = entity_get_display($entity->entityType(), $entity->bundle(), 'full');
-    field_attach_prepare_view('entity_test', $entities, array($entity->bundle() => $display));
-    $entity->content = field_attach_view($entity, $display);
-    $this->content = drupal_render($entity->content);
-    $this->assertText($term->label(), 'Term label is displayed.');
+    $display = entity_get_display($entity->getEntityTypeId(), $entity->bundle(), 'full');
+    $content = $display->build($entity);
+    $this->drupalSetContent(drupal_render($content));
+    $this->assertText($term->getName(), 'Term label is displayed.');
 
     // Delete the vocabulary and verify that the widget is gone.
     $this->vocabulary->delete();
     $this->drupalGet('entity_test/add');
     $this->assertNoFieldByName($this->field_name, '', 'Widget is not displayed.');
+  }
+
+  /**
+   * No php error message on the field setting page for autocomplete widget.
+   */
+  function testTaxonomyTermFieldInstanceSettingsAutocompleteWidget() {
+    entity_get_form_display('entity_test', 'entity_test', 'default')
+      ->setComponent($this->field_name, array(
+        'type' => 'taxonomy_autocomplete',
+        'weight' => 1,
+      ))
+      ->save();
+    $this->drupalGet('entity_test/structure/entity_test/fields/entity_test.entity_test.' . $this->field_name);
+    $this->assertNoErrorsLogged();
   }
 
   /**

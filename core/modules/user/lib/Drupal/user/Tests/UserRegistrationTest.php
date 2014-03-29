@@ -55,7 +55,7 @@ class UserRegistrationTest extends WebTestBase {
     $edit['name'] = $name = $this->randomName();
     $edit['mail'] = $mail = $edit['name'] . '@example.com';
     $this->drupalPostForm('user/register', $edit, t('Create new account'));
-    $this->container->get('entity.manager')->getStorageController('user')->resetCache();
+    $this->container->get('entity.manager')->getStorage('user')->resetCache();
     $accounts = entity_load_multiple_by_properties('user', array('name' => $name, 'mail' => $mail));
     $new_user = reset($accounts);
     $this->assertFalse($new_user->isActive(), 'New account is blocked until approved by an administrator.');
@@ -84,7 +84,7 @@ class UserRegistrationTest extends WebTestBase {
     $edit['pass[pass1]'] = $new_pass = $this->randomName();
     $edit['pass[pass2]'] = $new_pass;
     $this->drupalPostForm('user/register', $edit, t('Create new account'));
-    $this->container->get('entity.manager')->getStorageController('user')->resetCache();
+    $this->container->get('entity.manager')->getStorage('user')->resetCache();
     $accounts = entity_load_multiple_by_properties('user', array('name' => $name, 'mail' => $mail));
     $new_user = reset($accounts);
     $this->assertNotNull($new_user, 'New account successfully created with matching passwords.');
@@ -196,14 +196,14 @@ class UserRegistrationTest extends WebTestBase {
    */
   function testRegistrationWithUserFields() {
     // Create a field, and an instance on 'user' entity type.
-    $field = entity_create('field_entity', array(
+    $field = entity_create('field_config', array(
       'name' => 'test_user_field',
       'entity_type' => 'user',
       'type' => 'test_field',
       'cardinality' => 1,
     ));
     $field->save();
-    $instance = entity_create('field_instance', array(
+    $instance = entity_create('field_instance_config', array(
       'field_name' => 'test_user_field',
       'entity_type' => 'user',
       'label' => 'Some user field',

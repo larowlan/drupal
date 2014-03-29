@@ -11,6 +11,7 @@ use Drupal\simpletest\UnitTestBase;
 use Drupal\plugin_test\Plugin\TestPluginManager;
 use Drupal\plugin_test\Plugin\MockBlockManager;
 use Drupal\plugin_test\Plugin\DefaultsTestPluginManager;
+use Drupal\Core\Extension\ModuleHandler;
 
 /**
  * Base class for Plugin API unit tests.
@@ -36,7 +37,8 @@ abstract class PluginTestBase extends UnitTestBase {
     //   as derivatives and ReflectionFactory.
     $this->testPluginManager = new TestPluginManager();
     $this->mockBlockManager = new MockBlockManager();
-    $this->defaultsTestPluginManager = new DefaultsTestPluginManager();
+    $module_handler = new ModuleHandler();
+    $this->defaultsTestPluginManager = new DefaultsTestPluginManager($module_handler);
 
     // The expected plugin definitions within each manager. Several tests assert
     // that these plugins and their definitions are found and returned by the
@@ -61,6 +63,11 @@ abstract class PluginTestBase extends UnitTestBase {
       'menu:navigation' => array(
         'label' => 'Navigation',
         'class' => 'Drupal\plugin_test\Plugin\plugin_test\mock_block\MockMenuBlock',
+      ),
+      'menu:foo' => array(
+        'label' => 'Base label',
+        'class' => 'Drupal\plugin_test\Plugin\plugin_test\mock_block\MockMenuBlock',
+        'setting' => 'default',
       ),
       'layout' => array(
         'label' => 'Layout',

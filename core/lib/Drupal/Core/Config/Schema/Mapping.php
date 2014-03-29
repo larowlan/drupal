@@ -91,24 +91,20 @@ class Mapping extends ArrayElement implements ComplexDataInterface {
   }
 
   /**
-   * Implements Drupal\Core\TypedData\ComplexDataInterface::getPropertyValues().
+   * {@inheritdoc}
    */
-  public function getPropertyValues() {
+  public function toArray() {
     return $this->getValue();
   }
 
   /**
-   * Implements Drupal\Core\TypedData\ComplexDataInterface::setPropertyValues().
-   */
-  public function setPropertyValues($values) {
-    foreach ($values as $name => $value) {
-      $this->value[$name] = $value;
-    }
-    return $this;
-  }
-
-  /**
-   * Implements Drupal\Core\TypedData\ComplexDataInterface::getPropertyDefinition().
+   * Gets the definition of a contained property.
+   *
+   * @param string $name
+   *   The name of property.
+   *
+   * @return array|FALSE
+   *   The definition of the property or FALSE if the property does not exist.
    */
   public function getPropertyDefinition($name) {
     if (isset($this->definition['mapping'][$name])) {
@@ -120,7 +116,11 @@ class Mapping extends ArrayElement implements ComplexDataInterface {
   }
 
   /**
-   * Implements Drupal\Core\TypedData\ComplexDataInterface::getPropertyDefinitions().
+   * Gets an array of property definitions of contained properties.
+   *
+   * @return \Drupal\Core\TypedData\DataDefinitionInterface[]
+   *   An array of property definitions of contained properties, keyed by
+   *   property name.
    */
   public function getPropertyDefinitions() {
     $list = array();

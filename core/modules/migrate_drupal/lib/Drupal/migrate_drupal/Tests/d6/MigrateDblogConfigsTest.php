@@ -17,6 +17,13 @@ use Drupal\migrate_drupal\Tests\MigrateDrupalTestBase;
 class MigrateDblogConfigsTest extends MigrateDrupalTestBase {
 
   /**
+   * Modules to enable.
+   *
+   * @var array
+   */
+  public static $modules = array('dblog');
+
+  /**
    * {@inheritdoc}
    */
   public static function getInfo() {
@@ -28,9 +35,10 @@ class MigrateDblogConfigsTest extends MigrateDrupalTestBase {
   }
 
   /**
-   * Tests migration of dblog variables to dblog.settings.yml.
+   * {@inheritdoc}
    */
-  public function testBookSettings() {
+  public function setUp() {
+    parent::setUp();
     $migration = entity_load('migration', 'd6_dblog_settings');
     $dumps = array(
       drupal_get_path('module', 'migrate_drupal') . '/lib/Drupal/migrate_drupal/Tests/Dump/Drupal6DblogSettings.php',
@@ -38,6 +46,12 @@ class MigrateDblogConfigsTest extends MigrateDrupalTestBase {
     $this->prepare($migration, $dumps);
     $executable = new MigrateExecutable($migration, new MigrateMessage());
     $executable->import();
+  }
+
+  /**
+   * Tests migration of dblog variables to dblog.settings.yml.
+   */
+  public function testBookSettings() {
     $config = \Drupal::config('dblog.settings');
     $this->assertIdentical($config->get('row_limit'), 1000);
   }

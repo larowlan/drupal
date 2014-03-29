@@ -27,7 +27,7 @@ class TermViewBuilder extends EntityViewBuilder {
       // @todo Remove this when base fields are able to use formatters.
       // https://drupal.org/node/2144919
       $display = $displays[$entity->bundle()];
-      if (!empty($entity->description->value) && $display->getComponent('description')) {
+      if ($entity->getDescription() && $display->getComponent('description')) {
         $entity->content['description'] = array(
           '#markup' => $entity->description->processed,
           '#prefix' => '<div class="taxonomy-term-description">',
@@ -35,19 +35,6 @@ class TermViewBuilder extends EntityViewBuilder {
         );
       }
     }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function getBuildDefaults(EntityInterface $entity, $view_mode, $langcode) {
-    $return = parent::getBuildDefaults($entity, $view_mode, $langcode);
-
-    // TODO: rename "term" to "taxonomy_term" in theme_taxonomy_term().
-    $return['#term'] = $return["#{$this->entityType}"];
-    unset($return["#{$this->entityType}"]);
-
-    return $return;
   }
 
   /**

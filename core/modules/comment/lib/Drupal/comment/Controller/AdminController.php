@@ -11,7 +11,6 @@ use Drupal\comment\CommentManagerInterface;
 use Drupal\field\FieldInfo;
 use Drupal\Component\Utility\String;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\field_ui\FieldUI;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,7 +19,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Returns responses for comment module administrative routes.
  */
-class AdminController extends ControllerBase implements ContainerInjectionInterface {
+class AdminController extends ControllerBase {
 
   /**
    * The field info service.
@@ -81,6 +80,10 @@ class AdminController extends ControllerBase implements ContainerInjectionInterf
   public function overviewBundles() {
     $header = array(
       'field_name' => $this->t('Field name'),
+      'description' => array(
+        'data' => $this->t('Description'),
+        'class' => array(RESPONSIVE_PRIORITY_MEDIUM),
+      ),
       'usage' => array(
         'data' => $this->t('Used in'),
         'class' => array(RESPONSIVE_PRIORITY_MEDIUM),
@@ -119,6 +122,7 @@ class AdminController extends ControllerBase implements ContainerInjectionInterf
         );
         $row['data']['field_name']['data'] = $field_info->get('locked') ? $this->t('@label (@field_name) (Locked)', $tokens) : $this->t('@label (@field_name)', $tokens);
 
+        $row['data']['description']['data'] = $field_info->getSetting('description');
         $row['data']['usage']['data'] = array(
           '#theme' => 'item_list',
           '#items' => array(),
@@ -170,7 +174,7 @@ class AdminController extends ControllerBase implements ContainerInjectionInterf
     }
 
     $build['overview'] = array(
-      '#theme' => 'table',
+      '#type' => 'table',
       '#header' => $header,
       '#rows' => $rows,
       '#empty' => $this->t('No comment forms available.'),

@@ -11,7 +11,9 @@ use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Component\Utility\String;
 use Drupal\user\TempStoreFactory;
+use Drupal\views\Views;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -82,13 +84,13 @@ class ViewEditFormController extends ViewFormControllerBase {
 
     $form['#tree'] = TRUE;
 
-    $form['#attached']['library'][] = array('system', 'jquery.ui.tabs');
-    $form['#attached']['library'][] = array('system', 'jquery.ui.dialog');
-    $form['#attached']['library'][] = array('system', 'drupal.states');
-    $form['#attached']['library'][] = array('system', 'drupal.tabledrag');
+    $form['#attached']['library'][] = 'core/jquery.ui.tabs';
+    $form['#attached']['library'][] = 'core/jquery.ui.dialog';
+    $form['#attached']['library'][] = 'core/drupal.states';
+    $form['#attached']['library'][] = 'core/drupal.tabledrag';
 
     if (!\Drupal::config('views.settings')->get('no_javascript')) {
-      $form['#attached']['library'][] = array('views_ui', 'views_ui.admin');
+      $form['#attached']['library'][] = 'views_ui/views_ui.admin';
     }
 
     $form['#attached']['css'] = static::getAdminCSS();
@@ -122,7 +124,7 @@ class ViewEditFormController extends ViewFormControllerBase {
       $lock_message_substitutions = array(
         '!user' => drupal_render($username),
         '!age' => format_interval(REQUEST_TIME - $view->lock->updated),
-        '!break' => url('admin/structure/views/view/' . $view->id() . '/break-lock'),
+        '!break' => $view->url('break-lock'),
       );
       $form['locked'] = array(
         '#type' => 'container',
@@ -224,6 +226,10 @@ class ViewEditFormController extends ViewFormControllerBase {
         array($this, 'cancel'),
       ),
     );
+    if ($this->entity->isLocked()) {
+      $actions['submit']['#access'] = FALSE;
+      $actions['cancel']['#access'] = FALSE;
+    }
     return $actions;
   }
 
@@ -234,6 +240,9 @@ class ViewEditFormController extends ViewFormControllerBase {
     parent::validate($form, $form_state);
 
     $view = $this->entity;
+    if ($view->isLocked()) {
+      $this->setFormError('', $form_state, $this->t('Changes cannot be made to a locked view.'));
+    }
     foreach ($view->getExecutable()->validate() as $display_errors) {
       foreach ($display_errors as $error) {
         $this->setFormError('', $form_state, $error);
@@ -285,7 +294,7 @@ class ViewEditFormController extends ViewFormControllerBase {
 
     if (!empty($destination)) {
       // Find out the first display which has a changed path and redirect to this url.
-      $old_view = views_get_view($view->id());
+      $old_view = Views::getView($view->id());
       $old_view->initDisplay();
       foreach ($old_view->displayHandlers as $id => $display) {
         // Only check for displays with a path.
@@ -386,7 +395,7 @@ class ViewEditFormController extends ViewFormControllerBase {
         if (!$is_enabled) {
           $build['top']['actions']['enable'] = array(
             '#type' => 'submit',
-            '#value' => $this->t('Enable @display_title', array('@display_title' => $display_title)),
+            '#value' => $this->t('Enable !display_title', array('!display_title' => $display_title)),
             '#limit_validation_errors' => array(),
             '#submit' => array(array($this, 'submitDisplayEnable'), array($this, 'submitDelayDestination')),
             '#prefix' => '<li class="enable">',
@@ -400,7 +409,7 @@ class ViewEditFormController extends ViewFormControllerBase {
           if ($path && (strpos($path, '%') === FALSE)) {
             $build['top']['actions']['path'] = array(
               '#type' => 'link',
-              '#title' => $this->t('View @display', array('@display' => $display['display_title'])),
+              '#title' => $this->t('View !display_title', array('!display_title' => $display_title)),
               '#options' => array('alt' => array($this->t("Go to the real page for this display"))),
               '#href' => $path,
               '#prefix' => '<li class="view">',
@@ -411,7 +420,7 @@ class ViewEditFormController extends ViewFormControllerBase {
         if (!$is_default) {
           $build['top']['actions']['duplicate'] = array(
             '#type' => 'submit',
-            '#value' => $this->t('Clone @display_title', array('@display_title' => $display_title)),
+            '#value' => $this->t('Clone !display_title', array('!display_title' => $display_title)),
             '#limit_validation_errors' => array(),
             '#submit' => array(array($this, 'submitDisplayDuplicate'), array($this, 'submitDelayDestination')),
             '#prefix' => '<li class="duplicate">',
@@ -421,21 +430,21 @@ class ViewEditFormController extends ViewFormControllerBase {
         // Always allow a display to be deleted.
         $build['top']['actions']['delete'] = array(
           '#type' => 'submit',
-          '#value' => $this->t('Delete @display_title', array('@display_title' => $display_title)),
+          '#value' => $this->t('Delete !display_title', array('!display_title' => $display_title)),
           '#limit_validation_errors' => array(),
           '#submit' => array(array($this, 'submitDisplayDelete'), array($this, 'submitDelayDestination')),
           '#prefix' => '<li class="delete">',
           "#suffix" => '</li>',
         );
 
-        foreach (views_fetch_plugin_names('display', NULL, array($view->get('storage')->get('base_table'))) as $type => $label) {
+        foreach (Views::fetchPluginNames('display', NULL, array($view->get('storage')->get('base_table'))) as $type => $label) {
           if ($type == $display['display_plugin']) {
             continue;
           }
 
           $build['top']['actions']['clone_as'][$type] = array(
             '#type' => 'submit',
-            '#value' => $this->t('Clone as @type', array('@type' => $label)),
+            '#value' => $this->t('Clone as !type', array('!type' => $label)),
             '#limit_validation_errors' => array(),
             '#submit' => array(array($this, 'submitCloneDisplayAsType'), array($this, 'submitDelayDestination')),
             '#prefix' => '<li class="duplicate">',
@@ -446,7 +455,7 @@ class ViewEditFormController extends ViewFormControllerBase {
       else {
         $build['top']['actions']['undo_delete'] = array(
           '#type' => 'submit',
-          '#value' => $this->t('Undo delete of @display_title', array('@display_title' => $display_title)),
+          '#value' => $this->t('Undo delete of !display_title', array('!display_title' => $display_title)),
           '#limit_validation_errors' => array(),
           '#submit' => array(array($this, 'submitDisplayUndoDelete'), array($this, 'submitDelayDestination')),
           '#prefix' => '<li class="undo-delete">',
@@ -456,7 +465,7 @@ class ViewEditFormController extends ViewFormControllerBase {
       if ($is_enabled) {
         $build['top']['actions']['disable'] = array(
           '#type' => 'submit',
-          '#value' => $this->t('Disable @display_title', array('@display_title' => $display_title)),
+          '#value' => $this->t('Disable !display_title', array('!display_title' => $display_title)),
           '#limit_validation_errors' => array(),
           '#submit' => array(array($this, 'submitDisplayDisable'), array($this, 'submitDelayDestination')),
           '#prefix' => '<li class="disable">',
@@ -469,7 +478,7 @@ class ViewEditFormController extends ViewFormControllerBase {
       $build['top']['display_title'] = array(
         '#theme' => 'views_ui_display_tab_setting',
         '#description' => $this->t('Display name'),
-        '#link' => $view->getExecutable()->displayHandlers->get($display['id'])->optionLink(check_plain($display_title), 'display_title'),
+        '#link' => $view->getExecutable()->displayHandlers->get($display['id'])->optionLink(String::checkPlain($display_title), 'display_title'),
       );
     }
 
@@ -493,7 +502,6 @@ class ViewEditFormController extends ViewFormControllerBase {
     $build['columns']['third'] = array(
       '#type' => 'details',
       '#title' => $this->t('Advanced'),
-      '#collapsed' => TRUE,
       '#theme_wrappers' => array('details'),
       '#attributes' => array(
         'class' => array(
@@ -502,11 +510,8 @@ class ViewEditFormController extends ViewFormControllerBase {
         ),
       ),
     );
-
     // Collapse the details by default.
-    if (\Drupal::config('views.settings')->get('ui.show.advanced_column')) {
-      $build['columns']['third']['#collapsed'] = FALSE;
-    }
+    $build['columns']['third']['#open'] = \Drupal::config('views.settings')->get('ui.show.advanced_column');
 
     // Each option (e.g. title, access, display as grid/table/list) fits into one
     // of several "buckets," or boxes (Format, Fields, Sort, and so on).
@@ -626,10 +631,7 @@ class ViewEditFormController extends ViewFormControllerBase {
 
     // Redirect to the top-level edit page. The first remaining display will
     // become the active display.
-    $form_state['redirect_route'] = array(
-      'route_name' => 'views_ui.edit',
-      'route_parameters' => array('view' => $view->id()),
-    );
+    $form_state['redirect_route'] = $view->urlInfo('edit-form');
   }
 
   /**
@@ -687,8 +689,7 @@ class ViewEditFormController extends ViewFormControllerBase {
         ),
         'clone' => array(
           'title' => $this->t('Clone view'),
-          'href' => "admin/structure/views/view/{$view->id()}/clone",
-        ),
+        ) + $view->urlInfo('clone')->toArray(),
         'reorder' => array(
           'title' => $this->t('Reorder displays'),
           'href' => "admin/structure/views/nojs/reorder-displays/{$view->id()}/$display_id",
@@ -700,8 +701,7 @@ class ViewEditFormController extends ViewFormControllerBase {
     if ($view->access('delete')) {
       $element['extra_actions']['#links']['delete'] = array(
         'title' => $this->t('Delete view'),
-        'href' => "admin/structure/views/view/{$view->id()}/delete",
-      );
+      ) + $view->urlInfo('delete-form')->toArray();
     }
 
     // Let other modules add additional links here.
@@ -734,7 +734,7 @@ class ViewEditFormController extends ViewFormControllerBase {
     }
 
     // Buttons for adding a new display.
-    foreach (views_fetch_plugin_names('display', NULL, array($view->get('base_table'))) as $type => $label) {
+    foreach (Views::fetchPluginNames('display', NULL, array($view->get('base_table'))) as $type => $label) {
       $element['add_display'][$type] = array(
         '#type' => 'submit',
         '#value' => $this->t('Add !display', array('!display' => $label)),
@@ -911,7 +911,7 @@ class ViewEditFormController extends ViewFormControllerBase {
     $executable->setDisplay($display['id']);
     $executable->initStyle();
 
-    $types = $executable->viewsHandlerTypes();
+    $types = $executable->getHandlerTypes();
 
     $build = array(
       '#theme_wrappers' => array('views_ui_display_tab_bucket'),
@@ -962,7 +962,7 @@ class ViewEditFormController extends ViewFormControllerBase {
         break;
     }
 
-    // Create an array of actions to pass to theme_links
+    // Create an array of actions to pass to links template.
     $actions = array();
     $count_handlers = count($executable->display_handler->getHandlers($type));
 
@@ -1043,7 +1043,7 @@ class ViewEditFormController extends ViewFormControllerBase {
         continue;
       }
 
-      $field_name = check_plain($handler->adminLabel(TRUE));
+      $field_name = String::checkPlain($handler->adminLabel(TRUE));
       if (!empty($field['relationship']) && !empty($relationships[$field['relationship']])) {
         $field_name = '(' . $relationships[$field['relationship']] . ') ' . $field_name;
       }
@@ -1060,7 +1060,7 @@ class ViewEditFormController extends ViewFormControllerBase {
       $build['fields'][$id]['#class'][] = drupal_clean_css_identifier($display['id']. '-' . $type . '-' . $id);
 
       if ($executable->display_handler->useGroupBy() && $handler->usesGroupBy()) {
-        $build['fields'][$id]['#settings_links'][] = l('<span class="label">' . $this->t('Aggregation settings') . '</span>', "admin/structure/views/nojs/handler-group/{$view->id()}/{$display['id']}/$type/$id", array('attributes' => array('class' => 'views-button-configure views-ajax-link', 'title' => $this->t('Aggregation settings')), 'html' => TRUE));
+        $build['fields'][$id]['#settings_links'][] = l('<span class="label">' . $this->t('Aggregation settings') . '</span>', "admin/structure/views/nojs/handler-group/{$view->id()}/{$display['id']}/$type/$id", array('attributes' => array('class' => array('views-button-configure', 'views-ajax-link'), 'title' => $this->t('Aggregation settings')), 'html' => TRUE));
       }
 
       if ($handler->hasExtraOptions()) {

@@ -7,7 +7,8 @@
 
 namespace Drupal\image\Form;
 
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\image\ConfigurableImageEffectInterface;
 use Drupal\image\ImageEffectManager;
 use Drupal\Component\Utility\String;
@@ -28,12 +29,12 @@ class ImageStyleEditForm extends ImageStyleFormBase {
   /**
    * Constructs an ImageStyleEditForm object.
    *
-   * @param \Drupal\Core\Entity\EntityStorageControllerInterface $image_style_storage
-   *   The storage controller.
+   * @param \Drupal\Core\Entity\EntityStorageInterface $image_style_storage
+   *   The storage.
    * @param \Drupal\image\ImageEffectManager $image_effect_manager
    *   The image effect manager service.
    */
-  public function __construct(EntityStorageControllerInterface $image_style_storage, ImageEffectManager $image_effect_manager) {
+  public function __construct(EntityStorageInterface $image_style_storage, ImageEffectManager $image_effect_manager) {
     parent::__construct($image_style_storage);
     $this->imageEffectManager = $image_effect_manager;
   }
@@ -43,7 +44,7 @@ class ImageStyleEditForm extends ImageStyleFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorageController('image_style'),
+      $container->get('entity.manager')->getStorage('image_style'),
       $container->get('plugin.manager.image.effect')
     );
   }
@@ -244,6 +245,18 @@ class ImageStyleEditForm extends ImageStyleFormBase {
     foreach ($effects as $uuid => $effect_data) {
       if ($this->entity->getEffects()->has($uuid)) {
         $this->entity->getEffect($uuid)->setWeight($effect_data['weight']);
+      }
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function copyFormValuesToEntity(EntityInterface $entity, array $form, array &$form_state) {
+    foreach ($form_state['values'] as $key => $value) {
+      // Do not copy effects here, see self::updateEffectWeights().
+      if ($key != 'effects') {
+        $entity->set($key, $value);
       }
     }
   }

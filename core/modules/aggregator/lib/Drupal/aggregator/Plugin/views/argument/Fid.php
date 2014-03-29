@@ -17,7 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @ingroup views_argument_handlers
  *
- * @PluginID("aggregator_fid")
+ * @ViewsArgument("aggregator_fid")
  */
 class Fid extends Numeric {
 
@@ -58,7 +58,7 @@ class Fid extends Numeric {
   function titleQuery() {
     $titles = array();
 
-    $feeds = $this->entityManager->getStorageController('aggregator_feed')->loadMultiple($this->value);
+    $feeds = $this->entityManager->getStorage('aggregator_feed')->loadMultiple($this->value);
     foreach ($feeds as $feed) {
       $titles[] = String::checkPlain($feed->label());
     }

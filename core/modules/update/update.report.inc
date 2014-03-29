@@ -45,28 +45,28 @@ function theme_update_report($variables) {
     switch ($project['status']) {
       case UPDATE_CURRENT:
         $class = 'ok';
-        $uri = 'core/misc/watchdog-ok.png';
+        $uri = 'core/misc/icons/73b355/check.png';
         $text = t('ok');
         break;
       case UPDATE_UNKNOWN:
       case UPDATE_FETCH_PENDING:
       case UPDATE_NOT_FETCHED:
         $class = 'unknown';
-        $uri = 'core/misc/watchdog-warning.png';
+        $uri = 'core/misc/icons/e29700/warning.png';
         $text = t('warning');
         break;
       case UPDATE_NOT_SECURE:
       case UPDATE_REVOKED:
       case UPDATE_NOT_SUPPORTED:
         $class = 'error';
-        $uri = 'core/misc/watchdog-error.png';
+        $uri = 'core/misc/icons/ea2800/error.png';
         $text = t('error');
         break;
       case UPDATE_NOT_CHECKED:
       case UPDATE_NOT_CURRENT:
       default:
         $class = 'warning';
-        $uri = 'core/misc/watchdog-warning.png';
+        $uri = 'core/misc/icons/e29700/warning.png';
         $text = t('warning');
         break;
     }
@@ -283,7 +283,7 @@ function theme_update_report($variables) {
       ksort($rows[$type_name]);
       $output .= "\n<h3>" . $type_label . "</h3>\n";
       $table = array(
-        '#theme' => 'table',
+        '#type' => 'table',
         '#header' => $header,
         '#rows' => $rows[$type_name],
         '#attributes' => array(
@@ -297,7 +297,7 @@ function theme_update_report($variables) {
   $assets = array(
     '#attached' => array(
       'library' => array(
-        array('update', 'drupal.update.admin'),
+        'update/drupal.update.admin',
       ),
     )
   );

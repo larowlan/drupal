@@ -59,12 +59,12 @@ class Registry implements DestructableInterface {
    *     from; e.g., 'module' for theme hook 'node' of Node module.
    *   - name: The name of the extension the original theme hook originates
    *     from; e.g., 'node' for theme hook 'node' of Node module.
-   *   - theme path: The effective path_to_theme() during theme(), available as
+   *   - theme path: The effective path_to_theme() during _theme(), available as
    *     'directory' variable in templates.
    *       functions, it should point to the respective theme. For templates,
    *       it should point to the directory that contains the template.
    *   - includes: (optional) An array of include files to load when the theme
-   *     hook is executed by theme().
+   *     hook is executed by _theme().
    *   - file: (optional) A filename to add to 'includes', either prefixed with
    *     the value of 'path', or the path of the extension implementing
    *     hook_theme().
@@ -154,7 +154,7 @@ class Registry implements DestructableInterface {
       }
       // #2: The testing framework only cares for the global $theme variable at
       // this point. Cope with that.
-      if ($GLOBALS['theme'] != $GLOBALS['theme_info']->name) {
+      if ($GLOBALS['theme'] != $GLOBALS['theme_info']->getName()) {
         unset($this->runtimeRegistry);
         unset($this->registry);
         $this->initializeTheme();
@@ -207,7 +207,7 @@ class Registry implements DestructableInterface {
     if (isset($this->registry)) {
       return $this->registry;
     }
-    if ($cache = $this->cache->get('theme_registry:' . $this->theme->name)) {
+    if ($cache = $this->cache->get('theme_registry:' . $this->theme->getName())) {
       $this->registry = $cache->data;
     }
     else {
@@ -230,7 +230,7 @@ class Registry implements DestructableInterface {
    */
   public function getRuntime() {
     if (!isset($this->runtimeRegistry)) {
-      $this->runtimeRegistry = new ThemeRegistry('theme_registry:runtime:' . $this->theme->name, $this->cache, $this->lock, array('theme_registry' => TRUE), $this->moduleHandler->isLoaded());
+      $this->runtimeRegistry = new ThemeRegistry('theme_registry:runtime:' . $this->theme->getName(), $this->cache, $this->lock, array('theme_registry' => TRUE), $this->moduleHandler->isLoaded());
     }
     return $this->runtimeRegistry;
   }
@@ -239,7 +239,7 @@ class Registry implements DestructableInterface {
    * Persists the theme registry in the cache backend.
    */
   protected function setCache() {
-    $this->cache->set('theme_registry:' . $this->theme->name, $this->registry, CacheBackendInterface::CACHE_PERMANENT, array('theme_registry' => TRUE));
+    $this->cache->set('theme_registry:' . $this->theme->getName(), $this->registry, Cache::PERMANENT, array('theme_registry' => TRUE));
   }
 
   /**
@@ -291,7 +291,7 @@ class Registry implements DestructableInterface {
    * for base hooks (e.g., 'block__node' for the base hook 'block') need to be
    * determined based on the full registry and classified as 'base hook'.
    *
-   * @see theme()
+   * @see _theme()
    * @see hook_theme_registry_alter()
    *
    * @return \Drupal\Core\Utility\ThemeRegistry
@@ -312,27 +312,27 @@ class Registry implements DestructableInterface {
       }
       // Only cache this registry if all modules are loaded.
       if ($this->moduleHandler->isLoaded()) {
-        $this->cache->set("theme_registry:build:modules", $cache, CacheBackendInterface::CACHE_PERMANENT, array('theme_registry' => TRUE));
+        $this->cache->set("theme_registry:build:modules", $cache, Cache::PERMANENT, array('theme_registry' => TRUE));
       }
     }
 
     // Process each base theme.
     foreach ($this->baseThemes as $base) {
       // If the base theme uses a theme engine, process its hooks.
-      $base_path = dirname($base->filename);
+      $base_path = $base->getPath();
       if ($this->engine) {
-        $this->processExtension($cache, $this->engine, 'base_theme_engine', $base->name, $base_path);
+        $this->processExtension($cache, $this->engine, 'base_theme_engine', $base->getName(), $base_path);
       }
-      $this->processExtension($cache, $base->name, 'base_theme', $base->name, $base_path);
+      $this->processExtension($cache, $base->getName(), 'base_theme', $base->getName(), $base_path);
     }
 
     // And then the same thing, but for the theme.
     if ($this->engine) {
-      $this->processExtension($cache, $this->engine, 'theme_engine', $this->theme->name, dirname($this->theme->filename));
+      $this->processExtension($cache, $this->engine, 'theme_engine', $this->theme->getName(), $this->theme->getPath());
     }
 
     // Finally, hooks provided by the theme itself.
-    $this->processExtension($cache, $this->theme->name, 'theme', $this->theme->name, dirname($this->theme->filename));
+    $this->processExtension($cache, $this->theme->getName(), 'theme', $this->theme->getName(), $this->theme->getPath());
 
     // Let modules alter the registry.
     $this->moduleHandler->alter('theme_registry', $cache);
@@ -374,7 +374,7 @@ class Registry implements DestructableInterface {
    *     in hook_theme(). If there is more than one implementation and
    *     'render element' is not specified in a later one, then the previous
    *     definition is kept.
-   *   - 'preprocess functions': See theme() for detailed documentation.
+   *   - 'preprocess functions': See _theme() for detailed documentation.
    * @param string $name
    *   The name of the module, theme engine, base theme engine, theme or base
    *   theme implementing hook_theme().
@@ -391,7 +391,7 @@ class Registry implements DestructableInterface {
    *   The directory where $name is. For example, modules/system or
    *   themes/bartik.
    *
-   * @see theme()
+   * @see _theme()
    * @see hook_theme()
    * @see list_themes()
    */
@@ -486,7 +486,7 @@ class Registry implements DestructableInterface {
           }
           foreach ($prefixes as $prefix) {
             // Only use non-hook-specific variable preprocessors for theming
-            // hooks implemented as templates. See theme().
+            // hooks implemented as templates. See _theme().
             if (isset($info['template']) && function_exists($prefix . '_preprocess')) {
               $info['preprocess functions'][] = $prefix . '_preprocess';
             }
@@ -522,7 +522,7 @@ class Registry implements DestructableInterface {
             $cache[$hook]['preprocess functions'] = array();
           }
           // Only use non-hook-specific variable preprocessors for theme hooks
-          // implemented as templates. See theme().
+          // implemented as templates. See _theme().
           if (isset($info['template']) && function_exists($name . '_preprocess')) {
             $cache[$hook]['preprocess functions'][] = $name . '_preprocess';
           }

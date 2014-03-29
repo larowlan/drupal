@@ -7,9 +7,9 @@
 
 namespace Drupal\text\Tests\Formatter;
 
-use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Language\Language;
 use Drupal\simpletest\DrupalUnitTestBase;
 
 /**
@@ -64,10 +64,10 @@ class TextPlainUnitTest extends DrupalUnitTestBase {
       'text_processing' => FALSE,
     );
 
-    $this->formatter_type = 'text_plain';
+    $this->formatter_type = 'string';
     $this->formatter_settings = array();
 
-    $this->field = entity_create('field_entity', array(
+    $this->field = entity_create('field_config', array(
       'name' => $this->field_name,
       'entity_type' => $this->entity_type,
       'type' => $this->field_type,
@@ -75,7 +75,7 @@ class TextPlainUnitTest extends DrupalUnitTestBase {
     ));
     $this->field->save();
 
-    $this->instance = entity_create('field_instance', array(
+    $this->instance = entity_create('field_instance_config', array(
       'entity_type' => $this->entity_type,
       'bundle' => $this->bundle,
       'field_name' => $this->field_name,
@@ -105,8 +105,8 @@ class TextPlainUnitTest extends DrupalUnitTestBase {
    *   The created entity object.
    */
   protected function createEntity($values = array()) {
-    $info = \Drupal::entityManager()->getDefinition($this->entity_type);
-    $bundle_key = $info->getKey('bundle');
+    $entity_type = \Drupal::entityManager()->getDefinition($this->entity_type);
+    $bundle_key = $entity_type->getKey('bundle');
     $entity = entity_create($this->entity_type, $values + array(
       $bundle_key => $this->bundle,
     ));
@@ -116,13 +116,13 @@ class TextPlainUnitTest extends DrupalUnitTestBase {
   /**
    * Renders fields of a given entity with a given display.
    *
-   * @param \Drupal\Core\Entity\EntityInterface $entity
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
    *   The entity object with attached fields to render.
    * @param \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display
    *   The display to render the fields in.
    */
-  protected function renderEntityFields(EntityInterface $entity, EntityViewDisplayInterface $display) {
-    $content = field_attach_view($entity, $display);
+  protected function renderEntityFields(ContentEntityInterface $entity, EntityViewDisplayInterface $display) {
+    $content = $display->build($entity);
     $this->content = drupal_render($content);
     return $this->content;
   }

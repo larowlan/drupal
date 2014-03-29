@@ -9,34 +9,35 @@ namespace Drupal\user\Entity;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\user\RoleInterface;
 
 /**
  * Defines the user role entity class.
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "user_role",
  *   label = @Translation("Role"),
  *   controllers = {
- *     "storage" = "Drupal\user\RoleStorageController",
+ *     "storage" = "Drupal\user\RoleStorage",
  *     "access" = "Drupal\user\RoleAccessController",
- *     "list" = "Drupal\user\RoleListController",
+ *     "list_builder" = "Drupal\user\RoleListBuilder",
  *     "form" = {
  *       "default" = "Drupal\user\RoleFormController",
  *       "delete" = "Drupal\user\Form\UserRoleDelete"
  *     }
  *   },
  *   admin_permission = "administer permissions",
- *   config_prefix = "user.role",
+ *   config_prefix = "role",
  *   entity_keys = {
  *     "id" = "id",
- *     "uuid" = "uuid",
  *     "weight" = "weight",
  *     "label" = "label"
  *   },
  *   links = {
- *     "edit-form" = "user.role_edit"
+ *     "delete-form" = "user.role_delete",
+ *     "edit-form" = "user.role_edit",
+ *     "edit-permissions-form" = "user.admin_permission"
  *   }
  * )
  */
@@ -48,13 +49,6 @@ class Role extends ConfigEntityBase implements RoleInterface {
    * @var string
    */
   public $id;
-
-  /**
-   * The UUID of this role.
-   *
-   * @var string
-   */
-  public $uuid;
 
   /**
    * The human-readable label of this role.
@@ -112,8 +106,8 @@ class Role extends ConfigEntityBase implements RoleInterface {
   /**
    * {@inheritdoc}
    */
-  public static function postLoad(EntityStorageControllerInterface $storage_controller, array &$entities) {
-    parent::postLoad($storage_controller, $entities);
+  public static function postLoad(EntityStorageInterface $storage, array &$entities) {
+    parent::postLoad($storage, $entities);
     // Sort the queried roles by their weight.
     // See \Drupal\Core\Config\Entity\ConfigEntityBase::sort().
     uasort($entities, 'static::sort');
@@ -122,10 +116,10 @@ class Role extends ConfigEntityBase implements RoleInterface {
   /**
    * {@inheritdoc}
    */
-  public function preSave(EntityStorageControllerInterface $storage_controller) {
-    parent::preSave($storage_controller);
+  public function preSave(EntityStorageInterface $storage) {
+    parent::preSave($storage);
 
-    if (!isset($this->weight) && ($roles = $storage_controller->loadMultiple())) {
+    if (!isset($this->weight) && ($roles = $storage->loadMultiple())) {
       // Set a role weight to make this new role last.
       $max = array_reduce($roles, function($max, $role) {
         return $max > $role->weight ? $max : $role->weight;
@@ -137,8 +131,8 @@ class Role extends ConfigEntityBase implements RoleInterface {
   /**
    * {@inheritdoc}
    */
-  public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
-    parent::postSave($storage_controller, $update);
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    parent::postSave($storage, $update);
 
     Cache::invalidateTags(array('role' => $this->id()));
     // Clear render cache.
@@ -148,11 +142,11 @@ class Role extends ConfigEntityBase implements RoleInterface {
   /**
    * {@inheritdoc}
    */
-  public static function postDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
-    parent::postDelete($storage_controller, $entities);
+  public static function postDelete(EntityStorageInterface $storage, array $entities) {
+    parent::postDelete($storage, $entities);
 
     $ids = array_keys($entities);
-    $storage_controller->deleteRoleReferences($ids);
+    $storage->deleteRoleReferences($ids);
     Cache::invalidateTags(array('role' => $ids));
   }
 

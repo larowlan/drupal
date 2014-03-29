@@ -16,8 +16,8 @@ use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Cmf\Component\Routing\ProviderBasedGenerator;
 
 use Drupal\Component\Utility\Settings;
-use Drupal\Component\Utility\Url;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Component\Utility\UrlHelper;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\PathProcessor\OutboundPathProcessorInterface;
 use Drupal\Core\RouteProcessor\OutboundRouteProcessorInterface;
 
@@ -43,7 +43,7 @@ class UrlGenerator extends ProviderBasedGenerator implements UrlGeneratorInterfa
   /**
    * The route processor.
    *
-   * @var \Drupal\Tests\Core\RouteProcessor\OutboundRouteProcessorInterface
+   * @var \Drupal\Core\RouteProcessor\OutboundRouteProcessorInterface
    */
   protected $routeProcessor;
 
@@ -80,19 +80,25 @@ class UrlGenerator extends ProviderBasedGenerator implements UrlGeneratorInterfa
    *
    * @param \Drupal\Core\Routing\RouteProviderInterface $provider
    *   The route provider to be searched for routes.
-   * @param \Drupal\Core\Path\AliasManagerInterface $alias_manager
-   *   The alias manager responsible for path aliasing.
+   * @param \Drupal\Core\PathProcessor\OutboundPathProcessorInterface $path_processor
+   *   The path processor to convert the system path to one suitable for urls.
+   * @param \Drupal\Core\RouteProcessor\OutboundRouteProcessorInterface $route_processor
+   *   The route processor.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config
+   *    The config factory.
+   * @param \Drupal\Component\Utility\Settings $settings
+   *    The read only settings.
    * @param \Symfony\Component\HttpKernel\Log\LoggerInterface $logger
    *   An optional logger for recording errors.
    */
-  public function __construct(RouteProviderInterface $provider, OutboundPathProcessorInterface $path_processor, OutboundRouteProcessorInterface $route_processor, ConfigFactory $config, Settings $settings, LoggerInterface $logger = NULL) {
+  public function __construct(RouteProviderInterface $provider, OutboundPathProcessorInterface $path_processor, OutboundRouteProcessorInterface $route_processor, ConfigFactoryInterface $config, Settings $settings, LoggerInterface $logger = NULL) {
     parent::__construct($provider, $logger);
 
     $this->pathProcessor = $path_processor;
     $this->routeProcessor = $route_processor;
     $this->mixedModeSessions = $settings->get('mixed_mode_sessions', FALSE);
     $allowed_protocols = $config->get('system.filter')->get('protocols') ?: array('http', 'https');
-    Url::setAllowedProtocols($allowed_protocols);
+    UrlHelper::setAllowedProtocols($allowed_protocols);
   }
 
   /**
@@ -237,12 +243,13 @@ class UrlGenerator extends ProviderBasedGenerator implements UrlGeneratorInterfa
 
     if (!isset($options['external'])) {
       // Return an external link if $path contains an allowed absolute URL. Only
-      // call the slow \Drupal\Component\Utility\Url::stripDangerousProtocols()
-      // if $path contains a ':' before any / ? or #. Note: we could use
+      // call the slow
+      // \Drupal\Component\Utility\UrlHelper::stripDangerousProtocols() if $path
+      // contains a ':' before any / ? or #. Note: we could use
       // url_is_external($path) here, but that would require another function
       // call, and performance inside url() is critical.
       $colonpos = strpos($path, ':');
-      $options['external'] = ($colonpos !== FALSE && !preg_match('![/?#]!', substr($path, 0, $colonpos)) && Url::stripDangerousProtocols($path) == $path);
+      $options['external'] = ($colonpos !== FALSE && !preg_match('![/?#]!', substr($path, 0, $colonpos)) && UrlHelper::stripDangerousProtocols($path) == $path);
     }
 
     if (isset($options['fragment']) && $options['fragment'] !== '') {
@@ -260,7 +267,7 @@ class UrlGenerator extends ProviderBasedGenerator implements UrlGeneratorInterfa
       }
       // Append the query.
       if ($options['query']) {
-        $path .= (strpos($path, '?') !== FALSE ? '&' : '?') . Url::buildQuery($options['query']);
+        $path .= (strpos($path, '?') !== FALSE ? '&' : '?') . UrlHelper::buildQuery($options['query']);
       }
       if (isset($options['https']) && $this->mixedModeSessions) {
         if ($options['https'] === TRUE) {
@@ -303,7 +310,7 @@ class UrlGenerator extends ProviderBasedGenerator implements UrlGeneratorInterfa
     $prefix = empty($path) ? rtrim($options['prefix'], '/') : $options['prefix'];
 
     $path = str_replace('%2F', '/', rawurlencode($prefix . $path));
-    $query = $options['query'] ? ('?' . Url::buildQuery($options['query'])) : '';
+    $query = $options['query'] ? ('?' . UrlHelper::buildQuery($options['query'])) : '';
     return $base . $options['script'] . $path . $query . $options['fragment'];
   }
 

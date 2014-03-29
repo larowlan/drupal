@@ -7,6 +7,7 @@
 
 namespace Drupal\Core\Field;
 
+use Drupal\Component\Plugin\Factory\DefaultFactory;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManager;
@@ -14,18 +15,8 @@ use Drupal\Core\Plugin\DefaultPluginManager;
 
 /**
  * Plugin manager for 'field type' plugins.
- *
- * @todo Add FieldTypePluginManagerInterface in https://drupal.org/node/2175415.
  */
-class FieldTypePluginManager extends DefaultPluginManager {
-
-  /**
-   * {@inheritdoc}
-   */
-  protected $defaults = array(
-    'settings' => array(),
-    'instance_settings' => array(),
-  );
+class FieldTypePluginManager extends DefaultPluginManager implements FieldTypePluginManagerInterface {
 
   /**
    * Constructs the FieldTypePluginManager object
@@ -41,8 +32,8 @@ class FieldTypePluginManager extends DefaultPluginManager {
    *   The module handler.
    */
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, LanguageManager $language_manager, ModuleHandlerInterface $module_handler) {
-    parent::__construct('Plugin/Field/FieldType', $namespaces, 'Drupal\Core\Field\Annotation\FieldType');
-    $this->alterInfo($module_handler, 'field_info');
+    parent::__construct('Plugin/Field/FieldType', $namespaces, $module_handler, 'Drupal\Core\Field\Annotation\FieldType');
+    $this->alterInfo('field_info');
     $this->setCacheBackend($cache_backend, $language_manager, 'field_types_plugins');
   }
 
@@ -52,55 +43,41 @@ class FieldTypePluginManager extends DefaultPluginManager {
   public function processDefinition(&$definition, $plugin_id) {
     parent::processDefinition($definition, $plugin_id);
     if (!isset($definition['list_class'])) {
-      if ($definition['configurable']) {
-        $definition['list_class'] = '\Drupal\Core\Field\ConfigFieldItemList';
-      }
-      else {
-        $definition['list_class'] = '\Drupal\Core\Field\FieldItemList';
-      }
+      $definition['list_class'] = '\Drupal\Core\Field\FieldItemList';
     }
   }
 
   /**
-   * Returns the default field-level settings for a field type.
-   *
-   * @param string $type
-   *   A field type name.
-   *
-   * @return array
-   *   The type's default settings, as provided by the plugin
-   *   definition, or an empty array if type or settings are undefined.
+   * {@inheritdoc}
    */
   public function getDefaultSettings($type) {
-    $info = $this->getDefinition($type);
-    return isset($info['settings']) ? $info['settings'] : array();
+    $plugin_definition = $this->getDefinition($type);
+    if (!empty($plugin_definition['class'])) {
+      $plugin_class = DefaultFactory::getPluginClass($type, $plugin_definition);
+      return $plugin_class::defaultSettings();
+    }
+    return array();
   }
 
   /**
-   * Returns the default instance-level settings for a field type.
-   *
-   * @param string $type
-   *   A field type name.
-   *
-   * @return array
-   *   The instance's default settings, as provided by the plugin
-   *   definition, or an empty array if type or settings are undefined.
+   * {@inheritdoc}
    */
   public function getDefaultInstanceSettings($type) {
-    $info = $this->getDefinition($type);
-    return isset($info['instance_settings']) ? $info['instance_settings'] : array();
+    $plugin_definition = $this->getDefinition($type);
+    if (!empty($plugin_definition['class'])) {
+      $plugin_class = DefaultFactory::getPluginClass($type, $plugin_definition);
+      return $plugin_class::defaultInstanceSettings();
+    }
+    return array();
   }
 
   /**
-   * Gets the definition of all field types that are configurable.
-   *
-   * @return array
-   *   An array of field type definitions.
+   * {@inheritdoc}
    */
-  public function getConfigurableDefinitions() {
+  public function getUiDefinitions() {
     $definitions = $this->getDefinitions();
     return array_filter($definitions, function ($definition) {
-      return $definition['configurable'];
+      return empty($definition['no_ui']) && !empty($definition['default_formatter']) && !empty($definition['default_widget']);
     });
   }
 

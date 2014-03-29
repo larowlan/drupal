@@ -17,7 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @ingroup views_argument_handlers
  *
- * @PluginID("aggregator_iid")
+ * @ViewsArgument("aggregator_iid")
  */
 class Iid extends Numeric {
 
@@ -58,7 +58,7 @@ class Iid extends Numeric {
   function titleQuery() {
     $titles = array();
 
-    $items = $this->entityManager->getStorageController('aggregator_item')->loadMultiple($this->value);
+    $items = $this->entityManager->getStorage('aggregator_item')->loadMultiple($this->value);
     foreach ($items as $feed) {
       $titles[] = String::checkPlain($feed->label());
     }

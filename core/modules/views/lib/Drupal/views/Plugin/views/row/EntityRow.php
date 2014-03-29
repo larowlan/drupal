@@ -7,7 +7,10 @@
 
 namespace Drupal\views\Plugin\views\row;
 
+use Drupal\Component\Utility\String;
+use Drupal\Core\DependencyInjection\Container;
 use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\ViewExecutable;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -37,36 +40,53 @@ class EntityRow extends RowPluginBase {
   public $base_field;
 
   /**
-   * Stores the entity type of the result entities.
+   * Stores the entity type ID of the result entities.
    *
    * @var string
+   */
+  protected $entityTypeId;
+
+  /**
+   * Contains the entity type of this row plugin instance.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeInterface
    */
   protected $entityType;
 
   /**
-   * Contains the entity info of the entity type of this row plugin instance.
+   * The renderer to be used to render the entity row.
    *
-   * @var \Drupal\Core\Entity\EntityTypeInterface
+   * @var \Drupal\views\Entity\Rendering\RendererBase
    */
-  protected $entityInfo;
+  protected $renderer;
 
   /**
-   * Contains an array of render arrays, one for each rendered entity.
+   * The entity manager.
    *
-   * @var array
+   * @var \Drupal\Core\Entity\EntityManagerInterface
    */
-  protected $build = array();
+  public $entityManager;
+
+  /**
+   * The language manager.
+   *
+   * @var \Drupal\Core\Language\LanguageManagerInterface
+   */
+  protected $languageManager;
 
   /**
    * {@inheritdoc}
    *
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager.
+   * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
+   *   The language manager.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EntityManagerInterface $entity_manager) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EntityManagerInterface $entity_manager, LanguageManagerInterface $language_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
 
     $this->entityManager = $entity_manager;
+    $this->languageManager = $language_manager;
   }
 
   /**
@@ -75,17 +95,17 @@ class EntityRow extends RowPluginBase {
   public function init(ViewExecutable $view, DisplayPluginBase $display, array &$options = NULL) {
     parent::init($view, $display, $options);
 
-    $this->entityType = $this->definition['entity_type'];
-    $this->entityInfo = $this->entityManager->getDefinition($this->entityType);
-    $this->base_table = $this->entityInfo->getBaseTable();
-    $this->base_field = $this->entityInfo->getKey('id');
+    $this->entityTypeId = $this->definition['entity_type'];
+    $this->entityType = $this->entityManager->getDefinition($this->entityTypeId);
+    $this->base_table = $this->entityType->getBaseTable();
+    $this->base_field = $this->entityType->getKey('id');
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, array $plugin_definition) {
-    return new static($configuration, $plugin_id, $plugin_definition, $container->get('entity.manager'));
+    return new static($configuration, $plugin_id, $plugin_definition, $container->get('entity.manager'), $container->get('language_manager'));
   }
 
   /**
@@ -95,6 +115,9 @@ class EntityRow extends RowPluginBase {
     $options = parent::defineOptions();
 
     $options['view_mode'] = array('default' => 'default');
+    // @todo Make the current language renderer the default as soon as we have a
+    //   translation language filter. See https://drupal.org/node/2161845.
+    $options['rendering_language'] = array('default' => 'translation_language_renderer');
 
     return $options;
   }
@@ -105,35 +128,45 @@ class EntityRow extends RowPluginBase {
   public function buildOptionsForm(&$form, &$form_state) {
     parent::buildOptionsForm($form, $form_state);
 
-    $options = $this->buildViewModeOptions();
     $form['view_mode'] = array(
       '#type' => 'select',
-      '#options' => $options,
+      '#options' => \Drupal::entityManager()->getViewModeOptions($this->entityTypeId),
       '#title' => t('View mode'),
       '#default_value' => $this->options['view_mode'],
+    );
+
+    $options = $this->buildRenderingLanguageOptions();
+    $form['rendering_language'] = array(
+      '#type' => 'select',
+      '#options' => $options,
+      '#title' => t('Rendering language'),
+      '#default_value' => $this->options['rendering_language'],
+      '#access' => $this->languageManager->isMultilingual(),
     );
   }
 
   /**
-   * Return the main options, which are shown in the summary title.
+   * Returns the available rendering strategies for language-aware entities.
+   *
+   * @return array
+   *   An array of available entity row renderers keyed by renderer identifiers.
    */
-  protected function buildViewModeOptions() {
-    $options = array('default' => t('Default'));
-    $view_modes = entity_get_view_modes($this->entityType);
-    foreach ($view_modes as $mode => $settings) {
-      $options[$mode] = $settings['label'];
-    }
-
-    return $options;
+  protected function buildRenderingLanguageOptions() {
+    // @todo Consider making these plugins. See https://drupal.org/node/2173811.
+    return array(
+      'current_language_renderer' => $this->t('Current language'),
+      'default_language_renderer' => $this->t('Default language'),
+      'translation_language_renderer' => $this->t('Translation language'),
+    );
   }
 
   /**
    * Overrides Drupal\views\Plugin\views\PluginBase::summaryTitle().
    */
   public function summaryTitle() {
-    $options = $this->buildViewModeOptions();
+    $options = \Drupal::entityManager()->getViewModeOptions($this->entityTypeId);
     if (isset($options[$this->options['view_mode']])) {
-      return check_plain($options[$this->options['view_mode']]);
+      return String::checkPlain($options[$this->options['view_mode']]);
     }
     else {
       return t('No view mode selected');
@@ -141,22 +174,34 @@ class EntityRow extends RowPluginBase {
   }
 
   /**
+   * Returns the current renderer.
+   *
+   * @return \Drupal\views\Entity\Render\RendererBase
+   *   The configured renderer.
+   */
+  protected function getRenderer() {
+    if (!isset($this->renderer)) {
+      $class = '\Drupal\views\Entity\Render\\' . Container::camelize($this->options['rendering_language']);
+      $this->renderer = new $class($this->view, $this->entityType);
+    }
+    return $this->renderer;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function query() {
+    parent::query();
+    $this->getRenderer()->query($this->view->getQuery());
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function preRender($result) {
     parent::preRender($result);
-
     if ($result) {
-      // Get all entities which will be used to render in rows.
-      $entities = array();
-      foreach ($result as $row) {
-        $entity = $row->_entity;
-        $entity->view = $this->view;
-        $entities[$entity->id()] = $entity;
-      }
-
-      // Prepare the render arrays for all rows.
-      $this->build = entity_view_multiple($entities, $this->options['view_mode']);
+      $this->getRenderer()->preRender($result);
     }
   }
 
@@ -164,7 +209,7 @@ class EntityRow extends RowPluginBase {
    * Overrides Drupal\views\Plugin\views\row\RowPluginBase::render().
    */
   public function render($row) {
-    $entity_id = $row->{$this->field_alias};
-    return $this->build[$entity_id];
+    return $this->getRenderer()->render($row);
   }
+
 }

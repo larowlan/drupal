@@ -20,7 +20,7 @@ class ThemeTest extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('theme_test');
+  public static $modules = array('theme_test', 'node');
 
   public static function getInfo() {
     return array(
@@ -41,7 +41,7 @@ class ThemeTest extends WebTestBase {
    * Render arrays that use a render element and templates (and hence call
    * template_preprocess()) must ensure the attributes at different occasions
    * are all merged correctly:
-   *   - $variables['attributes'] as passed in to theme()
+   *   - $variables['attributes'] as passed in to _theme()
    *   - the render element's #attributes
    *   - any attributes set in the template's preprocessing function
    */
@@ -58,21 +58,21 @@ class ThemeTest extends WebTestBase {
   }
 
   /**
-   * Test that theme() returns expected data types.
+   * Test that _theme() returns expected data types.
    */
   function testThemeDataTypes() {
-    // theme_test_false is an implemented theme hook so theme() should return a
+    // theme_test_false is an implemented theme hook so _theme() should return a
     // string, even though the theme function itself can return anything.
     $foos = array('null' => NULL, 'false' => FALSE, 'integer' => 1, 'string' => 'foo');
     foreach ($foos as $type => $example) {
-      $output = theme('theme_test_foo', array('foo' => $example));
-      $this->assertTrue(is_string($output), format_string('theme() returns a string for data type !type.', array('!type' => $type)));
+      $output = _theme('theme_test_foo', array('foo' => $example));
+      $this->assertTrue(is_string($output), format_string('_theme() returns a string for data type !type.', array('!type' => $type)));
     }
 
-    // suggestionnotimplemented is not an implemented theme hook so theme()
+    // suggestionnotimplemented is not an implemented theme hook so _theme()
     // should return FALSE instead of a string.
-    $output = theme(array('suggestionnotimplemented'));
-    $this->assertIdentical($output, FALSE, 'theme() returns FALSE when a hook suggestion is not implemented.');
+    $output = _theme(array('suggestionnotimplemented'));
+    $this->assertIdentical($output, FALSE, '_theme() returns FALSE when a hook suggestion is not implemented.');
   }
 
   /**
@@ -279,4 +279,29 @@ class ThemeTest extends WebTestBase {
     $this->assertText('theme test page bottom markup', 'Modules are able to set the page bottom region.');
   }
 
+  /**
+   * Test that themes can be disabled programmatically but admin theme and default theme can not.
+   */
+  function testDisableTheme() {
+    // Enable Bartik, Seven and Stark.
+    \Drupal::service('theme_handler')->enable(array('bartik', 'seven', 'stark'));
+
+    // Set Bartik as the default theme and Seven as the admin theme.
+    \Drupal::config('system.theme')
+      ->set('default', 'bartik')
+      ->set('admin', 'seven')
+      ->save();
+
+    $theme_list = array_keys(\Drupal::service('theme_handler')->listInfo());
+    // Attempt to disable all themes. theme_disable() ensures that the default
+    // theme and the admin theme will not be disabled.
+    \Drupal::service('theme_handler')->disable($theme_list);
+
+    $theme_list = \Drupal::service('theme_handler')->listInfo();
+
+    // Ensure Bartik and Seven are still enabled and Stark is disabled.
+    $this->assertTrue($theme_list['bartik']->status == 1, 'Default theme is enabled.');
+    $this->assertTrue($theme_list['seven']->status == 1, 'Admin theme is enabled.');
+    $this->assertTrue($theme_list['stark']->status == 0, 'Stark is disabled.');
+  }
 }

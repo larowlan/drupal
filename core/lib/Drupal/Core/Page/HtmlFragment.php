@@ -9,6 +9,7 @@ namespace Drupal\Core\Page;
 
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Xss;
+use Drupal\Core\Cache\CacheableInterface;
 use Drupal\Core\Utility\Title;
 
 /**
@@ -18,7 +19,7 @@ use Drupal\Core\Utility\Title;
  *   https://drupal.org/node/1871596#comment-7134686
  * @todo Add method replacements for *all* data sourced by html.tpl.php.
  */
-class HtmlFragment {
+class HtmlFragment implements CacheableInterface {
 
   /**
    * HTML content string.
@@ -35,13 +36,29 @@ class HtmlFragment {
   protected $title = '';
 
   /**
+   * The cache metadata of this HtmlFragment.
+   *
+   * @var array
+   */
+  protected $cache = array();
+
+  /**
    * Constructs a new HtmlFragment.
    *
    * @param string $content
    *   The content for this fragment.
+   * @param array $cache_info
+   *   The cache information.
    */
-  public function __construct($content = '') {
+  public function __construct($content = '', array $cache_info = array()) {
     $this->content = $content;
+    $this->cache = $cache_info + array(
+      'keys' => array(),
+      'tags' => array(),
+      'bin' => NULL,
+      'max_age' => 0,
+      'is_cacheable' => TRUE,
+    );
   }
 
   /**
@@ -86,8 +103,8 @@ class HtmlFragment {
    *   Value to assign to the page title.
    * @param int $output
    *   (optional) normally should be left as Title::CHECK_PLAIN. Only set to
-   *   PASS_THROUGH if you have already removed any possibly dangerous code
-   *   from $title using a function like
+   *   Title::PASS_THROUGH if you have already removed any possibly dangerous
+   *   code from $title using a function like
    *   \Drupal\Component\Utility\String::checkPlain() or
    *   \Drupal\Component\Utility\Xss::filterAdmin(). With this flag the string
    *   will be passed through unchanged.
@@ -121,6 +138,43 @@ class HtmlFragment {
    */
   public function getTitle() {
     return $this->title;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * @TODO Use a trait once we require php 5.4 for all the cache methods.
+   */
+  public function getCacheKeys() {
+    return $this->cache['keys'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheTags() {
+    return $this->cache['tags'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheBin() {
+    return $this->cache['bin'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheMaxAge() {
+    return $this->cache['max_age'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isCacheable() {
+    return $this->cache['is_cacheable'];
   }
 
 }

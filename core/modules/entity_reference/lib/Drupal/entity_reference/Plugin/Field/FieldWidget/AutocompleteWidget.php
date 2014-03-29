@@ -8,7 +8,6 @@
 namespace Drupal\entity_reference\Plugin\Field\FieldWidget;
 
 use Drupal\Core\Field\FieldItemListInterface;
-use Drupal\entity_reference\Plugin\Field\FieldWidget\AutocompleteWidgetBase;
 
 /**
  * Plugin implementation of the 'entity_reference autocomplete' widget.
@@ -24,31 +23,35 @@ use Drupal\entity_reference\Plugin\Field\FieldWidget\AutocompleteWidgetBase;
  *   description = @Translation("An autocomplete text field."),
  *   field_types = {
  *     "entity_reference"
- *   },
- *   settings = {
- *     "match_operator" = "CONTAINS",
- *     "size" = 60,
- *     "autocomplete_type" = "single",
- *     "placeholder" = ""
  *   }
  * )
  */
 class AutocompleteWidget extends AutocompleteWidgetBase {
 
+  protected $usesOptions = TRUE;
+
   /**
    * {@inheritdoc}
    */
-  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, array &$form_state) {
-    // We let the Field API handles multiple values for us, only take care of
-    // the one matching our delta.
+  public static function defaultSettings() {
+    return array(
+      'match_operator' => 'CONTAINS',
+      'size' => '60',
+      'autocomplete_type' => 'tags',
+      'placeholder' => '',
+    ) + parent::defaultSettings();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getEntityIds(FieldItemListInterface $items, $delta) {
+    // The autocomplete widget outputs one entity label per form element.
     if (isset($items[$delta])) {
-      $items->setValue(array($items[$delta]->getValue()));
-    }
-    else {
-      $items->setValue(array());
+      return array($items[$delta]->target_id);
     }
 
-    return parent::formElement($items, $delta, $element, $form, $form_state);
+    return array();
   }
 
   /**
@@ -58,7 +61,7 @@ class AutocompleteWidget extends AutocompleteWidgetBase {
     $auto_create = $this->getSelectionHandlerSetting('auto_create');
 
     // If a value was entered into the autocomplete.
-    $value = '';
+    $value = NULL;
     if (!empty($element['#value'])) {
       // Take "label (entity id)', match the id from parenthesis.
       // @todo: Lookup the entity type's ID data type and use it here.
@@ -77,9 +80,10 @@ class AutocompleteWidget extends AutocompleteWidgetBase {
       }
 
       if (!$value && $auto_create && (count($this->getSelectionHandlerSetting('target_bundles')) == 1)) {
-        // Auto-create item. see entity_reference_field_presave().
+        // Auto-create item. See
+        // \Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem::presave().
         $value = array(
-          'target_id' => 0,
+          'target_id' => NULL,
           'entity' => $this->createNewEntity($element['#value'], $element['#autocreate_uid']),
           // Keep the weight property.
           '_weight' => $element['#weight'],

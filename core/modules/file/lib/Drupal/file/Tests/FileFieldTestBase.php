@@ -20,7 +20,7 @@ abstract class FileFieldTestBase extends WebTestBase {
   *
   * @var array
   */
-  public static $modules = array('file', 'file_module_test', 'field_ui');
+  public static $modules = array('node', 'file', 'file_module_test', 'field_ui');
 
   protected $admin_user;
 
@@ -76,7 +76,7 @@ abstract class FileFieldTestBase extends WebTestBase {
       'cardinality' => !empty($field_settings['cardinality']) ? $field_settings['cardinality'] : 1,
     );
     $field_definition['settings'] = array_merge($field_definition['settings'], $field_settings);
-    $field = entity_create('field_entity', $field_definition);
+    $field = entity_create('field_config', $field_definition);
     $field->save();
 
     $this->attachFileField($name, $entity_type, $bundle, $instance_settings, $widget_settings);
@@ -109,7 +109,7 @@ abstract class FileFieldTestBase extends WebTestBase {
       'settings' => array(),
     );
     $instance['settings'] = array_merge($instance['settings'], $instance_settings);
-    entity_create('field_instance', $instance)->save();
+    entity_create('field_instance_config', $instance)->save();
 
     entity_get_form_display($entity_type, $bundle, 'default')
       ->setComponent($name, array(
@@ -209,7 +209,7 @@ abstract class FileFieldTestBase extends WebTestBase {
    * Asserts that a file exists in the database.
    */
   function assertFileEntryExists($file, $message = NULL) {
-    $this->container->get('entity.manager')->getStorageController('file')->resetCache();
+    $this->container->get('entity.manager')->getStorage('file')->resetCache();
     $db_file = file_load($file->id());
     $message = isset($message) ? $message : format_string('File %file exists in database at the correct path.', array('%file' => $file->getFileUri()));
     $this->assertEqual($db_file->getFileUri(), $file->getFileUri(), $message);
@@ -227,7 +227,7 @@ abstract class FileFieldTestBase extends WebTestBase {
    * Asserts that a file does not exist in the database.
    */
   function assertFileEntryNotExists($file, $message) {
-    $this->container->get('entity.manager')->getStorageController('file')->resetCache();
+    $this->container->get('entity.manager')->getStorage('file')->resetCache();
     $message = isset($message) ? $message : format_string('File %file exists in database at the correct path.', array('%file' => $file->getFileUri()));
     $this->assertFalse(file_load($file->id()), $message);
   }

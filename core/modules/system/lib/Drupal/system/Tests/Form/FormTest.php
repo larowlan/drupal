@@ -7,6 +7,8 @@
 
 namespace Drupal\system\Tests\Form;
 
+use Drupal\Component\Utility\Json;
+use Drupal\Component\Utility\String;
 use Drupal\simpletest\WebTestBase;
 
 class FormTest extends WebTestBase {
@@ -16,7 +18,7 @@ class FormTest extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('form_test', 'file', 'datetime');
+  public static $modules = array('filter', 'form_test', 'file', 'datetime');
 
   public static function getInfo() {
     return array(
@@ -94,7 +96,7 @@ class FormTest extends WebTestBase {
     $elements['file']['empty_values'] = $empty_strings;
 
     // Regular expression to find the expected marker on required elements.
-    $required_marker_preg = '@<label.*<span class="form-required" aria-hidden="true">\*</span></label>@';
+    $required_marker_preg = '@<(?:label|legend).*<span class="form-required" aria-hidden="true">\*</span>.*</(?:label|legend)>@';
 
     // Go through all the elements and all the empty values for them.
     foreach ($elements as $type => $data) {
@@ -272,7 +274,7 @@ class FormTest extends WebTestBase {
     $this->assertRaw(t('!name field is required.', array('!name' => 'required_checkbox')), 'A required checkbox is actually mandatory');
 
     // Now try to submit the form correctly.
-    $values = drupal_json_decode($this->drupalPostForm(NULL, array('required_checkbox' => 1), t('Submit')));
+    $values = Json::decode($this->drupalPostForm(NULL, array('required_checkbox' => 1), t('Submit')));
     $expected_values = array(
       'disabled_checkbox_on' => 'disabled_checkbox_on',
       'disabled_checkbox_off' => '',
@@ -326,7 +328,7 @@ class FormTest extends WebTestBase {
       'multiple_no_default_required[]' => 'three',
     );
     $this->drupalPostForm(NULL, $edit, 'Submit');
-    $values = drupal_json_decode($this->drupalGetContent());
+    $values = Json::decode($this->drupalGetContent());
 
     // Verify expected values.
     $expected = array(
@@ -506,7 +508,7 @@ class FormTest extends WebTestBase {
     // Submit the form with no input, as the browser does for disabled elements,
     // and fetch the $form_state['values'] that is passed to the submit handler.
     $this->drupalPostForm('form-test/disabled-elements', array(), t('Submit'));
-    $returned_values['normal'] = drupal_json_decode($this->content);
+    $returned_values['normal'] = Json::decode($this->content);
 
     // Do the same with input, as could happen if JavaScript un-disables an
     // element. drupalPostForm() emulates a browser by not submitting input for
@@ -520,10 +522,15 @@ class FormTest extends WebTestBase {
 
     // All the elements should be marked as disabled, including the ones below
     // the disabled container.
-    $this->assertEqual(count($disabled_elements), 39, 'The correct elements have the disabled property in the HTML code.');
+    $actual_count = count($disabled_elements);
+    $expected_count = 41;
+    $this->assertEqual($actual_count, $expected_count, String::format('Found @actual elements with disabled property (expected @expected).', array(
+      '@actual' => count($disabled_elements),
+      '@expected' => $expected_count,
+    )));
 
     $this->drupalPostForm(NULL, $edit, t('Submit'));
-    $returned_values['hijacked'] = drupal_json_decode($this->content);
+    $returned_values['hijacked'] = Json::decode($this->content);
 
     // Ensure that the returned values match the form's default values in both
     // cases.

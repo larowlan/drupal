@@ -8,7 +8,8 @@
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Component\Utility\Number;
 use Drupal\Component\Utility\String;
-use Drupal\Component\Utility\Url;
+use Drupal\Component\Utility\UrlHelper;
+use Drupal\Component\Utility\Xss;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Template\Attribute;
@@ -106,7 +107,10 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 /**
  * Returns a renderable form array for a given form ID.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->getForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->getForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::getForm().
  */
 function drupal_get_form($form_arg) {
   return call_user_func_array(array(\Drupal::formBuilder(), 'getForm'), func_get_args());
@@ -115,7 +119,10 @@ function drupal_get_form($form_arg) {
 /**
  * Builds and processes a form for a given form ID.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->buildForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->buildForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::buildForm().
  */
 function drupal_build_form($form_id, &$form_state) {
   return \Drupal::formBuilder()->buildForm($form_id, $form_state);
@@ -124,7 +131,10 @@ function drupal_build_form($form_id, &$form_state) {
 /**
  * Retrieves default values for the $form_state array.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->getFormStateDefaults()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->getFormStateDefaults().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::getFormStateDefaults().
  */
 function form_state_defaults() {
   return \Drupal::formBuilder()->getFormStateDefaults();
@@ -133,7 +143,10 @@ function form_state_defaults() {
 /**
  * Constructs a new $form from the information in $form_state.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->rebuildForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->rebuildForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::rebuildForm().
  */
 function drupal_rebuild_form($form_id, &$form_state, $old_form = NULL) {
   return \Drupal::formBuilder()->rebuildForm($form_id, $form_state, $old_form);
@@ -142,7 +155,10 @@ function drupal_rebuild_form($form_id, &$form_state, $old_form = NULL) {
 /**
  * Fetches a form from the cache.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->getCache()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->getCache().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::getCache().
  */
 function form_get_cache($form_build_id, &$form_state) {
   return \Drupal::formBuilder()->getCache($form_build_id, $form_state);
@@ -151,7 +167,10 @@ function form_get_cache($form_build_id, &$form_state) {
 /**
  * Stores a form in the cache.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->setCache()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->setCache().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::setCache().
  */
 function form_set_cache($form_build_id, $form, $form_state) {
   \Drupal::formBuilder()->setCache($form_build_id, $form, $form_state);
@@ -209,7 +228,10 @@ function form_load_include(&$form_state, $type, $module, $name = NULL) {
 /**
  * Retrieves, populates, and processes a form.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->submitForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->submitForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::submitForm().
  */
 function drupal_form_submit($form_arg, &$form_state) {
   \Drupal::formBuilder()->submitForm($form_arg, $form_state);
@@ -218,7 +240,10 @@ function drupal_form_submit($form_arg, &$form_state) {
 /**
  * Retrieves the structured array that defines a given form.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->retrieveForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->retrieveForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::retrieveForm().
  */
 function drupal_retrieve_form($form_id, &$form_state) {
   return \Drupal::formBuilder()->retrieveForm($form_id, $form_state);
@@ -227,7 +252,10 @@ function drupal_retrieve_form($form_id, &$form_state) {
 /**
  * Processes a form submission.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->processForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->processForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::processForm().
  */
 function drupal_process_form($form_id, &$form, &$form_state) {
   \Drupal::formBuilder()->processForm($form_id, $form, $form_state);
@@ -236,7 +264,10 @@ function drupal_process_form($form_id, &$form, &$form_state) {
 /**
  * Prepares a structured form array.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->prepareForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->prepareForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::prepareForm().
  */
 function drupal_prepare_form($form_id, &$form, &$form_state) {
   \Drupal::formBuilder()->prepareForm($form_id, $form, $form_state);
@@ -245,7 +276,10 @@ function drupal_prepare_form($form_id, &$form, &$form_state) {
 /**
  * Validates user-submitted form data in the $form_state array.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->validateForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->validateForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::validateForm().
  */
 function drupal_validate_form($form_id, &$form, &$form_state) {
   \Drupal::formBuilder()->validateForm($form_id, $form, $form_state);
@@ -254,7 +288,10 @@ function drupal_validate_form($form_id, &$form, &$form_state) {
 /**
  * Redirects the user to a URL after a form has been processed.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->redirectForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->redirectForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::redirectForm().
  */
 function drupal_redirect_form($form_state) {
   return \Drupal::formBuilder()->redirectForm($form_state);
@@ -263,7 +300,10 @@ function drupal_redirect_form($form_state) {
 /**
  * Executes custom validation and submission handlers for a given form.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->executeHandlers()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->executeHandlers().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::executeHandlers().
  */
 function form_execute_handlers($type, &$form, &$form_state) {
   \Drupal::formBuilder()->executeHandlers($type, $form, $form_state);
@@ -272,7 +312,10 @@ function form_execute_handlers($type, &$form, &$form_state) {
 /**
  * Files an error against a form element.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->setErrorByName()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->setErrorByName().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::setErrorByName().
  */
 function form_set_error($name, array &$form_state, $message = '') {
   \Drupal::formBuilder()->setErrorByName($name, $form_state, $message);
@@ -281,7 +324,10 @@ function form_set_error($name, array &$form_state, $message = '') {
 /**
  * Clears all errors against all form elements made by form_set_error().
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->clearErrors()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->clearErrors().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::clearErrors().
  */
 function form_clear_error(array &$form_state) {
   \Drupal::formBuilder()->clearErrors($form_state);
@@ -290,7 +336,10 @@ function form_clear_error(array &$form_state) {
 /**
  * Returns an associative array of all errors.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->getErrors()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->getErrors().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::getErrors().
  */
 function form_get_errors(array &$form_state) {
   return \Drupal::formBuilder()->getErrors($form_state);
@@ -299,7 +348,10 @@ function form_get_errors(array &$form_state) {
 /**
  * Returns the error message filed against the given form element.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->getError()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->getError().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::getError().
  */
 function form_get_error($element, array &$form_state) {
   return \Drupal::formBuilder()->getError($element, $form_state);
@@ -308,7 +360,10 @@ function form_get_error($element, array &$form_state) {
 /**
  * Flags an element as having an error.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->setError()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->setError().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::setError().
  */
 function form_error(&$element, array &$form_state, $message = '') {
   \Drupal::formBuilder()->setError($element, $form_state, $message);
@@ -317,7 +372,10 @@ function form_error(&$element, array &$form_state, $message = '') {
 /**
  * Builds and processes all elements in the structured form array.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->doBuildForm()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->doBuildForm().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::doBuildForm().
  */
 function form_builder($form_id, &$element, &$form_state) {
   return \Drupal::formBuilder()->doBuildForm($form_id, $element, $form_state);
@@ -502,7 +560,7 @@ function form_type_checkboxes_value($element, $input = FALSE) {
         unset($input[$key]);
       }
     }
-    return drupal_map_assoc($input);
+    return array_combine($input, $input);
   }
   else {
     return array();
@@ -531,10 +589,11 @@ function form_type_table_value(array $element, $input = FALSE) {
     // @todo D8: Remove this inconsistency.
     if ($input === FALSE) {
       $element += array('#default_value' => array());
-      return drupal_map_assoc(array_keys(array_filter($element['#default_value'])));
+      $value = array_keys(array_filter($element['#default_value']));
+      return array_combine($value, $value);
     }
     else {
-      return is_array($input) ? drupal_map_assoc($input) : array();
+      return is_array($input) ? array_combine($input, $input) : array();
     }
   }
 }
@@ -609,7 +668,7 @@ function form_type_tableselect_value($element, $input = FALSE) {
       return $value;
     }
     else {
-      return is_array($input) ? drupal_map_assoc($input) : array();
+      return is_array($input) ? array_combine($input, $input) : array();
     }
   }
 }
@@ -654,7 +713,7 @@ function form_type_select_value($element, $input = FALSE) {
       // unselected. A disabled multi-select always submits NULL, and the
       // default value should be used.
       if (empty($element['#disabled'])) {
-        return (is_array($input)) ? drupal_map_assoc($input) : array();
+        return (is_array($input)) ? array_combine($input, $input) : array();
       }
       else {
         return (isset($element['#default_value']) && is_array($element['#default_value'])) ? $element['#default_value'] : array();
@@ -718,7 +777,10 @@ function form_type_token_value($element, $input = FALSE) {
 /**
  * Changes submitted form values during form validation.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->setValue()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->setValue().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::setValue().
  */
 function form_set_value($element, $value, &$form_state) {
   \Drupal::formBuilder()->setValue($element, $value, $form_state);
@@ -737,7 +799,10 @@ function form_set_value($element, $value, &$form_state) {
  * @return
  *   An array with all hierarchical elements flattened to a single array.
  *
- * @deprecated as of Drupal 8.0. Use \Drupal::formBuilder()->flattenOptions()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::formBuilder()->flattenOptions().
+ *
+ * @see \Drupal\Core\Form\FormBuilderInterface::flattenOptions().
  */
 function form_options_flatten($array) {
   return \Drupal::formBuilder()->flattenOptions($array);
@@ -812,7 +877,9 @@ function form_process_select($element) {
 }
 
 /**
- * Returns HTML for a select form element.
+ * Prepares variables for select element templates.
+ *
+ * Default template: select.html.twig.
  *
  * It is possible to group options together; to do this, change the format of
  * $options to an associative array in which the keys are group labels, and the
@@ -823,15 +890,14 @@ function form_process_select($element) {
  *   - element: An associative array containing the properties of the element.
  *     Properties used: #title, #value, #options, #description, #extra,
  *     #multiple, #required, #name, #attributes, #size.
- *
- * @ingroup themeable
  */
-function theme_select($variables) {
+function template_preprocess_select(&$variables) {
   $element = $variables['element'];
   element_set_attributes($element, array('id', 'name', 'size'));
   _form_set_attributes($element, array('form-select'));
 
-  return '<select' . new Attribute($element['#attributes']) . '>' . form_select_options($element) . '</select>';
+  $variables['attributes'] = $element['#attributes'];
+  $variables['options'] = form_select_options($element);
 }
 
 /**
@@ -858,6 +924,8 @@ function form_select_options($element, $choices = NULL) {
   // isset() fails in this situation.
   $value_valid = isset($element['#value']) || array_key_exists('#value', $element);
   $value_is_array = $value_valid && is_array($element['#value']);
+  // Check if the element is multiple select and no value has been selected.
+  $empty_value = (empty($element['#value']) && !empty($element['#multiple']));
   $options = '';
   foreach ($choices as $key => $choice) {
     if (is_array($choice)) {
@@ -870,7 +938,8 @@ function form_select_options($element, $choices = NULL) {
     }
     else {
       $key = (string) $key;
-      if ($value_valid && (!$value_is_array && (string) $element['#value'] === $key || ($value_is_array && in_array($key, $element['#value'])))) {
+      $empty_choice = $empty_value && $key == '_none';
+      if ($value_valid && ((!$value_is_array && (string) $element['#value'] === $key || ($value_is_array && in_array($key, $element['#value']))) || $empty_choice)) {
         $selected = ' selected="selected"';
       }
       else {
@@ -933,90 +1002,88 @@ function form_get_options($element, $key) {
 }
 
 /**
- * Returns HTML for a fieldset form element and its children.
+ * Prepares variables for fieldset element templates.
  *
- * @param $variables
+ * Default template: fieldset.html.twig.
+ *
+ * @param array $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties of the element.
- *     Properties used: #attributes, #children, #collapsed, #description, #id,
- *     #title, #value.
- *
- * @ingroup themeable
+ *     Properties used: #attributes, #children, #description, #id, #title,
+ *     #value.
  */
-function theme_fieldset($variables) {
+function template_preprocess_fieldset(&$variables) {
   $element = $variables['element'];
   element_set_attributes($element, array('id'));
   _form_set_attributes($element, array('form-wrapper'));
+  $variables['attributes'] = $element['#attributes'];
+  $variables['attributes']['class'][] = 'form-item';
 
-  if (!empty($element['#description'])) {
-    $description_id = $element['#attributes']['id'] . '--description';
-    $element['#attributes']['aria-describedby'] = $description_id;
+  // If the element is required, a required marker is appended to the label.
+  $variables['required'] = '';
+  if (!empty($element['#required'])) {
+    $variables['required'] = array(
+      '#theme' => 'form_required_marker',
+      '#element' => $element,
+    );
   }
 
+  $variables['prefix'] = isset($element['#field_prefix']) ? $element['#field_prefix'] : NULL;
+  $variables['suffix'] = isset($element['#field_suffix']) ? $element['#field_suffix'] : NULL;
+  $variables['children'] = $element['#children'];
+
+  // Build legend properties.
+  $variables['legend'] = array();
   $legend_attributes = array();
   if (isset($element['#title_display']) && $element['#title_display'] == 'invisible') {
     $legend_attributes['class'][] = 'visually-hidden';
   }
+  $variables['legend']['attributes'] = new Attribute($legend_attributes);
+  $variables['legend']['title'] = (isset($element['#title']) && $element['#title'] !== '') ? Xss::filterAdmin($element['#title']) : '';
 
-  $output = '<fieldset' . new Attribute($element['#attributes']) . '>';
-  if (!empty($element['#title'])) {
-    // Always wrap fieldset legends in a SPAN for CSS positioning.
-    $output .= '<legend' . new Attribute($legend_attributes) . '><span class="fieldset-legend">' . $element['#title'] . '</span></legend>';
-  }
-  $output .= '<div class="fieldset-wrapper">';
+  // Build description properties.
+  $variables['description'] = array();
   if (!empty($element['#description'])) {
-    $attributes = array('class' => 'fieldset-description', 'id' => $description_id);
-    $output .= '<div' . new Attribute($attributes) . '>' . $element['#description'] . '</div>';
+    $description_id = $element['#attributes']['id'] . '--description';
+    $description_attributes = array(
+      'class' => 'description',
+      'id' => $description_id,
+    );
+    $variables['description']['attributes'] = new Attribute($description_attributes);
+    $variables['description']['content'] = $element['#description'];
 
+    // Add the description's id to the fieldset aria attributes.
+    $variables['attributes']['aria-describedby'] = $description_id;
   }
-  $output .= $element['#children'];
-  if (isset($element['#value'])) {
-    $output .= $element['#value'];
-  }
-  $output .= '</div>';
-  $output .= "</fieldset>\n";
-  return $output;
 }
 
 /**
- * Returns HTML for a details form element and its children.
+ * Prepares variables for details element templates.
  *
- * @param $variables
+ * Default template: details.html.twig.
+ *
+ * @param array $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties of the element.
- *     Properties used: #attributes, #children, #collapsed, #description, #id,
- *     #title, #value.
- *
- * @ingroup themeable
+ *     Properties used: #attributes, #children, #open,
+ *     #description, #id, #title, #value, #optional.
  */
-function theme_details($variables) {
+function template_preprocess_details(&$variables) {
   $element = $variables['element'];
-  element_set_attributes($element, array('id'));
-  _form_set_attributes($element, array('form-wrapper'));
-
-  $output = '<details' . new Attribute($element['#attributes']) . '>';
+  $variables['attributes'] = $element['#attributes'];
+  $variables['summary_attributes'] = new Attribute();
   if (!empty($element['#title'])) {
-    $summary_attributes = new Attribute(array(
-      'role' => 'button',
-    ));
+    $variables['summary_attributes']['role'] = 'button';
     if (!empty($element['#attributes']['id'])) {
-      $summary_attributes['aria-controls'] = $element['#attributes']['id'];
+      $variables['summary_attributes']['aria-controls'] = $element['#attributes']['id'];
     }
-    $summary_attributes['aria-expanded'] = empty($element['#attributes']['open']) ? FALSE : TRUE;
-    $summary_attributes['aria-pressed'] = $summary_attributes['aria-expanded'];
-    $output .= '<summary' . $summary_attributes . '>' . $element['#title'] . '</summary>';
+    $variables['summary_attributes']['aria-expanded'] = !empty($element['#attributes']['open']);
+    $variables['summary_attributes']['aria-pressed'] = $variables['summary_attributes']['aria-expanded'];
   }
-  $output .= '<div class="details-wrapper">';
-  if (!empty($element['#description'])) {
-    $output .= '<div class="details-description">' . $element['#description'] . '</div>';
-  }
-  $output .= $element['#children'];
-  if (isset($element['#value'])) {
-    $output .= $element['#value'];
-  }
-  $output .= '</div>';
-  $output .= "</details>\n";
-  return $output;
+  $variables['title'] = (!empty($element['#title'])) ? $element['#title'] : '';
+  $variables['description'] = (!empty($element['#description'])) ? $element['#description'] : '';
+  $variables['children'] = (isset($element['#children'])) ? $element['#children'] : '';
+  $variables['value'] = (isset($element['#value'])) ? $element['#value'] : '';
 }
 
 /**
@@ -1047,30 +1114,30 @@ function form_pre_render_radio($element) {
 }
 
 /**
- * Returns HTML for a set of radio button form elements.
+ * Prepares variables for radios templates.
  *
- * @param $variables
+ * Default template: radios.html.twig.
+ *
+ * @param array $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties of the element.
  *     Properties used: #title, #value, #options, #description, #required,
  *     #attributes, #children.
- *
- * @ingroup themeable
  */
-function theme_radios($variables) {
+function template_preprocess_radios(&$variables) {
   $element = $variables['element'];
-  $attributes = array();
+  $variables['attributes'] = array();
   if (isset($element['#id'])) {
-    $attributes['id'] = $element['#id'];
+    $variables['attributes']['id'] = $element['#id'];
   }
-  $attributes['class'] = 'form-radios';
+  $variables['attributes']['class'][] = 'form-radios';
   if (!empty($element['#attributes']['class'])) {
-    $attributes['class'] .= ' ' . implode(' ', $element['#attributes']['class']);
+    $variables['attributes']['class'] = array_merge($variables['attributes']['class'], $element['#attributes']['class']);
   }
   if (isset($element['#attributes']['title'])) {
-    $attributes['title'] = $element['#attributes']['title'];
+    $variables['attributes']['title'] = $element['#attributes']['title'];
   }
-  return '<div' . new Attribute($attributes) . '>' . (!empty($element['#children']) ? $element['#children'] : '') . '</div>';
+  $variables['children'] = $element['#children'];
 }
 
 /**
@@ -1266,7 +1333,10 @@ function form_pre_render_conditional_form_element($element) {
   }
 
   if (isset($element['#title']) || isset($element['#description'])) {
-    $element['#theme_wrappers'][] = 'form_element';
+    // @see #type 'fieldgroup'
+    $element['#theme_wrappers'][] = 'fieldset';
+    $element['#attributes']['class'][] = 'fieldgroup';
+    $element['#attributes']['class'][] = 'form-composite';
   }
   return $element;
 }
@@ -1400,7 +1470,7 @@ function form_pre_render_actions_dropbutton(array $element) {
       }
       // Add this button to the corresponding dropbutton.
       // @todo Change #type 'dropbutton' to be based on theme_item_list()
-      //   instead of theme_links() to avoid this preemptive rendering.
+      //   instead of links.html.twig to avoid this preemptive rendering.
       $button = drupal_render($element[$key]);
       $dropbuttons[$dropbutton]['#links'][$key] = array(
         'title' => $button,
@@ -1527,6 +1597,9 @@ function form_process_container($element, &$form_state) {
  */
 function theme_tableselect($variables) {
   $element = $variables['element'];
+  $table = array(
+    '#type' => 'table',
+  );
   $rows = array();
   $header = $element['#header'];
   if (!empty($element['#options'])) {
@@ -1566,7 +1639,7 @@ function theme_tableselect($variables) {
     // checkboxes/radios in the first table column.
     if ($element['#js_select']) {
       // Add a "Select all" checkbox.
-      drupal_add_library('system', 'drupal.tableselect');
+      $table['#attached']['library'][] = 'core/drupal.tableselect';
       array_unshift($header, array('class' => array('select-all')));
     }
     else {
@@ -1575,7 +1648,14 @@ function theme_tableselect($variables) {
       array_unshift($header, '');
     }
   }
-  return theme('table', array('header' => $header, 'rows' => $rows, 'empty' => $element['#empty'], 'attributes' => $element['#attributes']));
+  $table += array(
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => $element['#empty'],
+    '#attributes' => $element['#attributes'],
+  );
+
+  return drupal_render($table);
 }
 
 /**
@@ -1674,14 +1754,14 @@ function form_process_table($element, &$form_state) {
     if ($element['#multiple']) {
       $value = is_array($element['#value']) ? $element['#value'] : array();
     }
-    // Advanced selection behaviour makes no sense for radios.
+    // Advanced selection behavior makes no sense for radios.
     else {
       $element['#js_select'] = FALSE;
     }
     // Add a "Select all" checkbox column to the header.
     // @todo D8: Rename into #select_all?
     if ($element['#js_select']) {
-      $element['#attached']['library'][] = array('system', 'drupal.tableselect');
+      $element['#attached']['library'][] = 'core/drupal.tableselect';
       array_unshift($element['#header'], array('class' => array('select-all')));
     }
     // Add an empty header column for radio buttons or when a "Select all"
@@ -1697,52 +1777,81 @@ function form_process_table($element, &$form_state) {
     // tableselect element behaves as if it had been of #type checkboxes or
     // radios.
     foreach (element_children($element) as $key) {
+      $row = &$element[$key];
+      // Prepare the element #parents for the tableselect form element.
+      // Their values have to be located in child keys (#tree is ignored), since
+      // form_validate_table() has to be able to validate whether input (for the
+      // parent #type 'table' element) has been submitted.
+      $element_parents = array_merge($element['#parents'], array($key));
+
+      // Since the #parents of the tableselect form element will equal the
+      // #parents of the row element, prevent FormBuilder from auto-generating
+      // an #id for the row element, since drupal_html_id() would automatically
+      // append a suffix to the tableselect form element's #id otherwise.
+      $row['#id'] = drupal_html_id('edit-' . implode('-', $element_parents) . '-row');
+
       // Do not overwrite manually created children.
-      if (!isset($element[$key]['select'])) {
+      if (!isset($row['select'])) {
         // Determine option label; either an assumed 'title' column, or the
         // first available column containing a #title or #markup.
         // @todo Consider to add an optional $element[$key]['#title_key']
         //   defaulting to 'title'?
-        $title = '';
-        if (!empty($element[$key]['title']['#title'])) {
-          $title = $element[$key]['title']['#title'];
+        unset($label_element);
+        $title = NULL;
+        if (isset($row['title']['#type']) && $row['title']['#type'] == 'label') {
+          $label_element = &$row['title'];
         }
         else {
-          foreach (element_children($element[$key]) as $column) {
-            if (isset($element[$key][$column]['#title'])) {
-              $title = $element[$key][$column]['#title'];
-              break;
-            }
-            if (isset($element[$key][$column]['#markup'])) {
-              $title = $element[$key][$column]['#markup'];
-              break;
+          if (!empty($row['title']['#title'])) {
+            $title = $row['title']['#title'];
+          }
+          else {
+            foreach (element_children($row) as $column) {
+              if (isset($row[$column]['#title'])) {
+                $title = $row[$column]['#title'];
+                break;
+              }
+              if (isset($row[$column]['#markup'])) {
+                $title = $row[$column]['#markup'];
+                break;
+              }
             }
           }
-        }
-        if ($title !== '') {
-          $title = t('Update !title', array('!title' => $title));
+          if (isset($title) && $title !== '') {
+            $title = t('Update !title', array('!title' => $title));
+          }
         }
 
         // Prepend the select column to existing columns.
-        $element[$key] = array('select' => array()) + $element[$key];
-        $element[$key]['select'] += array(
+        $row = array('select' => array()) + $row;
+        $row['select'] += array(
           '#type' => $element['#multiple'] ? 'checkbox' : 'radio',
-          '#title' => $title,
-          '#title_display' => 'invisible',
+          '#id' => drupal_html_id('edit-' . implode('-', $element_parents)),
           // @todo If rows happen to use numeric indexes instead of string keys,
           //   this results in a first row with $key === 0, which is always FALSE.
           '#return_value' => $key,
           '#attributes' => $element['#attributes'],
+          '#wrapper_attributes' => array(
+            'class' => array('table-select'),
+          ),
         );
-        $element_parents = array_merge($element['#parents'], array($key));
         if ($element['#multiple']) {
-          $element[$key]['select']['#default_value'] = isset($value[$key]) ? $key : NULL;
-          $element[$key]['select']['#parents'] = $element_parents;
+          $row['select']['#default_value'] = isset($value[$key]) ? $key : NULL;
+          $row['select']['#parents'] = $element_parents;
         }
         else {
-          $element[$key]['select']['#default_value'] = ($element['#default_value'] == $key ? $key : NULL);
-          $element[$key]['select']['#parents'] = $element['#parents'];
-          $element[$key]['select']['#id'] = drupal_html_id('edit-' . implode('-', $element_parents));
+          $row['select']['#default_value'] = ($element['#default_value'] == $key ? $key : NULL);
+          $row['select']['#parents'] = $element['#parents'];
+        }
+        if (isset($label_element)) {
+          $label_element['#id'] = $row['select']['#id'] . '--label';
+          $label_element['#for'] = $row['select']['#id'];
+          $row['select']['#attributes']['aria-labelledby'] = $label_element['#id'];
+          $row['select']['#title_display'] = 'none';
+        }
+        else {
+          $row['select']['#title'] = $title;
+          $row['select']['#title_display'] = 'invisible';
         }
       }
     }
@@ -1810,7 +1919,7 @@ function form_validate_table($element, &$form_state) {
  */
 function form_process_machine_name($element, &$form_state) {
   // We need to pass the langcode to the client.
-  $language = language(Language::TYPE_INTERFACE);
+  $language = \Drupal::languageManager()->getCurrentLanguage();
 
   // Apply default form element properties.
   $element += array(
@@ -1881,7 +1990,7 @@ function form_process_machine_name($element, &$form_state) {
       'langcode' => $language->id,
     ),
   );
-  $element['#attached']['library'][] = array('system', 'drupal.machine-name');
+  $element['#attached']['library'][] = 'core/drupal.machine-name';
   $element['#attached']['js'][] = $js_settings;
 
   return $element;
@@ -1953,9 +2062,6 @@ function form_process_group(&$element, &$form_state) {
     $form_state['groups'][$group][] = &$element;
   }
 
-  // Contains form element summary functionalities.
-  $element['#attached']['library'][] = array('system', 'drupal.form');
-
   return $element;
 }
 
@@ -1970,16 +2076,24 @@ function form_process_group(&$element, &$form_state) {
  *   The modified element.
  */
 function form_pre_render_details($element) {
+  element_set_attributes($element, array('id'));
+
   // The .form-wrapper class is required for #states to treat details like
   // containers.
-  if (!isset($element['#attributes']['class'])) {
-    $element['#attributes']['class'] = array();
-  }
+  _form_set_attributes($element, array('form-wrapper'));
 
   // Collapsible details.
-  $element['#attached']['library'][] = array('system', 'drupal.collapse');
-  if (empty($element['#collapsed'])) {
+  $element['#attached']['library'][] = 'core/drupal.collapse';
+  if (!empty($element['#open'])) {
     $element['#attributes']['open'] = 'open';
+  }
+
+  // Do not render optional details elements if there are no children.
+  if (isset($element['#parents'])) {
+    $group = implode('][', $element['#parents']);
+    if (!empty($element['#optional']) && !element_get_visible_children($element['#groups'][$group])) {
+      $element['#printed'] = TRUE;
+    }
   }
 
   return $element;
@@ -2022,6 +2136,9 @@ function form_pre_render_group($element) {
   }
 
   if (isset($element['#group'])) {
+    // Contains form element summary functionalities.
+    $element['#attached']['library'][] = 'core/drupal.form';
+
     $group = $element['#group'];
     // If this element belongs to a group, but the group-holding element does
     // not exist, we need to render it (at its original location).
@@ -2069,7 +2186,7 @@ function form_process_vertical_tabs($element, &$form_state) {
     $element['#title_display'] = 'invisible';
   }
 
-  $element['#attached']['library'][] = array('system', 'drupal.vertical-tabs');
+  $element['#attached']['library'][] = 'core/drupal.vertical-tabs';
 
   // The JavaScript stores the currently selected tab in this hidden
   // field so that the active tab can be restored the next time the
@@ -2108,18 +2225,19 @@ function form_pre_render_vertical_tabs($element) {
 }
 
 /**
- * Returns HTML for an element's children details as vertical tabs.
+ * Prepares variables for vertical tabs templates.
  *
- * @param $variables
+ * Default template: vertical-tabs.html.twig.
+ *
+ * @param array $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties and children of
  *     the details element. Properties used: #children.
  *
- * @ingroup themeable
  */
-function theme_vertical_tabs($variables) {
+function template_preprocess_vertical_tabs(&$variables) {
   $element = $variables['element'];
-  return '<div data-vertical-tabs-panes ' . new Attribute($element['#attributes']) . '>' . $element['#children'] . '</div>';
+  $variables['children'] = (!empty($element['#children'])) ? $element['#children'] : '';
 }
 
 /**
@@ -2158,7 +2276,7 @@ function form_process_autocomplete($element, &$form_state) {
   }
   if ($access) {
     $element['#attributes']['class'][] = 'form-autocomplete';
-    $element['#attached']['library'][] = array('system', 'drupal.autocomplete');
+    $element['#attached']['library'][] = 'core/drupal.autocomplete';
     // Provide a data attribute for the JavaScript behavior to bind to.
     $element['#attributes']['data-autocomplete-path'] = $path;
   }
@@ -2171,8 +2289,6 @@ function form_process_autocomplete($element, &$form_state) {
  * @param array $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties of the element.
- *
- * @ingroup themeable
  */
 function template_preprocess_input(&$variables) {
   $element = $variables['element'];
@@ -2552,57 +2668,56 @@ function form_pre_render_color($element) {
 }
 
 /**
- * Returns HTML for a form.
+ * Prepares variables for form templates.
+ *
+ * Default template: form.html.twig.
  *
  * @param $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties of the element.
  *     Properties used: #action, #method, #attributes, #children
- *
- * @ingroup themeable
  */
-function theme_form($variables) {
+function template_preprocess_form(&$variables) {
   $element = $variables['element'];
   if (isset($element['#action'])) {
-    $element['#attributes']['action'] = Url::stripDangerousProtocols($element['#action']);
+    $element['#attributes']['action'] = UrlHelper::stripDangerousProtocols($element['#action']);
   }
   element_set_attributes($element, array('method', 'id'));
   if (empty($element['#attributes']['accept-charset'])) {
     $element['#attributes']['accept-charset'] = "UTF-8";
   }
-  // Anonymous DIV to satisfy XHTML compliance.
-  return '<form' . new Attribute($element['#attributes']) . '><div>' . $element['#children'] . '</div></form>';
+  $variables['attributes'] = $element['#attributes'];
+  $variables['children'] = $element['#children'];
 }
 
 /**
- * Returns HTML for a textarea form element.
+ * Prepares variables for textarea templates.
  *
- * @param $variables
+ * Default template: textarea.html.twig.
+ *
+ * @param array $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties of the element.
  *     Properties used: #title, #value, #description, #rows, #cols,
  *     #placeholder, #required, #attributes, #resizable
  *
- * @ingroup themeable
  */
-function theme_textarea($variables) {
+function template_preprocess_textarea(&$variables) {
   $element = $variables['element'];
   element_set_attributes($element, array('id', 'name', 'rows', 'cols', 'placeholder'));
   _form_set_attributes($element, array('form-textarea'));
-
-  $wrapper_attributes = array(
+  $variables['wrapper_attributes'] = new Attribute(array(
     'class' => array('form-textarea-wrapper'),
-  );
+  ));
 
   // Add resizable behavior.
   if (!empty($element['#resizable'])) {
     $element['#attributes']['class'][] = 'resize-' . $element['#resizable'];
   }
 
-  $output = '<div' . new Attribute($wrapper_attributes) . '>';
-  $output .= '<textarea' . new Attribute($element['#attributes']) . '>' . String::checkPlain($element['#value']) . '</textarea>';
-  $output .= '</div>';
-  return $output;
+  $variables['attributes'] = new Attribute($element['#attributes']);
+
+  $variables['value'] = String::checkPlain($element['#value']);
 }
 
 /**
@@ -2686,6 +2801,9 @@ function form_process_file($element) {
 
 /**
  * Returns HTML for a form element.
+ * Prepares variables for form element templates.
+ *
+ * Default template: form-element.html.twig.
  *
  * Each form element is wrapped in a DIV container having the following CSS
  * classes:
@@ -2722,15 +2840,13 @@ function form_process_file($element) {
  * but the parent element should have neither. Use this carefully because a
  * field without an associated label can cause accessibility challenges.
  *
- * @param $variables
+ * @param array $variables
  *   An associative array containing:
  *   - element: An associative array containing the properties of the element.
  *     Properties used: #title, #title_display, #description, #id, #required,
  *     #children, #type, #name.
- *
- * @ingroup themeable
  */
-function theme_form_element($variables) {
+function template_preprocess_form_element(&$variables) {
   $element = &$variables['element'];
 
   // This function is invoked as theme wrapper, but the rendered form element
@@ -2742,64 +2858,52 @@ function theme_form_element($variables) {
   // Take over any #wrapper_attributes defined by the element.
   // @todo Temporary hack for #type 'item'.
   // @see http://drupal.org/node/1829202
+  $variables['attributes'] = array();
   if (isset($element['#wrapper_attributes'])) {
-    $attributes = $element['#wrapper_attributes'];
+    $variables['attributes'] = $element['#wrapper_attributes'];
   }
+
   // Add element #id for #type 'item'.
   if (isset($element['#markup']) && !empty($element['#id'])) {
-    $attributes['id'] = $element['#id'];
+    $variables['attributes']['id'] = $element['#id'];
   }
+
   // Add element's #type and #name as class to aid with JS/CSS selectors.
-  $attributes['class'][] = 'form-item';
+  $variables['attributes']['class'][] = 'form-item';
   if (!empty($element['#type'])) {
-    $attributes['class'][] = 'form-type-' . strtr($element['#type'], '_', '-');
+    $variables['attributes']['class'][] = 'form-type-' . strtr($element['#type'], '_', '-');
   }
   if (!empty($element['#name'])) {
-    $attributes['class'][] = 'form-item-' . strtr($element['#name'], array(' ' => '-', '_' => '-', '[' => '-', ']' => ''));
+    $variables['attributes']['class'][] = 'form-item-' . strtr($element['#name'], array(' ' => '-', '_' => '-', '[' => '-', ']' => ''));
   }
   // Add a class for disabled elements to facilitate cross-browser styling.
   if (!empty($element['#attributes']['disabled'])) {
-    $attributes['class'][] = 'form-disabled';
+    $variables['attributes']['class'][] = 'form-disabled';
   }
-  $output = '<div' . new Attribute($attributes) . '>' . "\n";
 
   // If #title is not set, we don't display any label or required marker.
   if (!isset($element['#title'])) {
     $element['#title_display'] = 'none';
   }
-  $prefix = isset($element['#field_prefix']) ? '<span class="field-prefix">' . $element['#field_prefix'] . '</span> ' : '';
-  $suffix = isset($element['#field_suffix']) ? ' <span class="field-suffix">' . $element['#field_suffix'] . '</span>' : '';
+  $variables['prefix'] = isset($element['#field_prefix']) ? $element['#field_prefix'] : NULL;
+  $variables['suffix'] = isset($element['#field_suffix']) ? $element['#field_suffix'] : NULL;
 
-  switch ($element['#title_display']) {
-    case 'before':
-    case 'invisible':
-      $output .= ' ' . theme('form_element_label', $variables);
-      $output .= ' ' . $prefix . $element['#children'] . $suffix . "\n";
-      break;
-
-    case 'after':
-      $output .= ' ' . $prefix . $element['#children'] . $suffix;
-      $output .= ' ' . theme('form_element_label', $variables) . "\n";
-      break;
-
-    case 'none':
-    case 'attribute':
-      // Output no label and no required marker, only the children.
-      $output .= ' ' . $prefix . $element['#children'] . $suffix . "\n";
-      break;
-  }
-
+  $variables['description'] = NULL;
   if (!empty($element['#description'])) {
-    $attributes = array('class' => 'description');
+    $description_attributes = array('class' => 'description');
     if (!empty($element['#id'])) {
-      $attributes['id'] = $element['#id'] . '--description';
+      $description_attributes['id'] = $element['#id'] . '--description';
     }
-    $output .= '<div' . new Attribute($attributes) . '>' . $element['#description'] . "</div>\n";
+    $variables['description']['attributes'] = new Attribute($description_attributes);
+    $variables['description']['content'] = $element['#description'];
   }
 
-  $output .= "</div>\n";
+  // Add label_display and label variables to template.
+  $variables['label_display'] = $element['#title_display'];
+  $variables['label'] = array('#theme' => 'form_element_label');
+  $variables['label'] += array_intersect_key($element, array_flip(array('#id', '#required', '#title', '#title_display')));
 
-  return $output;
+  $variables['children'] = $element['#children'];
 }
 
 /**
@@ -2844,14 +2948,20 @@ function theme_form_required_marker($variables) {
  */
 function theme_form_element_label($variables) {
   $element = $variables['element'];
-
   // If title and required marker are both empty, output no label.
   if ((!isset($element['#title']) || $element['#title'] === '') && empty($element['#required'])) {
     return '';
   }
 
   // If the element is required, a required marker is appended to the label.
-  $required = !empty($element['#required']) ? theme('form_required_marker', array('element' => $element)) : '';
+  $required = '';
+  if (!empty($element['#required'])) {
+    $marker = array(
+      '#theme' => 'form_required_marker',
+      '#element' => $element,
+    );
+    $required = drupal_render($marker);
+  }
 
   $title = filter_xss_admin($element['#title']);
 
@@ -2865,7 +2975,17 @@ function theme_form_element_label($variables) {
     $attributes['class'] = 'visually-hidden';
   }
 
-  if (!empty($element['#id'])) {
+  // A #for property of a dedicated #type 'label' element as precedence.
+  if (!empty($element['#for'])) {
+    $attributes['for'] = $element['#for'];
+    // A custom #id allows the referenced form input element to refer back to
+    // the label element; e.g., in the 'aria-labelledby' attribute.
+    if (!empty($element['#id'])) {
+      $attributes['id'] = $element['#id'];
+    }
+  }
+  // Otherwise, point to the #id of the form input element.
+  elseif (!empty($element['#id'])) {
     $attributes['for'] = $element['#id'];
   }
 
@@ -2945,7 +3065,7 @@ function _form_set_attributes(&$element, $class = array()) {
  * if the batch operation returns any user input in the 'results' or 'message'
  * keys of $context, it must also sanitize them first.
  *
- * Sample batch operations:
+ * Sample callback_batch_operation():
  * @code
  * // Simple and artificial: load a node of a given type for a given user
  * function my_function_1($uid, $type, &$context) {
@@ -2998,7 +3118,7 @@ function _form_set_attributes(&$element, $class = array()) {
  * }
  * @endcode
  *
- * Sample 'finished' callback:
+ * Sample callback_batch_finished():
  * @code
  * function batch_test_finished($success, $results, $operations) {
  *   // The 'success' parameter means no fatal PHP errors were detected. All
@@ -3037,12 +3157,14 @@ function _form_set_attributes(&$element, $class = array()) {
  * @param $batch_definition
  *   An associative array defining the batch, with the following elements (all
  *   are optional except as noted):
- *   - operations: (required) Array of function calls to be performed.
+ *   - operations: (required) Array of operations to be performed, where each
+ *     item is an array consisting of the name of an implementation of
+ *     callback_batch_operation() and an array of parameter.
  *     Example:
  *     @code
  *     array(
- *       array('my_function_1', array($arg1)),
- *       array('my_function_2', array($arg2_1, $arg2_2)),
+ *       array('callback_batch_operation_1', array($arg1)),
+ *       array('callback_batch_operation_2', array($arg2_1, $arg2_2)),
  *     )
  *     @endcode
  *   - title: A safe, translated string to use as the title for the progress
@@ -3054,10 +3176,10 @@ function _form_set_attributes(&$element, $class = array()) {
  *     @elapsed. Defaults to t('Completed @current of @total.').
  *   - error_message: Message displayed if an error occurred while processing
  *     the batch. Defaults to t('An error has occurred.').
- *   - finished: Name of a function to be executed after the batch has
- *     completed. This should be used to perform any result massaging that may
- *     be needed, and possibly save data in $_SESSION for display after final
- *     page redirection.
+ *   - finished: Name of an implementation of callback_batch_finished(). This is
+ *     executed after the batch has completed. This should be used to perform
+ *     any result massaging that may be needed, and possibly save data in
+ *     $_SESSION for display after final page redirection.
  *   - file: Path to the file containing the definitions of the 'operations' and
  *     'finished' functions, for instance if they don't reside in the main
  *     .module file. The path should be relative to base_path(), and thus should
@@ -3162,7 +3284,7 @@ function batch_process($redirect = NULL, $url = 'batch', $redirect_callback = NU
     // The batch is now completely built. Allow other modules to make changes
     // to the batch so that it is easier to reuse batch processes in other
     // environments.
-    drupal_alter('batch', $batch);
+    \Drupal::moduleHandler()->alter('batch', $batch);
 
     // Assign an arbitrary id: don't rely on a serial column in the 'batch'
     // table, since non-progressive batches skip database storage completely.

@@ -7,6 +7,7 @@
 
 namespace Drupal\comment\Tests\Views;
 
+use Drupal\views\Views;
 use Drupal\views\Tests\Wizard\WizardTestBase;
 
 /**
@@ -21,7 +22,7 @@ class WizardTest extends WizardTestBase {
    *
    * @var array
    */
-  public static $modules = array('comment');
+  public static $modules = array('node', 'comment');
 
 
   public static function getInfo() {
@@ -33,11 +34,19 @@ class WizardTest extends WizardTestBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function setUp() {
+    parent::setUp();
+    $this->drupalCreateContentType(array('type' => 'page', 'name' => t('Basic page')));
+    // Add comment field to page node type.
+    $this->container->get('comment.manager')->addDefaultField('node', 'page');
+  }
+
+  /**
    * Tests adding a view of comments.
    */
   public function testCommentWizard() {
-    // Add comment field to page node type.
-    $this->container->get('comment.manager')->addDefaultField('node', 'page');
     $view = array();
     $view['label'] = $this->randomName(16);
     $view['id'] = strtolower($this->randomName(16));
@@ -73,7 +82,7 @@ class WizardTest extends WizardTestBase {
     $this->drupalPostForm(NULL, $view, t('Save and edit'));
     $this->assertUrl('admin/structure/views/view/' . $view['id'], array(), 'Make sure the view saving was successful and the browser got redirected to the edit page.');
 
-    $view = views_get_view($view['id']);
+    $view = Views::getView($view['id']);
     $view->initHandlers();
     $row = $view->display_handler->getOption('row');
     $this->assertEqual($row['type'], 'entity:comment');

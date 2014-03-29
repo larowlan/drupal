@@ -85,11 +85,12 @@ class DirectoryTest extends FileTestBase {
       $this->assertFalse(file_prepare_directory($directory, 0), 'Error reported for a non-writeable directory.', 'File');
 
       // Test directory permission modification.
+      $this->settingsSet('file_chmod_directory', 0777);
       $this->assertTrue(file_prepare_directory($directory, FILE_MODIFY_PERMISSIONS), 'No error reported when making directory writeable.', 'File');
     }
 
     // Test that the directory has the correct permissions.
-    $this->assertDirectoryPermissions($directory, octdec(\Drupal::config('system.file')->get('chmod.directory')));
+    $this->assertDirectoryPermissions($directory, 0777, 'file_chmod_directory setting is respected.');
 
     // Remove .htaccess file to then test that it gets re-created.
     @drupal_unlink(file_default_scheme() . '://.htaccess');
@@ -98,7 +99,7 @@ class DirectoryTest extends FileTestBase {
     $this->assertTrue(is_file(file_default_scheme() . '://.htaccess'), 'Successfully re-created the .htaccess file in the files directory.', 'File');
     // Verify contents of .htaccess file.
     $file = file_get_contents(file_default_scheme() . '://.htaccess');
-    $this->assertEqual($file, "SetHandler Drupal_Security_Do_Not_Remove_See_SA_2006_006\nOptions None\nOptions +FollowSymLinks", 'The .htaccess file contains the proper content.', 'File');
+    $this->assertEqual($file, file_htaccess_lines(FALSE), 'The .htaccess file contains the proper content.', 'File');
   }
 
   /**

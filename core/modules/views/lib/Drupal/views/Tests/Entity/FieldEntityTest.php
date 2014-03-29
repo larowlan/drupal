@@ -8,6 +8,7 @@
 namespace Drupal\views\Tests\Entity;
 
 use Drupal\views\Tests\ViewTestBase;
+use Drupal\views\Views;
 
 /**
  * Tests the field plugin base integration with the entity system.
@@ -26,7 +27,7 @@ class FieldEntityTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = array('comment');
+  public static $modules = array('node', 'comment');
 
   public static function getInfo() {
     return array(
@@ -45,6 +46,7 @@ class FieldEntityTest extends ViewTestBase {
 
     $account = entity_create('user', array('name' => $this->randomName(), 'bundle' => 'user'));
     $account->save();
+    $this->drupalCreateContentType(array('type' => 'page'));
     $this->container->get('comment.manager')->addDefaultField('node', 'page');
     // Force a flush of the in-memory storage.
     $this->container->get('views.views_data')->clear();
@@ -59,7 +61,7 @@ class FieldEntityTest extends ViewTestBase {
     ));
     $comment->save();
 
-    $view = views_get_view('test_field_get_entity');
+    $view = Views::getView('test_field_get_entity');
     $this->executeView($view);
     $row = $view->result[0];
 

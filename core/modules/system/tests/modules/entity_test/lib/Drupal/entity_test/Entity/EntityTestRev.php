@@ -7,17 +7,17 @@
 
 namespace Drupal\entity_test\Entity;
 
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\FieldDefinition;
 use Drupal\entity_test\Entity\EntityTest;
 
 /**
  * Defines the test entity class.
  *
- * @EntityType(
+ * @ContentEntityType(
  *   id = "entity_test_rev",
  *   label = @Translation("Test entity - revisions"),
  *   controllers = {
- *     "storage" = "Drupal\Core\Entity\FieldableDatabaseStorageController",
  *     "access" = "Drupal\entity_test\EntityTestAccessController",
  *     "form" = {
  *       "default" = "Drupal\entity_test\EntityTestFormController"
@@ -31,7 +31,8 @@ use Drupal\entity_test\Entity\EntityTest;
  *     "id" = "id",
  *     "uuid" = "uuid",
  *     "revision" = "revision_id",
- *     "bundle" = "type"
+ *     "bundle" = "type",
+ *     "label" = "name",
  *   },
  *   links = {
  *     "canonical" = "entity_test.edit_entity_test_rev",
@@ -40,21 +41,6 @@ use Drupal\entity_test\Entity\EntityTest;
  * )
  */
 class EntityTestRev extends EntityTest {
-
-  /**
-   * The entity revision id.
-   *
-   * @var \Drupal\Core\Field\FieldItemListInterface
-   */
-  public $revision_id;
-
-  /**
-   * {@inheritdoc}
-   */
-  public function init() {
-    parent::init();
-    unset($this->revision_id);
-  }
 
   /**
    * Implements Drupal\Core\Entity\EntityInterface::getRevisionId().
@@ -66,13 +52,17 @@ class EntityTestRev extends EntityTest {
   /**
    * {@inheritdoc}
    */
-  public static function baseFieldDefinitions($entity_type) {
+  public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
 
     $fields['revision_id'] = FieldDefinition::create('integer')
       ->setLabel(t('Revision ID'))
       ->setDescription(t('The version id of the test entity.'))
       ->setReadOnly(TRUE);
+
+    $fields['langcode']->setRevisionable(TRUE);
+    $fields['name']->setRevisionable(TRUE);
+    $fields['user_id']->setRevisionable(TRUE);
 
     return $fields;
   }

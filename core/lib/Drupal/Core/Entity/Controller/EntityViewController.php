@@ -25,7 +25,7 @@ class EntityViewController implements ContainerInjectionInterface {
   protected $entityManager;
 
   /**
-   * Creates an EntityListController object.
+   * Creates an EntityViewController object.
    *
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager.
@@ -62,7 +62,7 @@ class EntityViewController implements ContainerInjectionInterface {
    */
   public function view(EntityInterface $_entity, $view_mode = 'full', $langcode = NULL) {
     return $this->entityManager
-      ->getViewBuilder($_entity->entityType())
+      ->getViewBuilder($_entity->getEntityTypeId())
       ->view($_entity, $view_mode, $langcode);
   }
 

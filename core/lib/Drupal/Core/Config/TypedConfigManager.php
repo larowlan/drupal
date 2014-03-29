@@ -121,7 +121,7 @@ class TypedConfigManager extends PluginManagerBase implements TypedConfigManager
   /**
    * Overrides Drupal\Core\TypedData\TypedDataFactory::createInstance().
    */
-  public function createInstance($plugin_id, array $configuration, $name = NULL, $parent = NULL) {
+  public function createInstance($plugin_id, array $configuration = array(), $name = NULL, $parent = NULL) {
     $type_definition = $this->getDefinition($plugin_id);
     if (!isset($type_definition)) {
       throw new \InvalidArgumentException(String::format('Invalid data type %plugin_id has been given.', array('%plugin_id' => $plugin_id)));
@@ -199,6 +199,7 @@ class TypedConfigManager extends PluginManagerBase implements TypedConfigManager
    */
   public function clearCachedDefinitions() {
     $this->definitions = NULL;
+    $this->schemaStorage->reset();
     $this->cache->delete($this::CACHE_ID);
   }
 

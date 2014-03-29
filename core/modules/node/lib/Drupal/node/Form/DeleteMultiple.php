@@ -10,7 +10,6 @@ namespace Drupal\node\Form;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Form\ConfirmFormBase;
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Component\Utility\String;
 use Drupal\user\TempStoreFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -19,7 +18,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Provides a node deletion confirmation form.
  */
-class DeleteMultiple extends ConfirmFormBase implements ContainerInjectionInterface {
+class DeleteMultiple extends ConfirmFormBase {
 
   /**
    * The array of nodes to delete.
@@ -36,9 +35,9 @@ class DeleteMultiple extends ConfirmFormBase implements ContainerInjectionInterf
   protected $tempStoreFactory;
 
   /**
-   * The node storage controller.
+   * The node storage.
    *
-   * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+   * @var \Drupal\Core\Entity\EntityStorageInterface
    */
   protected $manager;
 
@@ -52,7 +51,7 @@ class DeleteMultiple extends ConfirmFormBase implements ContainerInjectionInterf
    */
   public function __construct(TempStoreFactory $temp_store_factory, EntityManagerInterface $manager) {
     $this->tempStoreFactory = $temp_store_factory;
-    $this->storageController = $manager->getStorageController('node');
+    $this->storage = $manager->getStorage('node');
   }
 
   /**
@@ -119,7 +118,7 @@ class DeleteMultiple extends ConfirmFormBase implements ContainerInjectionInterf
    */
   public function submitForm(array &$form, array &$form_state) {
     if ($form_state['values']['confirm'] && !empty($this->nodes)) {
-      $this->storageController->delete($this->nodes);
+      $this->storage->delete($this->nodes);
       $this->tempStoreFactory->get('node_multiple_delete_confirm')->delete(\Drupal::currentUser()->id());
       $count = count($this->nodes);
       watchdog('content', 'Deleted @count posts.', array('@count' => $count));

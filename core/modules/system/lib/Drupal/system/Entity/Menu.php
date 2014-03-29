@@ -7,24 +7,24 @@
 
 namespace Drupal\system\Entity;
 
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\system\MenuInterface;
 
 /**
  * Defines the Menu configuration entity class.
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "menu",
  *   label = @Translation("Menu"),
  *   controllers = {
- *     "storage" = "Drupal\Core\Config\Entity\ConfigStorageController",
  *     "access" = "Drupal\system\MenuAccessController"
  *   },
- *   config_prefix = "system.menu",
+ *   admin_permission = "administer menu",
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "label",
- *     "uuid" = "uuid"
+ *     "label" = "label"
  *   }
  * )
  */
@@ -36,13 +36,6 @@ class Menu extends ConfigEntityBase implements MenuInterface {
    * @var string
    */
   public $id;
-
-  /**
-   * The menu UUID.
-   *
-   * @var string
-   */
-  public $uuid;
 
   /**
    * The human-readable name of the menu entity.
@@ -68,8 +61,8 @@ class Menu extends ConfigEntityBase implements MenuInterface {
   /**
    * {@inheritdoc}
    */
-  public function getExportProperties() {
-    $properties = parent::getExportProperties();
+  public function toArray() {
+    $properties = parent::toArray();
     // @todo Make $description protected and include it here, see
     //   https://drupal.org/node/2030645.
     $names = array(
@@ -86,6 +79,24 @@ class Menu extends ConfigEntityBase implements MenuInterface {
    */
   public function isLocked() {
     return (bool) $this->locked;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    parent::postSave($storage, $update);
+
+    Cache::invalidateTags(array('menu' => $this->id()));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function postDelete(EntityStorageInterface $storage, array $entities) {
+    parent::postDelete($storage, $entities);
+
+    Cache::invalidateTags(array('menu' => array_keys($entities)));
   }
 
 }

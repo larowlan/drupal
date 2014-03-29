@@ -272,10 +272,11 @@ abstract class PathPluginBase extends DisplayPluginBase implements DisplayRouter
   }
 
   /**
-   * Overrides \Drupal\views\Plugin\views\display\DisplayPluginBase::executeHookMenu().
+   * {@inheritdoc}
    */
-  public function executeHookMenu($callbacks) {
-    $items = array();
+  public function executeHookMenuLinkDefaults(array &$existing_links) {
+    $links = array();
+
     // Replace % with the link to our standard views argument loader
     // views_arg_load -- which lives in views.module.
 
@@ -284,106 +285,46 @@ abstract class PathPluginBase extends DisplayPluginBase implements DisplayRouter
     $this->view->initHandlers();
     $view_arguments = $this->view->argument;
 
-    $path = implode('/', $bits);
-
-    $view_route_names = $this->state->get('views.view_route_names') ?: array();
-
-    if ($path) {
-      // Some views might override existing paths, so we have to set the route
-      // name based upon the altering.
-      $view_id_display =  "{$this->view->storage->id()}.{$this->display['id']}";
-      $items[$path] = array(
-        'route_name' => isset($view_route_names[$view_id_display]) ? $view_route_names[$view_id_display] : "view.$view_id_display",
-        // Identify URL embedded arguments and correlate them to a handler.
-        'load arguments'  => array($this->view->storage->id(), $this->display['id'], '%index'),
-      );
-      $menu = $this->getOption('menu');
-      if (empty($menu)) {
-        $menu = array('type' => 'none');
-      }
-      // Set the title and description if we have one.
-      if ($menu['type'] != 'none') {
-        $items[$path]['title'] = $menu['title'];
-        $items[$path]['description'] = $menu['description'];
-      }
-
-      if (isset($menu['weight'])) {
-        $items[$path]['weight'] = intval($menu['weight']);
-      }
-
-      switch ($menu['type']) {
-        case 'none':
-        default:
-          $items[$path]['type'] = MENU_CALLBACK;
-          break;
-        case 'normal':
-          $items[$path]['type'] = MENU_NORMAL_ITEM;
-          // Insert item into the proper menu.
-          $items[$path]['menu_name'] = $menu['name'];
-          break;
-        case 'tab':
-          $items[$path]['type'] = MENU_CALLBACK;
-          break;
-        case 'default tab':
-          $items[$path]['type'] = MENU_CALLBACK;
-          break;
-      }
-
-      // Add context for contextual links.
-      if (in_array($menu['type'], array('tab', 'default tab'))) {
-        // @todo Remove once contextual links are ported to a new plugin based
-        //   system.
-        if (!empty($menu['context'])) {
-          $items[$path]['context'] = TRUE;
-        }
-      }
-
-      // If this is a 'default' tab, check to see if we have to create the
-      // parent menu item.
-      if ($this->isDefaultTabPath()) {
-        $tab_options = $this->getOption('tab_options');
-
-        $bits = explode('/', $path);
-        // Remove the last piece.
-        $bit = array_pop($bits);
-
-        // Default tabs are handled by the local task plugins.
-        if ($tab_options['type'] == 'tab') {
-          return $items;
-        }
-
-        // we can't do this if they tried to make the last path bit variable.
-        // @todo: We can validate this.
-        if (!empty($bits)) {
-          // Assign the route name to the parent route, not the default tab.
-          $default_route_name = $items[$path]['route_name'];
-          unset($items[$path]['route_name']);
-
-          $default_path = implode('/', $bits);
-          $items[$default_path] = array(
-            // Default views page entry.
-            // Identify URL embedded arguments and correlate them to a
-            // handler.
-            'load arguments'  => array($this->view->storage->id(), $this->display['id'], '%index'),
-            'title' => $tab_options['title'],
-            'description' => $tab_options['description'],
-            'menu_name' => $tab_options['name'],
-            'route_name' => $default_route_name,
-          );
-          switch ($tab_options['type']) {
-            default:
-            case 'normal':
-              $items[$default_path]['type'] = MENU_NORMAL_ITEM;
-              break;
-          }
-          if (isset($tab_options['weight'])) {
-            $items[$default_path]['weight'] = intval($tab_options['weight']);
-          }
-        }
+    // Replace % with %views_arg for menu autoloading and add to the
+    // page arguments so the argument actually comes through.
+    foreach ($bits as $pos => $bit) {
+      if ($bit == '%') {
+        // If a view requires any arguments we cannot create a static menu link.
+        return array();
       }
     }
 
-    return $items;
+    $view_route_names = $this->state->get('views.view_route_names') ?: array();
+
+    $path = implode('/', $bits);
+    $menu_link_id = 'views.' . str_replace('/', '.', $path);
+
+    if ($path) {
+      $menu = $this->getOption('menu');
+      if (!empty($menu['type']) && $menu['type'] == 'normal') {
+        $links[$menu_link_id] = array();
+        // Some views might override existing paths, so we have to set the route
+        // name based upon the altering.
+        $view_id_display =  "{$this->view->storage->id()}.{$this->display['id']}";
+        $links[$menu_link_id] = array(
+          'route_name' => isset($view_route_names[$view_id_display]) ? $view_route_names[$view_id_display] : "view.$view_id_display",
+          // Identify URL embedded arguments and correlate them to a handler.
+          'load arguments'  => array($this->view->storage->id(), $this->display['id'], '%index'),
+          'machine_name' => $menu_link_id,
+        );
+        $links[$menu_link_id]['title'] = $menu['title'];
+        $links[$menu_link_id]['description'] = $menu['description'];
+
+        if (isset($menu['weight'])) {
+          $links[$menu_link_id]['weight'] = intval($menu['weight']);
+        }
+
+        // Insert item into the proper menu.
+        $links[$menu_link_id]['menu_name'] = $menu['name'];
+      }
+    }
+
+    return $links;
   }
 
   /**

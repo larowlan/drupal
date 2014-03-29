@@ -8,18 +8,18 @@
 namespace Drupal\language\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\language\Exception\DeleteDefaultLanguageException;
 use Drupal\language\LanguageInterface;
 
 /**
  * Defines the Language entity.
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "language_entity",
  *   label = @Translation("Language"),
  *   controllers = {
- *     "storage" = "Drupal\Core\Config\Entity\ConfigStorageController",
- *     "list" = "Drupal\language\LanguageListController",
+ *     "list_builder" = "Drupal\language\LanguageListBuilder",
  *     "access" = "Drupal\language\LanguageAccessController",
  *     "form" = {
  *       "add" = "Drupal\language\Form\LanguageAddForm",
@@ -28,14 +28,14 @@ use Drupal\language\LanguageInterface;
  *     }
  *   },
  *   admin_permission = "administer languages",
- *   config_prefix = "language.entity",
+ *   config_prefix = "entity",
  *   entity_keys = {
  *     "id" = "id",
  *     "label" = "label",
- *     "weight" = "weight",
- *     "uuid" = "uuid"
+ *     "weight" = "weight"
  *   },
  *   links = {
+ *     "delete-form" = "language.delete",
  *     "edit-form" = "language.edit"
  *   }
  * )
@@ -48,15 +48,6 @@ class Language extends ConfigEntityBase implements LanguageInterface {
    * @var string
    */
   public $id;
-
-  /**
-   * The language UUID.
-   *
-   * This is assigned automatically when the language is created.
-   *
-   * @var string
-   */
-  public $uuid;
 
   /**
    * The human-readable label for the language.
@@ -89,12 +80,25 @@ class Language extends ConfigEntityBase implements LanguageInterface {
   /**
    * {@inheritdoc}
    */
-  public function preSave(EntityStorageControllerInterface $storage_controller) {
-    parent::preSave($storage_controller);
+  public function preSave(EntityStorageInterface $storage) {
+    parent::preSave($storage);
     // Languages are picked from a predefined list which is given in English.
     // For the uncommon case of custom languages the label should be given in
     // English.
     $this->langcode = 'en';
   }
 
+  /**
+   * {@inheritdoc}
+   *
+   * @throws \RuntimeException
+   */
+  public static function preDelete(EntityStorageInterface $storage, array $entities) {
+    $default_language = \Drupal::service('language.default')->get();
+    foreach ($entities as $entity) {
+      if ($entity->id() == $default_language->id && !$entity->isUninstalling()) {
+        throw new DeleteDefaultLanguageException('Can not delete the default language');
+      }
+    }
+  }
 }

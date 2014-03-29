@@ -15,7 +15,7 @@ use Drupal\views\ResultRow;
  *
  * @ingroup views_field_handlers
  *
- * @PluginID("comment_link_reply")
+ * @ViewsField("comment_link_reply")
  */
 class LinkReply extends Link {
 
@@ -43,7 +43,7 @@ class LinkReply extends Link {
     $comment = $this->getEntity($values);
 
     $this->options['alter']['make_link'] = TRUE;
-    $this->options['alter']['path'] = "comment/reply/{$comment->entity_type->value}/{$comment->entity_id->value}/{$comment->field_name->value}/{$comment->id()}";
+    $this->options['alter']['path'] = "comment/reply/{$comment->getCommentedEntityTypeId()}/{$comment->getCommentedEntityId()}/{$comment->getFieldName()}/{$comment->id()}";
 
     return $text;
   }

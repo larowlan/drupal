@@ -45,13 +45,13 @@ class FileItemTest extends FieldUnitTestBase {
     $this->installSchema('file', 'file_managed');
     $this->installSchema('file', 'file_usage');
 
-    entity_create('field_entity', array(
+    entity_create('field_config', array(
       'name' => 'file_test',
       'entity_type' => 'entity_test',
       'type' => 'file',
       'cardinality' => FieldDefinitionInterface::CARDINALITY_UNLIMITED,
     ))->save();
-    entity_create('field_instance', array(
+    entity_create('field_instance_config', array(
       'entity_type' => 'entity_test',
       'field_name' => 'file_test',
       'bundle' => 'entity_test',
@@ -68,7 +68,7 @@ class FileItemTest extends FieldUnitTestBase {
    */
   public function testFileItem() {
     // Create a test entity with the
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $entity->file_test->target_id = $this->file->id();
     $entity->file_test->display = 1;
     $entity->file_test->description = $description = $this->randomName();

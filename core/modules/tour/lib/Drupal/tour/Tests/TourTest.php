@@ -8,7 +8,6 @@
 namespace Drupal\tour\Tests;
 
 use Drupal\Core\Language\Language;
-use Drupal\tour\Tests\TourTestBase;
 
 /**
  * Tests tour functionality.
@@ -88,8 +87,9 @@ class TourTest extends TourTestBasic {
     ));
     $this->assertNotEqual(count($elements), 1, 'Did not find Italian variant of tip 1.');
 
-    // Ensure that plugin's work.
-    $this->assertRaw('img src="http://local/image.png"', 'Image plugin tip found.');
+    // Ensure that plugins work.
+    $elements = $this->xpath('//img[@src="http://local/image.png"]');
+    $this->assertEqual(count($elements), 1, 'Image plugin tip found.');
 
     // Navigate to tour-test-2/subpath and verify the tour_test_2 tip is found.
     $this->drupalGet('tour-test-2/subpath');
@@ -125,12 +125,13 @@ class TourTest extends TourTestBasic {
     language_save(new Language(array('id' => 'en')));
 
     // Programmatically create a tour for use through the remainder of the test.
-    entity_create('tour', array(
+    $tour = entity_create('tour', array(
       'id' => 'tour-entity-create-test-en',
       'label' => 'Tour test english',
       'langcode' => 'en',
-      'paths' => array(
-        'tour-test-1',
+      'module' => 'system',
+      'routes' => array(
+        array('route_name' => 'tour_test.1'),
       ),
       'tips' => array(
         'tour-test-1' => array(
@@ -143,8 +144,24 @@ class TourTest extends TourTestBasic {
             'data-id' => 'tour-code-test-1',
           ),
         ),
+        'tour-code-test-2' => array(
+          'id' => 'tour-code-test-2',
+          'plugin' => 'image',
+          'label' => 'The awesome image',
+          'url' => 'http://local/image.png',
+          'weight' => 1,
+          'attributes' => array(
+            'data-id' => 'tour-code-test-2'
+          ),
+        ),
       ),
-    ))->save();
+    ));
+    $tour->save();
+
+    // Ensure that a tour entity has the expected dependencies based on plugin
+    // providers and the module named in the configuration entity.
+    $dependencies = $tour->calculateDependencies();
+    $this->assertEqual($dependencies['module'], array('system', 'tour_test'));
 
     $this->drupalGet('tour-test-1');
 
@@ -173,5 +190,25 @@ class TourTest extends TourTestBasic {
 
     // Test hook_tour_alter().
     $this->assertText('Altered by hook_tour_tips_alter');
+
+    // Navigate to tour-test-3 and verify the tour_test_1 tip is found with
+    // appropriate classes.
+    $this->drupalGet('tour-test-3/foo');
+    $elements = $this->xpath('//li[@data-id=:data_id and @class=:classes and ./h2[contains(., :text)]]', array(
+      ':classes' => 'tip-module-tour-test tip-type-text tip-tour-test-1',
+      ':data_id' => 'tour-test-1',
+      ':text' => 'The first tip',
+    ));
+    $this->assertEqual(count($elements), 1, 'Found English variant of tip 1.');
+
+    // Navigate to tour-test-3 and verify the tour_test_1 tip is not found with
+    // appropriate classes.
+    $this->drupalGet('tour-test-3/bar');
+    $elements = $this->xpath('//li[@data-id=:data_id and @class=:classes and ./h2[contains(., :text)]]', array(
+      ':classes' => 'tip-module-tour-test tip-type-text tip-tour-test-1',
+      ':data_id' => 'tour-test-1',
+      ':text' => 'The first tip',
+    ));
+    $this->assertEqual(count($elements), 0, 'Found English variant of tip 1.');
   }
 }

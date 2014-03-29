@@ -31,7 +31,7 @@ class ShortcutSetsTest extends ShortcutTestBase {
       'id' => strtolower($this->randomName()),
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
-    $new_set = $this->container->get('entity.manager')->getStorageController('shortcut_set')->load($edit['id']);
+    $new_set = $this->container->get('entity.manager')->getStorage('shortcut_set')->load($edit['id']);
     $this->assertIdentical($new_set->id(), $edit['id'], 'Successfully created a shortcut set.');
     $this->drupalGet('user/' . $this->admin_user->id() . '/shortcuts');
     $this->assertText($new_set->label(), 'Generated shortcut set was listed as a choice on the user account page.');
@@ -108,7 +108,7 @@ class ShortcutSetsTest extends ShortcutTestBase {
   function testShortcutSetRenameAlreadyExists() {
     $set = $this->generateShortcutSet($this->randomName());
     $existing_label = $this->set->label();
-    $this->drupalPostForm('admin/config/user-interface/shortcut/manage/' . $set->id() . '/edit', array('label' => $existing_label), t('Save'));
+    $this->drupalPostForm('admin/config/user-interface/shortcut/manage/' . $set->id(), array('label' => $existing_label), t('Save'));
     $this->assertRaw(t('The shortcut set %name already exists. Choose another name.', array('%name' => $existing_label)));
     $set = shortcut_set_load($set->id());
     $this->assertNotEqual($set->label(), $existing_label, format_string('The shortcut set %title cannot be renamed to %new-title because a shortcut set with that title already exists.', array('%title' => $set->label(), '%new-title' => $existing_label)));

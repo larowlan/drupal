@@ -45,10 +45,10 @@ class ConfigLanguageOverrideWebTest extends WebTestBase {
       'direction' => '0',
     );
     $this->drupalPostForm('admin/config/regional/language/add', $edit, t('Add custom language'));
-
-    // Save an override for the XX language.
-    $config_name = \Drupal::configFactory()->getLanguageConfigName('xx', 'system.site');
-    \Drupal::config($config_name)->set('name', 'XX site name')->save();
+    \Drupal::languageManager()
+      ->getLanguageConfigOverride($langcode, 'system.site')
+      ->set('name', 'XX site name')
+      ->save();
 
     $this->drupalLogout();
 
@@ -65,6 +65,21 @@ class ConfigLanguageOverrideWebTest extends WebTestBase {
     // @see \Drupal\Core\PathProcessor::processInbound()
     $this->drupalGet('xx');
     $this->assertText('XX site name');
+
+    // Set the xx language to be the default language and delete the English
+    // language so the site is no longer multilingual and confirm configuration
+    // overrides still work.
+    $language_manager = \Drupal::languageManager()->reset();
+    $this->assertTrue($language_manager->isMultilingual(), 'The test site is multilingual.');
+    $language = \Drupal::languageManager()->getLanguage('xx');
+    $language->default = TRUE;
+    language_save($language);
+    language_delete('en');
+    $this->assertFalse($language_manager->isMultilingual(), 'The test site is monolingual.');
+
+    $this->drupalGet('xx');
+    $this->assertText('XX site name');
+
   }
 
 }

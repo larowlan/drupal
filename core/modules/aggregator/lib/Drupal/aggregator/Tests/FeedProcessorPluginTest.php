@@ -41,16 +41,16 @@ class FeedProcessorPluginTest extends AggregatorTestBase {
     $this->updateFeedItems($feed);
     foreach ($feed->items as $iid) {
       $item = entity_load('aggregator_item', $iid);
-      $this->assertTrue(strpos($item->getTitle(), 'testProcessor') === 0);
+      $this->assertTrue(strpos($item->label(), 'testProcessor') === 0);
     }
   }
 
   /**
-   * Test removing functionality.
+   * Test deleting functionality.
    */
-  public function testRemove() {
+  public function testDelete() {
     $feed = $this->createFeed();
-    $this->updateAndRemove($feed, NULL);
+    $this->updateAndDelete($feed, NULL);
     // Make sure the feed title is changed.
     $entities = entity_load_multiple_by_properties('aggregator_feed', array('description' => $feed->description->value));
     $this->assertTrue(empty($entities));
@@ -65,6 +65,6 @@ class FeedProcessorPluginTest extends AggregatorTestBase {
     // Reload the feed to get new values.
     $feed = entity_load('aggregator_feed', $feed->id(), TRUE);
     // Make sure its refresh rate doubled.
-    $this->assertEqual($feed->refresh->value, 3600);
+    $this->assertEqual($feed->getRefreshRate(), 3600);
   }
 }

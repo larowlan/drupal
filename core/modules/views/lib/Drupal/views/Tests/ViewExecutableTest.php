@@ -88,6 +88,10 @@ class ViewExecutableTest extends ViewUnitTestBase {
     $this->installSchema('node', array('node', 'node_field_data'));
     $this->installSchema('comment', array('comment', 'comment_entity_statistics'));
     $this->installConfig(array('field'));
+    entity_create('node_type', array(
+      'type' => 'page',
+      'name' => 'Page',
+    ))->save();
     $this->container->get('comment.manager')->addDefaultField('node', 'page');
     parent::setUpFixtures();
 
@@ -108,7 +112,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
    * Tests the initDisplay() and initHandlers() methods.
    */
   public function testInitMethods() {
-    $view = views_get_view('test_destroy');
+    $view = Views::getView('test_destroy');
     $view->initDisplay();
 
     $this->assertTrue($view->display_handler instanceof DefaultDisplay, 'Make sure a reference to the current display handler is set.');
@@ -118,7 +122,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
     $view->initHandlers();
 
     // Check for all handler types.
-    $handler_types = array_keys(ViewExecutable::viewsHandlerTypes());
+    $handler_types = array_keys(ViewExecutable::getHandlerTypes());
     foreach ($handler_types as $type) {
       // The views_test integration doesn't have relationships.
       if ($type == 'relationship') {
@@ -176,14 +180,14 @@ class ViewExecutableTest extends ViewUnitTestBase {
    * Tests the generation of the executable object.
    */
   public function testConstructing() {
-    views_get_view('test_destroy');
+    Views::getView('test_destroy');
   }
 
   /**
    * Tests the accessing of values on the object.
    */
   public function testProperties() {
-    $view = views_get_view('test_destroy');
+    $view = Views::getView('test_destroy');
     foreach ($this->executableProperties as $property) {
       $this->assertTrue(isset($view->{$property}));
     }
@@ -193,7 +197,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
    * Tests the display related methods and properties.
    */
   public function testDisplays() {
-    $view = views_get_view('test_executable_displays');
+    $view = Views::getView('test_executable_displays');
 
     // Tests Drupal\views\ViewExecutable::initDisplay().
     $view->initDisplay();
@@ -250,7 +254,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
     $this->assertTrue($view->rowPlugin instanceof Fields);
 
     // Test the newDisplay() method.
-    $view = $this->container->get('entity.manager')->getStorageController('view')->create(array('id' => 'test_executable_displays'));
+    $view = $this->container->get('entity.manager')->getStorage('view')->create(array('id' => 'test_executable_displays'));
     $executable = $view->getExecutable();
 
     $executable->newDisplay('page');
@@ -271,7 +275,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
    * Tests the setting/getting of properties.
    */
   public function testPropertyMethods() {
-    $view = views_get_view('test_executable_displays');
+    $view = Views::getView('test_executable_displays');
 
     // Test the setAjaxEnabled() method.
     $this->assertFalse($view->ajaxEnabled());
@@ -309,7 +313,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
     $this->assertIdentical(spl_object_hash($view->getResponse()), spl_object_hash($new_response), 'New response object correctly set.');
 
     // Test the generateHandlerId() method.
-    $test_ids = drupal_map_assoc(array('test', 'test_1'));
+    $test_ids = array('test' => 'test', 'test_1' => 'test_1');
     $this->assertEqual($view->generateHandlerId('new', $test_ids), 'new');
     $this->assertEqual($view->generateHandlerId('test', $test_ids), 'test_2');
 
@@ -345,7 +349,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
    * Tests the deconstructor to be sure that necessary objects are removed.
    */
   public function testDestroy() {
-    $view = views_get_view('test_destroy');
+    $view = Views::getView('test_destroy');
 
     $view->preview();
     $view->destroy();
@@ -388,10 +392,10 @@ class ViewExecutableTest extends ViewUnitTestBase {
   }
 
   /**
-   * Tests ViewExecutable::viewsHandlerTypes().
+   * Tests ViewExecutable::getHandlerTypes().
    */
-  public function testViewsHandlerTypes() {
-    $types = ViewExecutable::viewsHandlerTypes();
+  public function testGetHandlerTypes() {
+    $types = ViewExecutable::getHandlerTypes();
     foreach (array('field', 'filter', 'argument', 'sort', 'header', 'footer', 'empty') as $type) {
       $this->assertTrue(isset($types[$type]));
       // @todo The key on the display should be footers, headers and empties
@@ -410,7 +414,7 @@ class ViewExecutableTest extends ViewUnitTestBase {
    * Tests the validation of display handlers.
    */
   public function testValidate() {
-    $view = views_get_view('test_executable_displays');
+    $view = Views::getView('test_executable_displays');
     $view->setDisplay('page_1');
 
     $validate = $view->validate();

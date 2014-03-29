@@ -7,11 +7,10 @@
 
 namespace Drupal\book\Form;
 
+use Drupal\book\BookManagerInterface;
 use Drupal\Component\Utility\Crypt;
-use Drupal\Core\Cache\CacheBackendInterface;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Form\FormBase;
-use Drupal\menu_link\MenuLinkStorageControllerInterface;
 use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -21,40 +20,30 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class BookAdminEditForm extends FormBase {
 
   /**
-   * The menu cache object for this controller.
+   * The node storage.
    *
-   * @var \Drupal\Core\Cache\CacheBackendInterface
-   */
-  protected $cache;
-
-  /**
-   * The node storage controller.
-   *
-   * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+   * @var \Drupal\Core\Entity\EntityStorageInterface
    */
   protected $nodeStorage;
 
   /**
-   * The menu link storage controller.
+   * The book manager.
    *
-   * @var \Drupal\menu_link\MenuLinkStorageControllerInterface
+   * @var \Drupal\book\BookManagerInterface
    */
-  protected $menuLinkStorage;
+  protected $bookManager;
 
   /**
    * Constructs a new BookAdminEditForm.
    *
-   * @param \Drupal\Core\Cache\CacheBackendInterface $cache
-   *   The menu cache object to be used by this controller.
-   * @param \Drupal\Core\Entity\EntityStorageControllerInterface $node_storage
-   *   The custom block storage controller.
-   * @param \Drupal\menu_link\MenuLinkStorageControllerInterface $menu_link_storage
-   *   The custom block type storage controller.
+   * @param \Drupal\Core\Entity\EntityStorageInterface $node_storage
+   *   The custom block storage.
+   * @param \Drupal\book\BookManagerInterface $book_manager
+   *   The book manager.
    */
-  public function __construct(CacheBackendInterface $cache, EntityStorageControllerInterface $node_storage, MenuLinkStorageControllerInterface $menu_link_storage) {
-    $this->cache = $cache;
+  public function __construct(EntityStorageInterface $node_storage, BookManagerInterface $book_manager) {
     $this->nodeStorage = $node_storage;
-    $this->menuLinkStorage = $menu_link_storage;
+    $this->bookManager = $book_manager;
   }
 
   /**
@@ -63,9 +52,8 @@ class BookAdminEditForm extends FormBase {
   public static function create(ContainerInterface $container) {
     $entity_manager = $container->get('entity.manager');
     return new static(
-      $container->get('cache.menu'),
-      $entity_manager->getStorageController('node'),
-      $entity_manager->getStorageController('menu_link')
+      $entity_manager->getStorage('node'),
+      $container->get('book.manager')
     );
   }
 
@@ -109,20 +97,17 @@ class BookAdminEditForm extends FormBase {
     $order = array_flip(array_keys($form_state['input']['table']));
     $form['table'] = array_merge($order, $form['table']);
 
-    // Track updates.
-    $updated = FALSE;
     foreach (element_children($form['table']) as $key) {
       if ($form['table'][$key]['#item']) {
         $row = $form['table'][$key];
         $values = $form_state['values']['table'][$key];
 
         // Update menu item if moved.
-        if ($row['plid']['#default_value'] != $values['plid'] || $row['weight']['#default_value'] != $values['weight']) {
-          $menu_link = $this->menuLinkStorage->load($values['mlid']);
-          $menu_link->weight = $values['weight'];
-          $menu_link->plid = $values['plid'];
-          $menu_link->save();
-          $updated = TRUE;
+        if ($row['pid']['#default_value'] != $values['pid'] || $row['weight']['#default_value'] != $values['weight']) {
+          $link = $this->bookManager->loadBookLink($values['nid'], FALSE);
+          $link['weight'] = $values['weight'];
+          $link['pid'] = $values['pid'];
+          $this->bookManager->saveBookLink($link, FALSE);
         }
 
         // Update the title if changed.
@@ -136,12 +121,6 @@ class BookAdminEditForm extends FormBase {
           watchdog('content', 'book: updated %title.', array('%title' => $node->label()), WATCHDOG_NOTICE, l($this->t('view'), 'node/' . $node->id()));
         }
       }
-    }
-    if ($updated) {
-      // Flush static and cache.
-      drupal_static_reset('book_menu_subtree_data');
-      $cid = 'links:' . $form['#node']->book['menu_name'] . ':subtree-cid:' . $form['#node']->book['mlid'];
-      $this->cache->delete($cid);
     }
 
     drupal_set_message($this->t('Updated book %title.', array('%title' => $form['#node']->label())));
@@ -163,7 +142,7 @@ class BookAdminEditForm extends FormBase {
       '#tree' => TRUE,
     );
 
-    $tree = \Drupal::service('book.manager')->bookMenuSubtreeData($node->book);
+    $tree = $this->bookManager->bookSubtreeData($node->book);
     // Do not include the book item itself.
     $tree = array_shift($tree);
     if ($tree['below']) {
@@ -202,10 +181,9 @@ class BookAdminEditForm extends FormBase {
         '#item' => $data['link'],
         'nid' => array('#type' => 'value', '#value' => $data['link']['nid']),
         'depth' => array('#type' => 'value', '#value' => $data['link']['depth']),
-        'href' => array('#type' => 'value', '#value' => $data['link']['href']),
         'title' => array(
           '#type' => 'textfield',
-          '#default_value' => $data['link']['link_title'],
+          '#default_value' => $data['link']['title'],
           '#maxlength' => 255,
           '#size' => 40,
         ),
@@ -216,13 +194,13 @@ class BookAdminEditForm extends FormBase {
           '#title' => $this->t('Weight for @title', array('@title' => $data['link']['title'])),
           '#title_display' => 'invisible',
         ),
-        'plid' => array(
+        'pid' => array(
           '#type' => 'hidden',
-          '#default_value' => $data['link']['plid'],
+          '#default_value' => $data['link']['pid'],
         ),
-        'mlid' => array(
+        'nid' => array(
           '#type' => 'hidden',
-          '#default_value' => $data['link']['mlid'],
+          '#default_value' => $data['link']['nid'],
         ),
       );
       if ($data['below']) {

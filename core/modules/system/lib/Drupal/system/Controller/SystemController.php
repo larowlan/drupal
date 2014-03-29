@@ -7,8 +7,8 @@
 
 namespace Drupal\system\Controller;
 
+use Drupal\Component\Utility\Json;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\Query\QueryFactory;
 use Drupal\Core\Extension\ThemeHandlerInterface;
 use Drupal\Core\Form\FormBuilderInterface;
@@ -19,7 +19,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Returns responses for System routes.
  */
-class SystemController extends ControllerBase implements ContainerInjectionInterface {
+class SystemController extends ControllerBase {
 
   /**
    * The entity query factory object.
@@ -108,7 +108,7 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
       ->condition('link_path', 'admin/config')
       ->condition('module', 'system');
     $result = $query->execute();
-    $menu_link_storage = $this->entityManager()->getStorageController('menu_link');
+    $menu_link_storage = $this->entityManager()->getStorage('menu_link');
     if ($system_link = $menu_link_storage->loadMultiple($result)) {
       $system_link = reset($system_link);
       $query = $this->queryFactory->get('menu_link')
@@ -137,12 +137,10 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
           );
 
           if (!empty($block['content']['#content'])) {
-            $block['show'] = TRUE;
+            // Prepare for sorting as in function _menu_tree_check_access().
+            // The weight is offset so it is always positive, with a uniform 5-digits.
+            $blocks[(50000 + $item['weight']) . ' ' . $item['title'] . ' ' . $item['mlid']] = $block;
           }
-
-          // Prepare for sorting as in function _menu_tree_check_access().
-          // The weight is offset so it is always positive, with a uniform 5-digits.
-          $blocks[(50000 + $item['weight']) . ' ' . $item['title'] . ' ' . $item['mlid']] = $block;
         }
       }
     }
@@ -200,17 +198,17 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
       if (!empty($theme->info['hidden'])) {
         continue;
       }
-      $theme->is_default = ($theme->name == $theme_default);
+      $theme->is_default = ($theme->getName() == $theme_default);
 
       // Identify theme screenshot.
       $theme->screenshot = NULL;
       // Create a list which includes the current theme and all its base themes.
-      if (isset($themes[$theme->name]->base_themes)) {
-        $theme_keys = array_keys($themes[$theme->name]->base_themes);
-        $theme_keys[] = $theme->name;
+      if (isset($themes[$theme->getName()]->base_themes)) {
+        $theme_keys = array_keys($themes[$theme->getName()]->base_themes);
+        $theme_keys[] = $theme->getName();
       }
       else {
-        $theme_keys = array($theme->name);
+        $theme_keys = array($theme->getName());
       }
       // Look for a screenshot in the current theme or in its closest ancestor.
       foreach (array_reverse($theme_keys) as $theme_key) {
@@ -239,18 +237,18 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
       $theme->operations = array();
       if (!empty($theme->status) || !$theme->incompatible_core && !$theme->incompatible_php && !$theme->incompatible_base && !$theme->incompatible_engine) {
         // Create the operations links.
-        $query['theme'] = $theme->name;
-        if ($this->themeAccess->checkAccess($theme->name)) {
+        $query['theme'] = $theme->getName();
+        if ($this->themeAccess->checkAccess($theme->getName())) {
           $theme->operations[] = array(
             'title' => $this->t('Settings'),
             'route_name' => 'system.theme_settings_theme',
-            'route_parameters' => array('theme' => $theme->name),
+            'route_parameters' => array('theme' => $theme->getName()),
             'attributes' => array('title' => $this->t('Settings for !theme theme', array('!theme' => $theme->info['name']))),
           );
         }
         if (!empty($theme->status)) {
           if (!$theme->is_default) {
-            if ($theme->name != $admin_theme) {
+            if ($theme->getName() != $admin_theme) {
               $theme->operations[] = array(
                 'title' => $this->t('Disable'),
                 'route_name' => 'system.theme_disable',
@@ -259,13 +257,13 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
               );
             }
             $theme->operations[] = array(
-              'title' => $this->t('Set default'),
+              'title' => $this->t('Set as default'),
               'route_name' => 'system.theme_set_default',
               'query' => $query,
               'attributes' => array('title' => $this->t('Set !theme as default theme', array('!theme' => $theme->info['name']))),
             );
           }
-          $admin_theme_options[$theme->name] = $theme->info['name'];
+          $admin_theme_options[$theme->getName()] = $theme->info['name'];
         }
         else {
           $theme->operations[] = array(
@@ -275,7 +273,7 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
             'attributes' => array('title' => $this->t('Enable !theme theme', array('!theme' => $theme->info['name']))),
           );
           $theme->operations[] = array(
-            'title' => $this->t('Enable and set default'),
+            'title' => $this->t('Enable and set as default'),
             'route_name' => 'system.theme_set_default',
             'query' => $query,
             'attributes' => array('title' => $this->t('Enable !theme as default theme', array('!theme' => $theme->info['name']))),
@@ -290,7 +288,7 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
         $theme->classes[] = 'theme-default';
         $theme->notes[] = $this->t('default theme');
       }
-      if ($theme->name == $admin_theme || ($theme->is_default && $admin_theme == '0')) {
+      if ($theme->getName() == $admin_theme || ($theme->is_default && $admin_theme == '0')) {
         $theme->classes[] = 'theme-admin';
         $theme->notes[] = $this->t('admin theme');
       }
@@ -327,6 +325,129 @@ class SystemController extends ControllerBase implements ContainerInjectionInter
   public function themeSetDefault() {
     module_load_include('admin.inc', 'system');
     return system_theme_default();
+  }
+
+  /**
+   * #post_render_cache callback; sets the "active" class on relevant links.
+   *
+   * This is a PHP implementation of the drupal.active-link JavaScript library.
+   *
+   * @param array $element
+   *  A renderable array with the following keys:
+   *    - #markup
+   *    - #attached
+   * @param array $context
+   *   An array with the following keys:
+   *   - path: the system path of the currently active page
+   *   - front: whether the current page is the front page (which implies the
+   *     current path might also be <front>)
+   *   - language: the language code of the currently active page
+   *   - query: the query string for the currently active page
+   *
+   * @return array
+   *   The updated renderable array.
+   *
+   * @todo Once a future version of PHP supports parsing HTML5 properly
+   *   (i.e. doesn't fail on https://drupal.org/comment/7938201#comment-7938201)
+   *   then we can get rid of this manual parsing and use DOMDocument instead.
+   */
+  public static function setLinkActiveClass(array $element, array $context) {
+    $search_key_current_path = 'data-drupal-link-system-path="' . $context['path'] . '"';
+    $search_key_front = 'data-drupal-link-system-path="&lt;front&gt;"';
+
+    // An active link's path is equal to the current path, so search the HTML
+    // for an attribute with that value.
+    $offset = 0;
+    while ((strpos($element['#markup'], 'data-drupal-link-system-path="' . $context['path'] . '"', $offset) !== FALSE || ($context['front'] && strpos($element['#markup'], 'data-drupal-link-system-path="&lt;front&gt;"', $offset) !== FALSE))) {
+      $pos_current_path = strpos($element['#markup'], $search_key_current_path, $offset);
+      $pos_front = strpos($element['#markup'], $search_key_front, $offset);
+
+      // Determine which of the two values matched: the exact path, or the
+      // <front> special case.
+      $pos_match = NULL;
+      $type_match = NULL;
+      if ($pos_current_path !== FALSE) {
+        $pos_match = $pos_current_path;
+        $type_match = 'path';
+      }
+      elseif ($context['front'] && $pos_front !== FALSE) {
+        $pos_match = $pos_front;
+        $type_match = 'front';
+      }
+
+      // Find beginning and ending of opening tag.
+      $pos_tag_start = NULL;
+      for ($i = $pos_match; $pos_tag_start === NULL && $i > 0; $i--) {
+        if ($element['#markup'][$i] === '<') {
+          $pos_tag_start = $i;
+        }
+      }
+      $pos_tag_end = NULL;
+      for ($i = $pos_match; $pos_tag_end === NULL && $i < strlen($element['#markup']); $i++) {
+        if ($element['#markup'][$i] === '>') {
+          $pos_tag_end = $i;
+        }
+      }
+
+      // Get the HTML: this will be the opening part of a single tag, e.g.:
+      //   <a href="/" data-drupal-link-system-path="&lt;front&gt;">
+      $tag = substr($element['#markup'], $pos_tag_start, $pos_tag_end - $pos_tag_start + 1);
+
+      // Parse it into a DOMDocument so we can reliably read and modify
+      // attributes.
+      $dom = new \DOMDocument();
+      @$dom->loadHTML('<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head><body>' . $tag . '</body></html>');
+      $node = $dom->getElementsByTagName('body')->item(0)->firstChild;
+
+      // The language of an active link is equal to the current language.
+      $is_active = TRUE;
+      if ($context['language']) {
+        if ($node->hasAttribute('hreflang') && $node->getAttribute('hreflang') !== $context['language']) {
+          $is_active = FALSE;
+        }
+      }
+      // The query parameters of an active link are equal to the current
+      // parameters.
+      if ($is_active) {
+        if ($context['query']) {
+          if (!$node->hasAttribute('data-drupal-link-query') || $node->getAttribute('data-drupal-link-query') !== Json::encode($context['query'])) {
+            $is_active = FALSE;
+          }
+        }
+        else {
+          if ($node->hasAttribute('data-drupal-link-query')) {
+            $is_active = FALSE;
+          }
+        }
+      }
+
+      // Only if the the path, the language and the query match, we set the
+      // "active" class.
+      if ($is_active) {
+        $class = $node->getAttribute('class');
+        if (strlen($class) > 0) {
+          $class .= ' ';
+        }
+        $class .= 'active';
+        $node->setAttribute('class', $class);
+
+        // Get the updated tag.
+        $updated_tag = $dom->saveXML($node, LIBXML_NOEMPTYTAG);
+        // saveXML() added a closing tag, remove it.
+        $updated_tag = substr($updated_tag, 0, strrpos($updated_tag, '<'));
+
+        $element['#markup'] = str_replace($tag, $updated_tag, $element['#markup']);
+
+        // Ensure we only search the remaining HTML.
+        $offset = $pos_tag_end - strlen($tag) + strlen($updated_tag);
+      }
+      else {
+        // Ensure we only search the remaining HTML.
+        $offset = $pos_tag_end + 1;
+      }
+    }
+
+    return $element;
   }
 
 }

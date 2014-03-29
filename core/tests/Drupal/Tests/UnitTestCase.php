@@ -8,6 +8,9 @@
 namespace Drupal\Tests;
 
 use Drupal\Component\Utility\Random;
+use Drupal\Component\Utility\String;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\DependencyInjection\ContainerBuilder;
 
 /**
  * Provides a base class and helpers for Drupal unit tests.
@@ -37,7 +40,19 @@ abstract class UnitTestCase extends \PHPUnit_Framework_TestCase {
     // PHP does not allow us to declare this method as abstract public static,
     // so we simply throw an exception here if this has not been implemented by
     // a child class.
-    throw new \RuntimeException("Sub-class must implement the getInfo method!");
+    throw new \RuntimeException(String::format('@class must implement \Drupal\Tests\UnitTestCase::getInfo().', array(
+      '@class' => get_called_class(),
+    )));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp() {
+    parent::setUp();
+    // Ensure that an instantiated container in the global state of \Drupal from
+    // a previous test does not leak into this test.
+    \Drupal::setContainer(NULL);
   }
 
   /**
@@ -68,6 +83,18 @@ abstract class UnitTestCase extends \PHPUnit_Framework_TestCase {
     return $this->randomGenerator;
   }
 
+  /**
+   * Asserts if two arrays are equal by sorting them first.
+   *
+   * @param array $expected
+   * @param array $actual
+   * @param string $message
+   */
+  protected function assertArrayEquals(array $expected, array $actual, $message = NULL) {
+    ksort($expected);
+    ksort($actual);
+    $this->assertEquals($expected, $actual, $message);
+  }
 
   /**
    * Returns a stub config factory that behaves according to the passed in array.
@@ -106,9 +133,7 @@ abstract class UnitTestCase extends \PHPUnit_Framework_TestCase {
     }
     // Construct a config factory with the array of configuration object stubs
     // as its return map.
-    $config_factory = $this->getMockBuilder('Drupal\Core\Config\ConfigFactory')
-      ->disableOriginalConstructor()
-      ->getMock();
+    $config_factory = $this->getMock('Drupal\Core\Config\ConfigFactoryInterface');
     $config_factory->expects($this->any())
       ->method('get')
       ->will($this->returnValueMap($config_map));
@@ -177,8 +202,32 @@ abstract class UnitTestCase extends \PHPUnit_Framework_TestCase {
     $translation = $this->getMock('Drupal\Core\StringTranslation\TranslationInterface');
     $translation->expects($this->any())
       ->method('translate')
-      ->will($this->returnCallback(function ($string, array $args = array()) { return strtr($string, $args); }));
+      ->will($this->returnCallback('Drupal\Component\Utility\String::format'));
     return $translation;
+  }
+
+  /**
+   * Sets up a container with cache bins.
+   *
+   * @param \Drupal\Core\Cache\CacheBackendInterface $backend
+   *   The cache backend to set up.
+   *
+   * @return \Symfony\Component\DependencyInjection\ContainerInterface|\PHPUnit_Framework_MockObject_MockObject
+   *   The container with the cache bins set up.
+   */
+  protected function getContainerWithCacheBins(CacheBackendInterface $backend) {
+    $container = $this->getMock('Symfony\Component\DependencyInjection\ContainerInterface');
+    $container->expects($this->any())
+      ->method('getParameter')
+      ->with('cache_bins')
+      ->will($this->returnValue(array('cache.test' => 'test')));
+    $container->expects($this->any())
+      ->method('get')
+      ->with('cache.test')
+      ->will($this->returnValue($backend));
+
+    \Drupal::setContainer($container);
+    return $container;
   }
 
 }

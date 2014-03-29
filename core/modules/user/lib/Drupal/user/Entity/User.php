@@ -8,21 +8,23 @@
 namespace Drupal\user\Entity;
 
 use Drupal\Core\Entity\ContentEntityBase;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityMalformedException;
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\FieldDefinition;
+use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\user\UserInterface;
 
 /**
  * Defines the user entity class.
  *
- * @EntityType(
+ * @ContentEntityType(
  *   id = "user",
  *   label = @Translation("User"),
  *   controllers = {
- *     "storage" = "Drupal\user\UserStorageController",
+ *     "storage" = "Drupal\user\UserStorage",
  *     "access" = "Drupal\user\UserAccessController",
- *     "list" = "Drupal\user\Controller\UserListController",
+ *     "list_builder" = "Drupal\user\UserListBuilder",
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
  *     "form" = {
  *       "default" = "Drupal\user\ProfileFormController",
@@ -44,11 +46,19 @@ use Drupal\user\UserInterface;
  *   links = {
  *     "canonical" = "user.view",
  *     "edit-form" = "user.edit",
- *     "admin-form" = "user.account_settings"
+ *     "admin-form" = "user.account_settings",
+ *     "cancel-form" = "user.cancel"
  *   }
  * )
  */
 class User extends ContentEntityBase implements UserInterface {
+
+  /**
+   * The hostname for this user.
+   *
+   * @var string
+   */
+  protected $hostname;
 
   /**
    * {@inheritdoc}
@@ -67,12 +77,9 @@ class User extends ContentEntityBase implements UserInterface {
   /**
    * {@inheritdoc}
    */
-  static function preCreate(EntityStorageControllerInterface $storage_controller, array &$values) {
-    parent::preCreate($storage_controller, $values);
+  static function preCreate(EntityStorageInterface $storage, array &$values) {
+    parent::preCreate($storage, $values);
 
-    if (!isset($values['created'])) {
-      $values['created'] = REQUEST_TIME;
-    }
     // Users always have the authenticated user role.
     $values['roles'][] = DRUPAL_AUTHENTICATED_RID;
   }
@@ -80,8 +87,8 @@ class User extends ContentEntityBase implements UserInterface {
   /**
    * {@inheritdoc}
    */
-  public function preSave(EntityStorageControllerInterface $storage_controller) {
-    parent::preSave($storage_controller);
+  public function preSave(EntityStorageInterface $storage) {
+    parent::preSave($storage);
 
     // Update the user password if it has changed.
     if ($this->isNew() || ($this->pass->value && $this->pass->value != $this->original->pass->value)) {
@@ -112,23 +119,23 @@ class User extends ContentEntityBase implements UserInterface {
   /**
    * {@inheritdoc}
    */
-  public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
-    parent::postSave($storage_controller, $update);
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    parent::postSave($storage, $update);
 
     if ($update) {
       // If the password has been changed, delete all open sessions for the
       // user and recreate the current one.
       if ($this->pass->value != $this->original->pass->value) {
         drupal_session_destroy_uid($this->id());
-        if ($this->id() == $GLOBALS['user']->id()) {
+        if ($this->id() == \Drupal::currentUser()->id()) {
           drupal_session_regenerate();
         }
       }
 
       // Update user roles if changed.
       if ($this->getRoles() != $this->original->getRoles()) {
-        $storage_controller->deleteUserRoles(array($this->id()));
-        $storage_controller->saveRoles($this);
+        $storage->deleteUserRoles(array($this->id()));
+        $storage->saveRoles($this);
       }
 
       // If the user was blocked, delete the user's sessions to force a logout.
@@ -146,7 +153,7 @@ class User extends ContentEntityBase implements UserInterface {
     else {
       // Save user roles.
       if (count($this->getRoles()) > 1) {
-        $storage_controller->saveRoles($this);
+        $storage->saveRoles($this);
       }
     }
   }
@@ -154,22 +161,26 @@ class User extends ContentEntityBase implements UserInterface {
   /**
    * {@inheritdoc}
    */
-  public static function postDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
-    parent::postDelete($storage_controller, $entities);
+  public static function postDelete(EntityStorageInterface $storage, array $entities) {
+    parent::postDelete($storage, $entities);
 
     $uids = array_keys($entities);
     \Drupal::service('user.data')->delete(NULL, $uids);
-    $storage_controller->deleteUserRoles($uids);
+    $storage->deleteUserRoles($uids);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getRoles() {
+  public function getRoles($exclude_locked_roles = FALSE) {
     $roles = array();
+
     foreach ($this->get('roles') as $role) {
-      $roles[] = $role->value;
+      if (!($exclude_locked_roles && in_array($role->value, array('anonymoud', 'authenticated')))) {
+        $roles[] = $role->value;
+      }
     }
+
     return $roles;
   }
 
@@ -191,6 +202,17 @@ class User extends ContentEntityBase implements UserInterface {
    */
   public function getSessionId() {
     return NULL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getHostname() {
+    if (!isset($this->hostname) && \Drupal::hasRequest()) {
+      $this->hostname = \Drupal::request()->getClientIp();
+    }
+
+    return $this->hostname;
   }
 
   /**
@@ -225,7 +247,7 @@ class User extends ContentEntityBase implements UserInterface {
       return TRUE;
     }
 
-    $roles = \Drupal::entityManager()->getStorageController('user_role')->loadMultiple($this->getRoles());
+    $roles = \Drupal::entityManager()->getStorage('user_role')->loadMultiple($this->getRoles());
 
     foreach ($roles as $role) {
       if ($role->hasPermission($permission)) {
@@ -422,7 +444,7 @@ class User extends ContentEntityBase implements UserInterface {
   /**
    * {@inheritdoc}
    */
-  public static function baseFieldDefinitions($entity_type) {
+  public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields['uid'] = FieldDefinition::create('integer')
       ->setLabel(t('User ID'))
       ->setDescription(t('The user ID.'))
@@ -471,8 +493,7 @@ class User extends ContentEntityBase implements UserInterface {
     // @todo Convert to a text field in https://drupal.org/node/1548204.
     $fields['signature'] = FieldDefinition::create('string')
       ->setLabel(t('Signature'))
-      ->setDescription(t('The signature of this user.'))
-      ->setPropertyConstraints('value', array('Length' => array('max' => 255)));
+      ->setDescription(t('The signature of this user.'));
     $fields['signature_format'] = FieldDefinition::create('string')
       ->setLabel(t('Signature format'))
       ->setDescription(t('The signature format of this user.'));
@@ -480,26 +501,23 @@ class User extends ContentEntityBase implements UserInterface {
     $fields['timezone'] = FieldDefinition::create('string')
       ->setLabel(t('Timezone'))
       ->setDescription(t('The timezone of this user.'))
-      ->setPropertyConstraints('value', array('Length' => array('max' => 32)));
+      ->setSetting('max_length', 32);
 
     $fields['status'] = FieldDefinition::create('boolean')
       ->setLabel(t('User status'))
       ->setDescription(t('Whether the user is active (1) or blocked (0).'))
       ->setSetting('default_value', 1);
 
-    // @todo Convert to a "created" field in https://drupal.org/node/2145103.
-    $fields['created'] = FieldDefinition::create('integer')
+    $fields['created'] = FieldDefinition::create('created')
       ->setLabel(t('Created'))
       ->setDescription(t('The time that the user was created.'));
 
-    // @todo Convert to a "timestamp" field in https://drupal.org/node/2145103.
-    $fields['access'] = FieldDefinition::create('integer')
+    $fields['access'] = FieldDefinition::create('timestamp')
       ->setLabel(t('Last access'))
       ->setDescription(t('The time that the user last accessed the site.'))
       ->setSetting('default_value', 0);
 
-    // @todo Convert to a "timestamp" field in https://drupal.org/node/2145103.
-    $fields['login'] = FieldDefinition::create('integer')
+    $fields['login'] = FieldDefinition::create('timestamp')
       ->setLabel(t('Last login'))
       ->setDescription(t('The time that the user last logged in.'))
       ->setSetting('default_value', 0);
@@ -513,6 +531,7 @@ class User extends ContentEntityBase implements UserInterface {
     // https://drupal.org/node/2044859.
     $fields['roles'] = FieldDefinition::create('string')
       ->setLabel(t('Roles'))
+      ->setCardinality(FieldDefinitionInterface::CARDINALITY_UNLIMITED)
       ->setDescription(t('The roles the user has.'));
 
     return $fields;

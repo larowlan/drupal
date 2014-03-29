@@ -9,8 +9,9 @@ namespace Drupal\Core\Form;
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Component\Utility\Settings;
 use Drupal\Component\Utility\Unicode;
-use Drupal\Component\Utility\Url;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Access\CsrfTokenGenerator;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\HttpKernel;
@@ -18,6 +19,7 @@ use Drupal\Core\KeyValueStore\KeyValueExpirableFactoryInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\Core\Url;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -97,7 +99,6 @@ class FormBuilder implements FormBuilderInterface {
   /**
    * An array of known forms.
    *
-   * @see hook_forms()
    * @see self::retrieveForms()
    *
    * @var array
@@ -181,8 +182,8 @@ class FormBuilder implements FormBuilderInterface {
 
     $args = func_get_args();
     // Remove $form_arg from the arguments.
-    array_shift($args);
-    $form_state['build_info']['args'] = $args;
+    unset($args[0]);
+    $form_state['build_info']['args'] = array_values($args);
 
     $form_id = $this->getFormId($form_arg, $form_state);
     return $this->buildForm($form_id, $form_state);
@@ -199,7 +200,7 @@ class FormBuilder implements FormBuilderInterface {
     $form_id = $this->getFormId($form_id, $form_state);
 
     if (!isset($form_state['input'])) {
-      $form_state['input'] = $form_state['method'] == 'get' ? $_GET : $_POST;
+      $form_state['input'] = $form_state['method'] == 'get' ? $this->request->query->all() : $this->request->request->all();
     }
 
     if (isset($_SESSION['batch_form_state'])) {
@@ -329,7 +330,7 @@ class FormBuilder implements FormBuilderInterface {
       $form['#build_id'] = $old_form['#build_id'];
     }
     else {
-      $form['#build_id'] = 'form-' . Crypt::hashBase64(uniqid(mt_rand(), TRUE) . mt_rand());
+      $form['#build_id'] = 'form-' . Crypt::randomBytesBase64();
     }
 
     // #action defaults to request_uri(), but in case of Ajax and other partial
@@ -494,39 +495,6 @@ class FormBuilder implements FormBuilderInterface {
       $callback = array($form_state['build_info']['callback_object'], 'buildForm');
     }
 
-    // We first check to see if there is a valid form builder callback defined.
-    // If there is, we simply pass the arguments on to it to get the form.
-    if (!is_callable($callback)) {
-      // In cases where many form_ids need to share a central constructor
-      // function, such as the node editing form, modules can implement
-      // hook_forms(). It maps one or more form_ids to the correct constructor
-      // functions.
-      //
-      // We cache the results of that hook to save time, but that only works for
-      // modules that know all their form_ids in advance. (A module that adds a
-      // small 'rate this comment' form to each comment in a list would need a
-      // unique form_id for each one, for example.)
-      //
-      // So, we call the hook if $this->forms isn't yet populated, OR if it
-      // doesn't yet have an entry for the requested form_id.
-      if (!isset($this->forms) || !isset($this->forms[$form_id])) {
-        $this->forms = $this->moduleHandler->invokeAll('forms', array($form_id, $args));
-      }
-      $form_definition = $this->forms[$form_id];
-      if (isset($form_definition['callback arguments'])) {
-        $args = array_merge($form_definition['callback arguments'], $args);
-      }
-      if (isset($form_definition['callback'])) {
-        $callback = $form_definition['callback'];
-        $form_state['build_info']['base_form_id'] = $callback;
-      }
-      // In case $form_state['wrapper_callback'] is not defined already, we also
-      // allow hook_forms() to define one.
-      if (!isset($form_state['wrapper_callback']) && isset($form_definition['wrapper_callback'])) {
-        $form_state['wrapper_callback'] = $form_definition['wrapper_callback'];
-      }
-    }
-
     $form = array();
     // Assign a default CSS class name based on $form_id.
     // This happens here and not in self::prepareForm() in order to allow the
@@ -542,20 +510,6 @@ class FormBuilder implements FormBuilderInterface {
     // passed explicitly.
     $args = array_merge(array($form, &$form_state), $args);
 
-    // When the passed $form_state (not using self::getForm()) defines a
-    // 'wrapper_callback', then it requests to invoke a separate (wrapping) form
-    // builder function to pre-populate the $form array with form elements,
-    // which the actual form builder function ($callback) expects. This allows
-    // for pre-populating a form with common elements for certain forms, such as
-    // back/next/save buttons in multi-step form wizards. See self::buildForm().
-    if (isset($form_state['wrapper_callback'])) {
-      $form = call_user_func_array($form_state['wrapper_callback'], $args);
-      // Put the prepopulated $form into $args.
-      $args[0] = $form;
-    }
-
-    // If $callback was returned by a hook_forms() implementation, call it.
-    // Otherwise, call the function named after the form id.
     $form = call_user_func_array($callback, $args);
     // If the form returns some kind of response, deliver it.
     if ($form instanceof Response) {
@@ -599,6 +553,15 @@ class FormBuilder implements FormBuilderInterface {
       // request forgery is irrelevant to the form, such as search forms.
       if (isset($form['#token']) && $form['#token'] === FALSE) {
         unset($form['#token']);
+      }
+      // Form values for programmed form submissions typically do not include a
+      // value for the submit button. But without a triggering element, a
+      // potentially existing #limit_validation_errors property on the primary
+      // submit button is not taken account. Therefore, check whether there is
+      // exactly one submit button in the form, and if so, automatically use it
+      // as triggering_element.
+      if ($form_state['programmed'] && !isset($form_state['triggering_element']) && count($form_state['buttons']) == 1) {
+        $form_state['triggering_element'] = reset($form_state['buttons']);
       }
       $this->validateForm($form_id, $form, $form_state);
 
@@ -650,10 +613,14 @@ class FormBuilder implements FormBuilderInterface {
         // Set a flag to indicate the the form has been processed and executed.
         $form_state['executed'] = TRUE;
 
-        // Redirect the form based on values in $form_state.
-        $redirect = $this->redirectForm($form_state);
-        if (is_object($redirect)) {
-          return $redirect;
+        // If no response has been set, process the form redirect.
+        if (!isset($form_state['response']) && $redirect = $this->redirectForm($form_state)) {
+          $form_state['response'] = $redirect;
+        }
+
+        // If there is a response was set, return it instead of continuing.
+        if (isset($form_state['response']) && $form_state['response'] instanceof Response) {
+          return $form_state['response'];
         }
       }
 
@@ -719,7 +686,7 @@ class FormBuilder implements FormBuilderInterface {
     // @see self::buildForm()
     // @see self::rebuildForm()
     if (!isset($form['#build_id'])) {
-      $form['#build_id'] = 'form-' . Crypt::hashBase64(uniqid(mt_rand(), TRUE) . mt_rand());
+      $form['#build_id'] = 'form-' . Crypt::randomBytesBase64();
     }
     $form['form_build_id'] = array(
       '#type' => 'hidden',
@@ -847,7 +814,7 @@ class FormBuilder implements FormBuilderInterface {
     if (isset($form['#token'])) {
       if (!$this->csrfToken->validate($form_state['values']['form_token'], $form['#token'])) {
         $path = $this->request->attributes->get('_system_path');
-        $query = Url::filterQueryParameters($this->request->query->all());
+        $query = UrlHelper::filterQueryParameters($this->request->query->all());
         $url = $this->urlGenerator->generateFromPath($path, array('query' => $query));
 
         // Setting this error will cause the form to fail validation.
@@ -933,13 +900,17 @@ class FormBuilder implements FormBuilderInterface {
 
     // Check for a route-based redirection.
     if (isset($form_state['redirect_route'])) {
-      $form_state['redirect_route'] += array(
-        'route_parameters' => array(),
-        'options' => array(),
-      );
-      $form_state['redirect_route']['options']['absolute'] = TRUE;
-      $url = $this->urlGenerator->generateFromRoute($form_state['redirect_route']['route_name'], $form_state['redirect_route']['route_parameters'], $form_state['redirect_route']['options']);
-      return new RedirectResponse($url);
+      // @todo Remove once all redirects are converted to Url.
+      if (!($form_state['redirect_route'] instanceof Url)) {
+        $form_state['redirect_route'] += array(
+          'route_parameters' => array(),
+          'options' => array(),
+        );
+        $form_state['redirect_route'] = new Url($form_state['redirect_route']['route_name'], $form_state['redirect_route']['route_parameters'], $form_state['redirect_route']['options']);
+      }
+
+      $form_state['redirect_route']->setAbsolute();
+      return new RedirectResponse($form_state['redirect_route']->toString());
     }
 
     // Only invoke a redirection if redirect value was not set to FALSE.
@@ -1317,8 +1288,8 @@ class FormBuilder implements FormBuilderInterface {
 
     // Special handling if we're on the top level form element.
     if (isset($element['#type']) && $element['#type'] == 'form') {
-      if (!empty($element['#https']) && settings()->get('mixed_mode_sessions', FALSE) &&
-        !Url::isExternal($element['#action'])) {
+      if (!empty($element['#https']) && Settings::get('mixed_mode_sessions', FALSE) &&
+        !UrlHelper::isExternal($element['#action'])) {
         global $base_root;
 
         // Not an external URL so ensure that it is secure.
@@ -1544,7 +1515,7 @@ class FormBuilder implements FormBuilderInterface {
 
     // Set the element's #value property.
     if (!isset($element['#value']) && !array_key_exists('#value', $element)) {
-      $value_callback = !empty($element['#value_callback']) ? $element['#value_callback'] : 'form_type_' . $element['#type'] . '_value';
+      $value_callable = !empty($element['#value_callback']) ? $element['#value_callback'] : 'form_type_' . $element['#type'] . '_value';
       if ($process_input) {
         // Get the input for the current element. NULL values in the input need
         // to be explicitly distinguished from missing input. (see below)
@@ -1568,8 +1539,8 @@ class FormBuilder implements FormBuilderInterface {
         // If we have input for the current element, assign it to the #value
         // property, optionally filtered through $value_callback.
         if ($input_exists) {
-          if (function_exists($value_callback)) {
-            $element['#value'] = $value_callback($element, $input, $form_state);
+          if (is_callable($value_callable)) {
+            $element['#value'] = call_user_func_array($value_callable, array(&$element, $input, &$form_state));
           }
           if (!isset($element['#value']) && isset($input)) {
             $element['#value'] = $input;
@@ -1584,8 +1555,8 @@ class FormBuilder implements FormBuilderInterface {
       if (!isset($element['#value'])) {
         // Call #type_value without a second argument to request default_value
         // handling.
-        if (function_exists($value_callback)) {
-          $element['#value'] = $value_callback($element, FALSE, $form_state);
+        if (is_callable($value_callable)) {
+          $element['#value'] = call_user_func_array($value_callable, array(&$element, FALSE, &$form_state));
         }
         // Final catch. If we haven't set a value yet, use the explicit default
         // value. Avoid image buttons (which come with garbage value), so we
@@ -1810,7 +1781,7 @@ class FormBuilder implements FormBuilderInterface {
    */
   protected function currentUser() {
     if (!$this->currentUser) {
-      if (\Drupal::getContainer()->has('current_user')) {
+      if (\Drupal::hasService('current_user')) {
         $this->currentUser = \Drupal::currentUser();
       }
       else {

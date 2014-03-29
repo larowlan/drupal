@@ -1,5 +1,6 @@
 <?php
 
+use Drupal\Component\Utility\Settings;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\Query\Condition;
 
@@ -39,12 +40,14 @@ use Drupal\Core\Database\Query\Condition;
  * For example, one might wish to return a list of the most recent 10 rows
  * authored by a given user. Instead of directly issuing the SQL query
  * @code
- * SELECT e.id, e.title, e.created FROM example e WHERE e.uid = $uid LIMIT 0, 10;
+ * SELECT e.id, e.title, e.created FROM example e WHERE e.uid = $uid
+ *   ORDER BY e.created DESC LIMIT 0, 10;
  * @endcode
  * one would instead call the Drupal functions:
  * @code
  * $result = db_query_range('SELECT e.id, e.title, e.created
- *   FROM {example} e WHERE e.uid = :uid', 0, 10, array(':uid' => $uid));
+ *   FROM {example} e WHERE e.uid = :uid
+ *   ORDER BY e.created DESC', 0, 10, array(':uid' => $uid));
  * foreach ($result as $record) {
  *   // Perform operations on $record->title, etc. here.
  * }
@@ -931,7 +934,7 @@ function db_ignore_slave() {
     // Five minutes is long enough to allow the slave to break and resume
     // interrupted replication without causing problems on the Drupal site from
     // the old data.
-    $duration = settings()->get('maximum_replication_lag', 300);
+    $duration = Settings::get('maximum_replication_lag', 300);
     // Set session variable with amount of time to delay before using slave.
     $_SESSION['ignore_slave_server'] = REQUEST_TIME + $duration;
   }

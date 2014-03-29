@@ -5,27 +5,8 @@
  * Defines simple text field types.
  */
 
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\EntityInterface;
-
-/**
- * Implements hook_library_info().
- */
-function text_library_info() {
-  $libraries['drupal.text'] = array(
-    'title' => 'Text',
-    'version' => \Drupal::VERSION,
-    'js' => array(
-      drupal_get_path('module', 'text') . '/text.js' => array(),
-    ),
-    'dependencies' => array(
-      array('system', 'jquery'),
-      array('system', 'jquery.once'),
-      array('system', 'drupal'),
-    ),
-  );
-
-  return $libraries;
-}
 
 /**
  * Implements hook_help().
@@ -170,7 +151,7 @@ function text_summary($text, $format = NULL, $size = NULL) {
 
   // If the htmlcorrector filter is present, apply it to the generated summary.
   if (isset($format) && $filters->has('filter_htmlcorrector') && $filters->get('filter_htmlcorrector')->status) {
-    $summary = _filter_htmlcorrector($summary);
+    $summary = Html::normalize($summary);
   }
 
   return $summary;
@@ -188,4 +169,13 @@ function text_filter_format_update($format) {
  */
 function text_filter_format_disable($format) {
   field_cache_clear();
+}
+
+/**
+ * Implements hook_field_formatter_info_alter().
+ */
+function text_field_formatter_info_alter(&$info) {
+  $info['string']['field_types'][] = 'text';
+  $info['string']['field_types'][] = 'text_with_summary';
+  $info['string']['field_types'][] = 'text_long';
 }

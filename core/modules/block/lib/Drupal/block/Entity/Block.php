@@ -7,40 +7,42 @@
 
 namespace Drupal\block\Entity;
 
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
 use Drupal\block\BlockPluginBag;
 use Drupal\block\BlockInterface;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Config\Entity\ConfigEntityInterface;
+use Drupal\Core\Config\Entity\EntityWithPluginBagInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
  * Defines a Block configuration entity class.
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "block",
  *   label = @Translation("Block"),
  *   controllers = {
- *     "storage" = "Drupal\Core\Config\Entity\ConfigStorageController",
  *     "access" = "Drupal\block\BlockAccessController",
  *     "view_builder" = "Drupal\block\BlockViewBuilder",
- *     "list" = "Drupal\block\BlockListController",
+ *     "list_builder" = "Drupal\block\BlockListBuilder",
  *     "form" = {
  *       "default" = "Drupal\block\BlockFormController",
  *       "delete" = "Drupal\block\Form\BlockDeleteForm"
  *     }
  *   },
- *   config_prefix = "block.block",
+ *   admin_permission = "administer blocks",
  *   fieldable = FALSE,
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "label",
- *     "uuid" = "uuid"
+ *     "label" = "label"
  *   },
  *   links = {
+ *     "delete-form" = "block.admin_block_delete",
  *     "edit-form" = "block.admin_edit"
  *   }
  * )
  */
-class Block extends ConfigEntityBase implements BlockInterface {
+class Block extends ConfigEntityBase implements BlockInterface, EntityWithPluginBagInterface {
 
   /**
    * The ID of the block.
@@ -48,13 +50,6 @@ class Block extends ConfigEntityBase implements BlockInterface {
    * @var string
    */
   public $id;
-
-  /**
-   * The block UUID.
-   *
-   * @var string
-   */
-  public $uuid;
 
   /**
    * The plugin instance settings.
@@ -92,6 +87,11 @@ class Block extends ConfigEntityBase implements BlockInterface {
   protected $pluginBag;
 
   /**
+   * {@inheritdoc}
+   */
+  protected $pluginConfigKey = 'settings';
+
+  /**
    * The visibility settings.
    *
    * @var array
@@ -99,19 +99,20 @@ class Block extends ConfigEntityBase implements BlockInterface {
   protected $visibility;
 
   /**
-   * Overrides \Drupal\Core\Config\Entity\ConfigEntityBase::__construct();
+   * {@inheritdoc}
    */
-  public function __construct(array $values, $entity_type) {
-    parent::__construct($values, $entity_type);
-
-    $this->pluginBag = new BlockPluginBag(\Drupal::service('plugin.manager.block'), array($this->plugin), $this->get('settings'), $this->id());
+  public function getPlugin() {
+    return $this->getPluginBag()->get($this->plugin);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getPlugin() {
-    return $this->pluginBag->get($this->plugin);
+  public function getPluginBag() {
+    if (!$this->pluginBag) {
+      $this->pluginBag = new BlockPluginBag(\Drupal::service('plugin.manager.block'), $this->plugin, $this->get('settings'), $this->id());
+    }
+    return $this->pluginBag;
   }
 
   /**
@@ -129,10 +130,10 @@ class Block extends ConfigEntityBase implements BlockInterface {
   }
 
   /**
-   * Overrides \Drupal\Core\Config\Entity\ConfigEntityBase::getExportProperties();
+   * {@inheritdoc}
    */
-  public function getExportProperties() {
-    $properties = parent::getExportProperties();
+  public function toArray() {
+    $properties = parent::toArray();
     $names = array(
       'theme',
       'region',
@@ -150,16 +151,33 @@ class Block extends ConfigEntityBase implements BlockInterface {
   /**
    * {@inheritdoc}
    */
-  public function preSave(EntityStorageControllerInterface $storage_controller) {
-    parent::preSave($storage_controller);
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    parent::postSave($storage, $update);
 
-    $this->set('settings', $this->getPlugin()->getConfiguration());
+    if ($update) {
+      Cache::invalidateTags(array('block' => $this->id()));
+    }
+    // When placing a new block, invalidate all cache entries for this theme,
+    // since any page that uses this theme might be affected.
+    else {
+      // @todo Replace with theme cache tag: https://drupal.org/node/2185617
+      Cache::invalidateTags(array('content' => TRUE));
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function postDelete(EntityStorageInterface $storage, array $entities) {
+    parent::postDelete($storage, $entities);
+
+    Cache::invalidateTags(array('block' => array_keys($entities)));
   }
 
   /**
    * Sorts active blocks by weight; sorts inactive blocks by name.
    */
-  public static function sort($a, $b) {
+  public static function sort(ConfigEntityInterface $a, ConfigEntityInterface $b) {
     // Separate enabled from disabled.
     $status = $b->get('status') - $a->get('status');
     if ($status) {
@@ -174,6 +192,15 @@ class Block extends ConfigEntityBase implements BlockInterface {
     }
     // Sort by label.
     return strcmp($a->label(), $b->label());
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function calculateDependencies() {
+    parent::calculateDependencies();
+    $this->addDependency('theme', $this->theme);
+    return $this->dependencies;
   }
 
 }

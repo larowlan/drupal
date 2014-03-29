@@ -1,61 +1,5 @@
 [
     {
-        "name": "easyrdf/easyrdf",
-        "version": "0.8.0-beta.1",
-        "version_normalized": "0.8.0.0-beta1",
-        "source": {
-            "type": "git",
-            "url": "git://github.com/njh/easyrdf.git",
-            "reference": "0.8.0-beta.1"
-        },
-        "dist": {
-            "type": "zip",
-            "url": "https://github.com/njh/easyrdf/archive/0.8.0-beta.1.zip",
-            "reference": "0.8.0-beta.1",
-            "shasum": ""
-        },
-        "require": {
-            "php": ">=5.2.8"
-        },
-        "replace": {
-            "njh/easyrdf": "self.version"
-        },
-        "require-dev": {
-            "phpunit/phpunit": ">=3.5.15",
-            "sami/sami": "dev-master",
-            "squizlabs/php_codesniffer": ">=1.4.3"
-        },
-        "time": "2013-01-18 15:54:28",
-        "type": "library",
-        "installation-source": "dist",
-        "autoload": {
-            "psr-0": {
-                "EasyRdf_": "lib/"
-            }
-        },
-        "notification-url": "https://packagist.org/downloads/",
-        "license": [
-            "BSD-3-Clause"
-        ],
-        "authors": [
-            {
-                "name": "Nicholas Humfrey",
-                "email": "njh@aelius.com",
-                "homepage": "http://www.aelius.com/njh/",
-                "role": "Developer"
-            }
-        ],
-        "description": "EasyRdf is a PHP library designed to make it easy to consume and produce RDF.",
-        "homepage": "http://www.easyrdf.org/",
-        "keywords": [
-            "Linked Data",
-            "RDF",
-            "Semantic Web",
-            "Turtle",
-            "rdfa"
-        ]
-    },
-    {
         "name": "psr/log",
         "version": "1.0.0",
         "version_normalized": "1.0.0.0",
@@ -2146,29 +2090,89 @@
         "homepage": "http://symfony.com"
     },
     {
+        "name": "easyrdf/easyrdf",
+        "version": "0.8.0",
+        "version_normalized": "0.8.0.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/njh/easyrdf.git",
+            "reference": "3e43ab7274004e9f4192e06b9fc147781e1f85c2"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/njh/easyrdf/zipball/3e43ab7274004e9f4192e06b9fc147781e1f85c2",
+            "reference": "3e43ab7274004e9f4192e06b9fc147781e1f85c2",
+            "shasum": ""
+        },
+        "require": {
+            "php": ">=5.2.8"
+        },
+        "replace": {
+            "njh/easyrdf": "self.version"
+        },
+        "require-dev": {
+            "phpunit/phpunit": ">=3.5.15",
+            "sami/sami": "dev-master",
+            "squizlabs/php_codesniffer": ">=1.4.3"
+        },
+        "suggest": {
+            "ml/json-ld": "dev-master"
+        },
+        "time": "2013-12-30 22:31:37",
+        "type": "library",
+        "installation-source": "dist",
+        "autoload": {
+            "psr-0": {
+                "EasyRdf_": "lib/"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "BSD-3-Clause"
+        ],
+        "authors": [
+            {
+                "name": "Nicholas Humfrey",
+                "email": "njh@aelius.com",
+                "homepage": "http://www.aelius.com/njh/",
+                "role": "Developer"
+            }
+        ],
+        "description": "EasyRdf is a PHP library designed to make it easy to consume and produce RDF.",
+        "homepage": "http://www.easyrdf.org/",
+        "keywords": [
+            "Linked Data",
+            "RDF",
+            "Semantic Web",
+            "Turtle",
+            "rdfa",
+            "sparql"
+        ]
+    },
+    {
         "name": "symfony/yaml",
-        "version": "v2.4.1",
-        "version_normalized": "2.4.1.0",
+        "version": "dev-master",
+        "version_normalized": "9999999-dev",
         "target-dir": "Symfony/Component/Yaml",
         "source": {
             "type": "git",
             "url": "https://github.com/symfony/Yaml.git",
-            "reference": "4e1a237fc48145fae114b96458d799746ad89aa0"
+            "reference": "e49a47d60348665261f6e279ba383241deb73cab"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/symfony/Yaml/zipball/4e1a237fc48145fae114b96458d799746ad89aa0",
-            "reference": "4e1a237fc48145fae114b96458d799746ad89aa0",
+            "url": "https://api.github.com/repos/symfony/Yaml/zipball/e49a47d60348665261f6e279ba383241deb73cab",
+            "reference": "e49a47d60348665261f6e279ba383241deb73cab",
             "shasum": ""
         },
         "require": {
             "php": ">=5.3.3"
         },
-        "time": "2013-12-28 08:12:03",
+        "time": "2014-02-24 16:21:51",
         "type": "library",
         "extra": {
             "branch-alias": {
-                "dev-master": "2.4-dev"
+                "dev-master": "2.5-dev"
             }
         },
         "installation-source": "dist",
@@ -2184,7 +2188,9 @@
         "authors": [
             {
                 "name": "Fabien Potencier",
-                "email": "fabien@symfony.com"
+                "email": "fabien@symfony.com",
+                "homepage": "http://fabien.potencier.org",
+                "role": "Lead Developer"
             },
             {
                 "name": "Symfony Community",

@@ -67,7 +67,9 @@ class UserAccountLinksTests extends WebTestBase {
     $this->drupalGet('<front>');
 
     // For a logged-out user, expect no secondary links.
-    $tree = menu_build_tree('account');
+    /** @var \Drupal\menu_link\MenuTreeInterface $menu_tree */
+    $menu_tree = \Drupal::service('menu_link.tree');
+    $tree = $menu_tree->buildTree('account');
     $this->assertEqual(count($tree), 1, 'The secondary links menu contains only one menu link.');
     $link = reset($tree);
     $link = $link['link'];
@@ -129,11 +131,8 @@ class UserAccountLinksTests extends WebTestBase {
     // Check the page title for registered users is "My Account" in menus.
     $this->drupalLogin($this->drupalCreateUser());
     // After login, the client is redirected to /user.
-    $link = $this->xpath('//a[contains(@class, :class)]', array(
-        ':class' => 'active-trail',
-      )
-    );
-    $this->assertEqual((string) $link[0], 'My account', "Page title of /user is 'My Account' in menus for registered users");
+    $this->assertLink(t('My account'), 0, "Page title of /user is 'My Account' in menus for registered users");
+    $this->assertLinkByHref(\Drupal::urlGenerator()->generate('user.page'), 0);
   }
 
 }

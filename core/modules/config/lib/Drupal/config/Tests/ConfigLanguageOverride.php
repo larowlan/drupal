@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Contains \Drupal\config\Tests\ConfigLanguageOverride.
+ * Contains \Drupal\config\Tests\ConfigLanguageOverrideTest.
  */
 
 namespace Drupal\config\Tests;
@@ -13,14 +13,14 @@ use Drupal\simpletest\DrupalUnitTestBase;
 /**
  * Tests language config override.
  */
-class ConfigLanguageOverride extends DrupalUnitTestBase {
+class ConfigLanguageOverrideTest extends DrupalUnitTestBase {
 
   /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = array('config_test', 'user', 'language', 'system', 'field');
+  public static $modules = array('user', 'language', 'config_test',  'system', 'field');
 
   public static function getInfo() {
     return array(
@@ -33,15 +33,22 @@ class ConfigLanguageOverride extends DrupalUnitTestBase {
   public function setUp() {
     parent::setUp();
     $this->installConfig(array('config_test'));
-    \Drupal::configFactory()->setLanguage(language_default());
   }
 
   /**
    * Tests locale override based on language.
    */
   function testConfigLanguageOverride() {
+    // The language module implements a config factory override object that
+    // overrides configuration when the Language module is enabled. This test ensures that
+    // English overrides work.
+    \Drupal::languageManager()->setConfigOverrideLanguage(language_load('en'));
     $config = \Drupal::config('config_test.system');
     $this->assertIdentical($config->get('foo'), 'en bar');
+
+    // Ensure that the raw data is not translated.
+    $raw = $config->getRawData();
+    $this->assertIdentical($raw['foo'], 'bar');
 
     language_save(new Language(array(
       'name' => 'French',
@@ -52,32 +59,29 @@ class ConfigLanguageOverride extends DrupalUnitTestBase {
       'id' => 'de',
     )));
 
-    \Drupal::configFactory()->setLanguage(language_load('fr'));
+    \Drupal::languageManager()->setConfigOverrideLanguage(language_load('fr'));
     $config = \Drupal::config('config_test.system');
     $this->assertIdentical($config->get('foo'), 'fr bar');
 
-    \Drupal::configFactory()->setLanguage(language_load('de'));
+    \Drupal::languageManager()->setConfigOverrideLanguage(language_load('de'));
     $config = \Drupal::config('config_test.system');
     $this->assertIdentical($config->get('foo'), 'de bar');
 
     // Test overrides of completely new configuration objects. In normal runtime
     // this should only happen for configuration entities as we should not be
     // creating simple configuration objects on the fly.
-    $language_config_name = \Drupal::configFactory()->getLanguageConfigName('de', 'config_test.new');
-    \Drupal::config($language_config_name)->set('language', 'override')->save();
-    \Drupal::config('config_test.new');
+    \Drupal::languageManager()
+      ->getLanguageConfigOverride('de', 'config_test.new')
+      ->set('language', 'override')
+      ->save();
     $config = \Drupal::config('config_test.new');
     $this->assertTrue($config->isNew(), 'The configuration object config_test.new is new');
     $this->assertIdentical($config->get('language'), 'override');
-    \Drupal::configFactory()->disableOverrides();
+    $old_state = \Drupal::configFactory()->getOverrideState();
+    \Drupal::configFactory()->setOverrideState(FALSE);
     $config = \Drupal::config('config_test.new');
     $this->assertIdentical($config->get('language'), NULL);
-    \Drupal::configFactory()->enableOverrides();
-
-    // Ensure that language configuration overrides can not be overridden.
-    global $conf;
-    $conf[$language_config_name]['language'] = 'conf cannot override';
-    $this->assertIdentical(\Drupal::config($language_config_name)->get('language'), 'override');
+    \Drupal::configFactory()->setOverrideState($old_state);
   }
 }
 

@@ -19,15 +19,21 @@ use Drupal\Core\Field\WidgetBase;
  *   field_types = {
  *     "taxonomy_term_reference"
  *   },
- *   settings = {
- *     "size" = "60",
- *     "autocomplete_route_name" = "taxonomy.autocomplete",
- *     "placeholder" = ""
- *   },
  *   multiple_values = TRUE
  * )
  */
 class TaxonomyAutocompleteWidget extends WidgetBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function defaultSettings() {
+    return array(
+      'size' => '60',
+      'autocomplete_route_name' => 'taxonomy.autocomplete',
+      'placeholder' => '',
+    ) + parent::defaultSettings();
+  }
 
   /**
    * {@inheritdoc}
@@ -65,15 +71,17 @@ class TaxonomyAutocompleteWidget extends WidgetBase {
    */
   public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, array &$form_state) {
     $tags = array();
-    foreach ($items as $item) {
-      $tags[] = isset($item->entity) ? $item->entity : entity_load('taxonomy_term', $item->target_id);
+    if (!$items->isEmpty()) {
+      foreach ($items as $item) {
+        $tags[] = isset($item->entity) ? $item->entity : entity_load('taxonomy_term', $item->target_id);
+      }
     }
     $element += array(
       '#type' => 'textfield',
       '#default_value' => taxonomy_implode_tags($tags),
       '#autocomplete_route_name' => $this->getSetting('autocomplete_route_name'),
       '#autocomplete_route_parameters' => array(
-        'entity_type' => $items->getEntity()->entityType(),
+        'entity_type' => $items->getEntity()->getEntityTypeId(),
         'field_name' => $this->fieldDefinition->getName(),
       ),
       '#size' => $this->getSetting('size'),

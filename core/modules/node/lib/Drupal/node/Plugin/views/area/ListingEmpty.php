@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @ingroup views_area_handlers
  *
- * @PluginID("node_listing_empty")
+ * @ViewsArea("node_listing_empty")
  */
 class ListingEmpty extends AreaPluginBase {
 
@@ -68,7 +68,7 @@ class ListingEmpty extends AreaPluginBase {
         '#links' => array(
           array(
             'href' => 'node/add',
-            'title' => $this->t('Add new content'),
+            'title' => $this->t('Add content'),
           ),
         ),
         '#access' => $this->accessManager->checkNamedRoute('node.add_page', array(), $account),

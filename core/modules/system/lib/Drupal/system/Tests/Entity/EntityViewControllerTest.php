@@ -43,7 +43,7 @@ class EntityViewControllerTest extends WebTestBase {
     for ($i = 0; $i < 2; $i++) {
       $random_label = $this->randomName();
       $data = array('bundle' => 'entity_test', 'name' => $random_label);
-      $entity_test = $this->container->get('entity.manager')->getStorageController('entity_test')->create($data);
+      $entity_test = $this->container->get('entity.manager')->getStorage('entity_test')->create($data);
       $entity_test->save();
       $this->entities[] = $entity_test;
     }
@@ -80,7 +80,7 @@ class EntityViewControllerTest extends WebTestBase {
 
     // Create an entity and save test value in field_test_text.
     $test_value = $this->randomName();
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $entity->field_test_text = $test_value;
     $entity->save();
 

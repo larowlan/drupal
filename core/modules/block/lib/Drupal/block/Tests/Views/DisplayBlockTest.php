@@ -7,7 +7,9 @@
 
 namespace Drupal\block\Tests\Views;
 
+use Drupal\Component\Utility\Json;
 use Drupal\Component\Utility\String;
+use Drupal\views\Views;
 use Drupal\views\Tests\ViewTestBase;
 use Drupal\views\Tests\ViewTestData;
 use Drupal\Core\Template\Attribute;
@@ -24,7 +26,7 @@ class DisplayBlockTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = array('block_test_views', 'test_page_test', 'contextual', 'views_ui');
+  public static $modules = array('node', 'block_test_views', 'test_page_test', 'contextual', 'views_ui');
 
   /**
    * Views used by this test.
@@ -141,19 +143,19 @@ class DisplayBlockTest extends ViewTestBase {
     $this->assertBlockAppears($block_3);
     $this->assertBlockAppears($block_4);
 
-    $block_storage_controller = $this->container->get('entity.manager')->getStorageController('block');
+    $block_storage = $this->container->get('entity.manager')->getStorage('block');
 
     // Remove the block display, so both block entities from the first view
     // should both disappear.
-    $view = views_get_view('test_view_block');
+    $view = Views::getView('test_view_block');
     $view->initDisplay();
     $view->displayHandlers->remove('block_1');
     $view->storage->save();
 
-    $this->assertFalse($block_storage_controller->load($block_1->id()), 'The block for this display was removed.');
-    $this->assertFalse($block_storage_controller->load($block_2->id()), 'The block for this display was removed.');
-    $this->assertTrue($block_storage_controller->load($block_3->id()), 'A block from another view was unaffected.');
-    $this->assertTrue($block_storage_controller->load($block_4->id()), 'A block from another view was unaffected.');
+    $this->assertFalse($block_storage->load($block_1->id()), 'The block for this display was removed.');
+    $this->assertFalse($block_storage->load($block_2->id()), 'The block for this display was removed.');
+    $this->assertTrue($block_storage->load($block_3->id()), 'A block from another view was unaffected.');
+    $this->assertTrue($block_storage->load($block_4->id()), 'A block from another view was unaffected.');
     $this->drupalGet('test-page');
     $this->assertNoBlockAppears($block_1);
     $this->assertNoBlockAppears($block_2);
@@ -162,29 +164,16 @@ class DisplayBlockTest extends ViewTestBase {
 
     // Remove the first block display of the second view and ensure the block
     // instance of the second block display still exists.
-    $view = views_get_view('test_view_block2');
+    $view = Views::getView('test_view_block2');
     $view->initDisplay();
     $view->displayHandlers->remove('block_1');
     $view->storage->save();
 
-    $this->assertFalse($block_storage_controller->load($block_3->id()), 'The block for this display was removed.');
-    $this->assertTrue($block_storage_controller->load($block_4->id()), 'A block from another display on the same view was unaffected.');
+    $this->assertFalse($block_storage->load($block_3->id()), 'The block for this display was removed.');
+    $this->assertTrue($block_storage->load($block_4->id()), 'A block from another display on the same view was unaffected.');
     $this->drupalGet('test-page');
     $this->assertNoBlockAppears($block_3);
     $this->assertBlockAppears($block_4);
-  }
-
-  /**
-   * Tests views block plugin definitions.
-   */
-  public function testViewsBlockPlugins() {
-    // Ensures that the cache setting gets to the block settings.
-    $instance = $this->container->get('plugin.manager.block')->createInstance('views_block:test_view_block2-block_2');
-    $configuration = $instance->getConfiguration();
-    $this->assertEqual($configuration['cache'], DRUPAL_NO_CACHE);
-    $instance = $this->container->get('plugin.manager.block')->createInstance('views_block:test_view_block2-block_3');
-    $configuration = $instance->getConfiguration();
-    $this->assertEqual($configuration['cache'], DRUPAL_CACHE_PER_USER);
   }
 
   /**
@@ -201,7 +190,7 @@ class DisplayBlockTest extends ViewTestBase {
     $this->assertNoFieldById('edit-machine-name', 'views_block__test_view_block_1', 'The machine name is hidden on the views block form.');
     // Save the block.
     $this->drupalPostForm(NULL, array(), t('Save block'));
-    $storage = $this->container->get('entity.manager')->getStorageController('block');
+    $storage = $this->container->get('entity.manager')->getStorage('block');
     $block = $storage->load('views_block__test_view_block_block_1');
     // This will only return a result if our new block has been created with the
     // expected machine name.
@@ -281,19 +270,23 @@ class DisplayBlockTest extends ViewTestBase {
   public function testBlockContextualLinks() {
     $this->drupalLogin($this->drupalCreateUser(array('administer views', 'access contextual links', 'administer blocks')));
     $block = $this->drupalPlaceBlock('views_block:test_view_block-block_1');
+    $cached_block = $this->drupalPlaceBlock('views_block:test_view_block-block_1', array('cache' => array('max_age' => 3600)));
     $this->drupalGet('test-page');
 
     $id = 'block:block=' . $block->id() . ':|views_ui_edit:view=test_view_block:location=block&name=test_view_block&display_id=block_1';
+    $cached_id = 'block:block=' . $cached_block->id() . ':|views_ui_edit:view=test_view_block:location=block&name=test_view_block&display_id=block_1';
     // @see \Drupal\contextual\Tests\ContextualDynamicContextTest:assertContextualLinkPlaceHolder()
     $this->assertRaw('<div' . new Attribute(array('data-contextual-id' => $id)) . '></div>', format_string('Contextual link placeholder with id @id exists.', array('@id' => $id)));
+    $this->assertRaw('<div' . new Attribute(array('data-contextual-id' => $cached_id)) . '></div>', format_string('Contextual link placeholder with id @id exists.', array('@id' => $cached_id)));
 
     // Get server-rendered contextual links.
     // @see \Drupal\contextual\Tests\ContextualDynamicContextTest:renderContextualLinks()
-    $post = array('ids[0]' => $id);
+    $post = array('ids[0]' => $id, 'ids[1]' => $cached_id);
     $response = $this->drupalPost('contextual/render', 'application/json', $post, array('query' => array('destination' => 'test-page')));
     $this->assertResponse(200);
-    $json = drupal_json_decode($response);
+    $json = Json::decode($response);
     $this->assertIdentical($json[$id], '<ul class="contextual-links"><li class="block-configure"><a href="' . base_path() . 'admin/structure/block/manage/' . $block->id() . '">Configure block</a></li><li class="views-uiedit"><a href="' . base_path() . 'admin/structure/views/view/test_view_block/edit/block_1">Edit view</a></li></ul>');
+    $this->assertIdentical($json[$cached_id], '<ul class="contextual-links"><li class="block-configure"><a href="' . base_path() . 'admin/structure/block/manage/' . $cached_block->id() . '">Configure block</a></li><li class="views-uiedit"><a href="' . base_path() . 'admin/structure/views/view/test_view_block/edit/block_1">Edit view</a></li></ul>');
   }
 
 }

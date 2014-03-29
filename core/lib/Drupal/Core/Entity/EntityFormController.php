@@ -7,7 +7,6 @@
 
 namespace Drupal\Core\Entity;
 
-use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 
@@ -59,7 +58,7 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
     // hook_form_alter(), #validate, #submit, and #theme callbacks, but only if
     // it is different from the actual form ID, since callbacks would be invoked
     // twice otherwise.
-    $base_form_id = $this->entity->entityType() . '_form';
+    $base_form_id = $this->entity->getEntityTypeId() . '_form';
     if ($base_form_id == $this->getFormId()) {
       $base_form_id = NULL;
     }
@@ -70,7 +69,7 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
    * {@inheritdoc}
    */
   public function getFormId() {
-    $entity_type = $this->entity->entityType();
+    $entity_type = $this->entity->getEntityTypeId();
     $bundle = $this->entity->bundle();
     $form_id = $entity_type;
     if ($bundle != $entity_type) {
@@ -121,12 +120,9 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
     // Prepare the entity to be presented in the entity form.
     $this->prepareEntity();
 
-    $form_display = entity_get_render_form_display($this->entity, $this->getOperation());
-    $this->setFormDisplay($form_display, $form_state);
-
     // Invoke the prepare form hooks.
     $this->prepareInvokeAll('entity_prepare_form', $form_state);
-    $this->prepareInvokeAll($this->entity->entityType() . '_prepare_form', $form_state);
+    $this->prepareInvokeAll($this->entity->getEntityTypeId() . '_prepare_form', $form_state);
   }
 
   /**
@@ -136,13 +132,8 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
    */
   public function form(array $form, array &$form_state) {
     $entity = $this->entity;
-    // @todo Exploit the Field API to generate the default widgets for the
-    // entity properties.
-    if ($entity->entityInfo()->isFieldable()) {
-      field_attach_form($entity, $form, $form_state, $this->getFormLangcode($form_state));
-    }
 
-    // Add a process callback so we can assign weights and hide extra fields.
+    // Add a process callback.
     $form['#process'][] = array($this, 'processForm');
 
     if (!isset($form['langcode'])) {
@@ -166,25 +157,6 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
     // If the form is cached, process callbacks may not have a valid reference
     // to the entity object, hence we must restore it.
     $this->entity = $form_state['controller']->getEntity();
-
-    // Assign the weights configured in the form display.
-    foreach ($this->getFormDisplay($form_state)->getComponents() as $name => $options) {
-      if (isset($element[$name])) {
-        $element[$name]['#weight'] = $options['weight'];
-      }
-    }
-
-    // Hide or assign weights for extra fields.
-    $extra_fields = field_info_extra_fields($this->entity->entityType(), $this->entity->bundle(), 'form');
-    foreach ($extra_fields as $extra_field => $info) {
-      $component = $this->getFormDisplay($form_state)->getComponent($extra_field);
-      if (!$component) {
-        $element[$extra_field]['#access'] = FALSE;
-      }
-      else {
-        $element[$extra_field]['#weight'] = $component['weight'];
-      }
-    }
 
     return $element;
   }
@@ -309,7 +281,17 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
    *   A reference to a keyed array containing the current state of the form.
    */
   public function delete(array $form, array &$form_state) {
-    // @todo Perform common delete operations.
+    if ($this->entity->hasLinkTemplate('delete-form')) {
+      $form_state['redirect_route'] = $this->entity->urlInfo('delete-form');
+
+      $query = $this->getRequest()->query;
+      if ($query->has('destination')) {
+        $redirect_query = $form_state['redirect_route']->getOption('query') ?: array();
+        $redirect_query['destination'] = $query->get('destination');
+        $form_state['redirect_route']->setOption('query', $redirect_query);
+        $query->remove('destination');
+      }
+    }
   }
 
   /**
@@ -350,25 +332,39 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
     // controller of the current request.
     $form_state['controller'] = $this;
 
-    // Copy top-level form values to entity properties, without changing
-    // existing entity properties that are not being edited by
-    // this form.
+    $this->copyFormValuesToEntity($entity, $form, $form_state);
+
+    // Invoke all specified builders for copying form values to entity
+    // properties.
+    if (isset($form['#entity_builders'])) {
+      foreach ($form['#entity_builders'] as $function) {
+        call_user_func_array($function, array($entity->getEntityTypeId(), $entity, &$form, &$form_state));
+      }
+    }
+
+    return $entity;
+  }
+
+  /**
+   * Copies top-level form values to entity properties
+   *
+   * This should not change existing entity properties that are not being edited
+   * by this form.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity the current form should operate upon.
+   * @param array $form
+   *   A nested array of form elements comprising the form.
+   * @param array $form_state
+   *   An associative array containing the current state of the form.
+   */
+  protected function copyFormValuesToEntity(EntityInterface $entity, array $form, array &$form_state) {
     // @todo: This relies on a method that only exists for config and content
     //   entities, in a different way. Consider moving this logic to a config
     //   entity specific implementation.
     foreach ($form_state['values'] as $key => $value) {
       $entity->set($key, $value);
     }
-
-    // Invoke all specified builders for copying form values to entity
-    // properties.
-    if (isset($form['#entity_builders'])) {
-      foreach ($form['#entity_builders'] as $function) {
-        call_user_func_array($function, array($entity->entityType(), $entity, &$form, &$form_state));
-      }
-    }
-
-    return $entity;
   }
 
   /**
@@ -406,25 +402,10 @@ class EntityFormController extends FormBase implements EntityFormControllerInter
       if (function_exists($function)) {
         // Ensure we pass an updated translation object and form display at
         // each invocation, since they depend on form state which is alterable.
-        $args = array($this->entity, $this->getFormDisplay($form_state), $this->operation, &$form_state);
+        $args = array($this->entity, $this->operation, &$form_state);
         call_user_func_array($function, $args);
       }
     }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getFormDisplay(array $form_state) {
-    return isset($form_state['form_display']) ? $form_state['form_display'] : NULL;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setFormDisplay(EntityFormDisplayInterface $form_display, array &$form_state) {
-    $form_state['form_display'] = $form_display;
-    return $this;
   }
 
   /**

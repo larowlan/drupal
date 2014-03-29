@@ -71,17 +71,28 @@ class HtmlControllerBase {
       );
     }
 
-    $fragment = new HtmlFragment(drupal_render($page_content));
+    $content = $this->drupalRender($page_content);
+    $cache = !empty($page_content['#cache']['tags']) ? array('tags' => $page_content['#cache']['tags']) : array();
+    $fragment = new HtmlFragment($content, $cache);
 
     // A title defined in the return always wins.
     if (isset($page_content['#title'])) {
       $fragment->setTitle($page_content['#title'], Title::FILTER_XSS_ADMIN);
     }
     else if ($route = $request->attributes->get(RouteObjectInterface::ROUTE_OBJECT)) {
-      $fragment->setTitle($this->titleResolver->getTitle($request, $route), PASS_THROUGH);
+      $fragment->setTitle($this->titleResolver->getTitle($request, $route), Title::PASS_THROUGH);
     }
 
     return $fragment;
+  }
+
+  /**
+   * Wraps drupal_render().
+   *
+   * @todo: Remove as part of https://drupal.org/node/2182149
+   */
+  protected function drupalRender(&$elements, $is_recursive_call = FALSE) {
+    return drupal_render($elements, $is_recursive_call);
   }
 
 }

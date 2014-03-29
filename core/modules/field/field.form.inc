@@ -6,102 +6,9 @@
  */
 
 use Drupal\Component\Utility\NestedArray;
-use Drupal\Core\Field\FieldDefinitionInterface;
 
 /**
- * Returns HTML for an individual form element.
- *
- * Combines multiple values into a table with drag-n-drop reordering.
- *
- * @param $variables
- *   An associative array containing:
- *   - element: A render element representing the form element.
- *
- * @ingroup themeable
- *
- * @todo Convert to a template.
- */
-function theme_field_multiple_value_form($variables) {
-  $element = $variables['element'];
-  $output = '';
-
-  if ($element['#cardinality_multiple']) {
-    $form_required_marker = array('#theme' => 'form_required_marker');
-    $required = !empty($element['#required']) ? drupal_render($form_required_marker) : '';
-    $table_id = drupal_html_id($element['#field_name'] . '_values');
-    $order_class = $element['#field_name'] . '-delta-order';
-
-    $header = array(
-      array(
-        'data' => '<h4 class="label">' . t('!title !required', array('!title' => $element['#title'], '!required' => $required)) . "</h4>",
-        'colspan' => 2,
-        'class' => array('field-label'),
-      ),
-      t('Order', array(), array('context' => 'Sort order')),
-    );
-    $rows = array();
-
-    // Sort items according to '_weight' (needed when the form comes back after
-    // preview or failed validation)
-    $items = array();
-    foreach (element_children($element) as $key) {
-      if ($key === 'add_more') {
-        $add_more_button = &$element[$key];
-      }
-      else {
-        $items[] = &$element[$key];
-      }
-    }
-    usort($items, '_field_sort_items_value_helper');
-
-    // Add the items as table rows.
-    foreach ($items as $item) {
-      $item['_weight']['#attributes']['class'] = array($order_class);
-      $delta_element = drupal_render($item['_weight']);
-      $cells = array(
-        array('data' => '', 'class' => array('field-multiple-drag')),
-        drupal_render($item),
-        array('data' => $delta_element, 'class' => array('delta-order')),
-      );
-      $rows[] = array(
-        'data' => $cells,
-        'class' => array('draggable'),
-      );
-    }
-
-    $table = array(
-      '#type' => 'table',
-      '#header' => $header,
-      '#rows' => $rows,
-      '#attributes' => array(
-        'id' => $table_id,
-        'class' => array('field-multiple-table'),
-      ),
-      '#tabledrag' => array(
-        array(
-          'action' => 'order',
-          'relationship' => 'sibling',
-          'group' => $order_class,
-        ),
-      ),
-    );
-    $output = '<div class="form-item">';
-    $output .= drupal_render($table);
-    $output .= $element['#description'] ? '<div class="description">' . $element['#description'] . '</div>' : '';
-    $output .= '<div class="clearfix">' . drupal_render($add_more_button) . '</div>';
-    $output .= '</div>';
-  }
-  else {
-    foreach (element_children($element) as $key) {
-      $output .= drupal_render($element[$key]);
-    }
-  }
-
-  return $output;
-}
-
-/**
- * Callback for usort() within theme_field_multiple_value_form().
+ * Callback for usort() within field-multiple-value-form.html.twig.
  *
  * Sorts using ['_weight']['#value']
  */
@@ -135,58 +42,6 @@ function field_form_element_after_build($element, &$form_state) {
   $field_state = field_form_get_state($parents, $field_name, $form_state);
   $field_state['array_parents'] = $element['#array_parents'];
   field_form_set_state($parents, $field_name, $form_state, $field_state);
-
-  return $element;
-}
-
-/**
- * Form submission handler for the "Add another item" button of a field form.
- *
- * This handler is run regardless of whether JS is enabled or not. It makes
- * changes to the form state. If the button was clicked with JS disabled, then
- * the page is reloaded with the complete rebuilt form. If the button was
- * clicked with JS enabled, then Drupal\system\FormAjaxController::content()
- * calls field_add_more_js() to return just the changed part of the form.
- */
-function field_add_more_submit($form, &$form_state) {
-  $button = $form_state['triggering_element'];
-
-  // Go one level up in the form, to the widgets container.
-  $element = NestedArray::getValue($form, array_slice($button['#array_parents'], 0, -1));
-  $field_name = $element['#field_name'];
-  $parents = $element['#field_parents'];
-
-  // Increment the items count.
-  $field_state = field_form_get_state($parents, $field_name, $form_state);
-  $field_state['items_count']++;
-  field_form_set_state($parents, $field_name, $form_state, $field_state);
-
-  $form_state['rebuild'] = TRUE;
-}
-
-/**
- * Ajax callback: Responds to a new empty widget being added to the form.
- *
- * This returns the new page content to replace the page content made obsolete
- * by the form submission.
- *
- * @see field_add_more_submit()
- */
-function field_add_more_js($form, $form_state) {
-  $button = $form_state['triggering_element'];
-
-  // Go one level up in the form, to the widgets container.
-  $element = NestedArray::getValue($form, array_slice($button['#array_parents'], 0, -1));
-
-  // Ensure the widget allows adding additional items.
-  if ($element['#cardinality'] != FieldDefinitionInterface::CARDINALITY_UNLIMITED) {
-    return;
-  }
-
-  // Add a DIV around the delta receiving the Ajax effect.
-  $delta = $element['#max_delta'];
-  $element[$delta]['#prefix'] = '<div class="ajax-new-content">' . (isset($element[$delta]['#prefix']) ? $element[$delta]['#prefix'] : '');
-  $element[$delta]['#suffix'] = (isset($element[$delta]['#suffix']) ? $element[$delta]['#suffix'] : '') . '</div>';
 
   return $element;
 }

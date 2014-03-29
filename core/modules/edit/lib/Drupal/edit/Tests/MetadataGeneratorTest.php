@@ -83,7 +83,7 @@ class MetadataGeneratorTest extends EditTestBase {
     $field_2_name = 'field_nr';
     $field_2_label = 'Simple number field';
     $this->createFieldWithInstance(
-      $field_2_name, 'number_integer', 1, $field_2_label,
+      $field_2_name, 'integer', 1, $field_2_label,
       // Instance settings.
       array(),
       // Widget type & settings.
@@ -95,7 +95,7 @@ class MetadataGeneratorTest extends EditTestBase {
     );
 
     // Create an entity with values for this text field.
-    $this->entity = entity_create('entity_test', array());
+    $this->entity = entity_create('entity_test');
     $this->entity->{$field_1_name}->value = 'Test';
     $this->entity->{$field_2_name}->value = 42;
     $this->entity->save();
@@ -133,6 +133,13 @@ class MetadataGeneratorTest extends EditTestBase {
 
     // Enable edit_test module so that the WYSIWYG editor becomes available.
     $this->enableModules(array('edit_test'));
+    $this->editorManager = $this->container->get('plugin.manager.edit.editor');
+    $this->editorSelector = new EditorSelector($this->editorManager, $this->container->get('plugin.manager.field.formatter'));
+    $this->metadataGenerator = new MetadataGenerator($this->accessChecker, $this->editorSelector, $this->editorManager);
+
+    $this->editorManager = $this->container->get('plugin.manager.edit.editor');
+    $this->editorSelector = new EditorSelector($this->editorManager, $this->container->get('plugin.manager.field.formatter'));
+    $this->metadataGenerator = new MetadataGenerator($this->accessChecker, $this->editorSelector, $this->editorManager);
 
     // Create a rich text field.
     $field_name = 'field_rich';
@@ -161,7 +168,7 @@ class MetadataGeneratorTest extends EditTestBase {
     $full_html_format->save();
 
     // Create an entity with values for this rich text field.
-    $this->entity = entity_create('entity_test', array());
+    $this->entity = entity_create('entity_test');
     $this->entity->{$field_name}->value = 'Test';
     $this->entity->{$field_name}->format = 'full_html';
     $this->entity->save();

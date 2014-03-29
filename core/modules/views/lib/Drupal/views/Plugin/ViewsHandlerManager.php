@@ -8,16 +8,17 @@
 namespace Drupal\views\Plugin;
 
 use Drupal\Component\Plugin\Exception\PluginException;
-use Drupal\Component\Plugin\PluginManagerBase;
-use Drupal\Core\Plugin\Factory\ContainerFactory;
-use Drupal\Core\Plugin\Discovery\CacheDecorator;
-use Drupal\views\Plugin\Discovery\ViewsHandlerDiscovery;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
+use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\views\ViewsData;
+use Symfony\Component\DependencyInjection\Container;
 
 /**
  * Plugin type manager for all views handlers.
  */
-class ViewsHandlerManager extends PluginManagerBase {
+class ViewsHandlerManager extends DefaultPluginManager {
 
   /**
    * The views data cache.
@@ -31,7 +32,7 @@ class ViewsHandlerManager extends PluginManagerBase {
    *
    * @var string
    *
-   * @see \Drupal\views\ViewExecutable::viewsHandlerTypes().
+   * @see \Drupal\views\ViewExecutable::getHandlerTypes().
    */
   protected $handlerType;
 
@@ -45,17 +46,25 @@ class ViewsHandlerManager extends PluginManagerBase {
    *   keyed by the corresponding namespace to look for plugin implementations,
    * @param \Drupal\views\ViewsData $views_data
     *   The views data cache.
+   * @param \Drupal\Core\Cache\CacheBackendInterface $cache_backend
+   *   Cache backend instance to use.
+   * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
+   *   The language manager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler to invoke the alter hook with.
    */
-  public function __construct($handler_type, \Traversable $namespaces, ViewsData $views_data) {
-    $this->discovery = new ViewsHandlerDiscovery($handler_type, $namespaces);
-    $this->discovery = new CacheDecorator($this->discovery, "views:$handler_type", 'views_info');
+  public function __construct($handler_type, \Traversable $namespaces, ViewsData $views_data, CacheBackendInterface $cache_backend, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler) {
+    $plugin_definition_annotation_name = 'Drupal\views\Annotation\Views' . Container::camelize($handler_type);
+    parent::__construct("Plugin/views/$handler_type", $namespaces, $module_handler, $plugin_definition_annotation_name);
 
-    $this->factory = new ContainerFactory($this);
+    $this->setCacheBackend($cache_backend, $language_manager, "views:$handler_type");
 
     $this->viewsData = $views_data;
     $this->handlerType = $handler_type;
+    $this->defaults = array(
+      'plugin_type' => $handler_type,
+    );
   }
-
 
   /**
    * Fetches a handler from the data cache.

@@ -89,7 +89,7 @@ class RssFields extends RowPluginBase {
     $form['guid_field_options'] = array(
       '#type' => 'details',
       '#title' => t('GUID settings'),
-      '#collapsed' => FALSE,
+      '#open' => TRUE,
     );
     $form['guid_field_options']['guid_field'] = array(
       '#type' => 'select',
@@ -171,13 +171,14 @@ class RssFields extends RowPluginBase {
       }
     }
 
-    return theme($this->themeFunctions(),
-      array(
-        'view' => $this->view,
-        'options' => $this->options,
-        'row' => $item,
-        'field_alias' => isset($this->field_alias) ? $this->field_alias : '',
-      ));
+    $build = array(
+      '#theme' => $this->themeFunctions(),
+      '#view' => $this->view,
+      '#options' => $this->options,
+      '#row' => $item,
+      '#field_alias' => isset($this->field_alias) ? $this->field_alias : '',
+    );
+    return drupal_render($build);
   }
 
   /**

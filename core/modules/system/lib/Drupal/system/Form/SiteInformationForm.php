@@ -7,7 +7,7 @@
 
 namespace Drupal\system\Form;
 
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Path\AliasManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -27,12 +27,12 @@ class SiteInformationForm extends ConfigFormBase {
   /**
    * Constructs a SiteInformationForm object.
    *
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
    * @param \Drupal\Core\Path\AliasManagerInterface $alias_manager
    *   The path alias manager.
    */
-  public function __construct(ConfigFactory $config_factory, AliasManagerInterface $alias_manager) {
+  public function __construct(ConfigFactoryInterface $config_factory, AliasManagerInterface $alias_manager) {
     parent::__construct($config_factory);
 
     $this->aliasManager = $alias_manager;
@@ -68,6 +68,7 @@ class SiteInformationForm extends ConfigFormBase {
     $form['site_information'] = array(
       '#type' => 'details',
       '#title' => t('Site details'),
+      '#open' => TRUE,
     );
     $form['site_information']['site_name'] = array(
       '#type' => 'textfield',
@@ -91,6 +92,7 @@ class SiteInformationForm extends ConfigFormBase {
     $form['front_page'] = array(
       '#type' => 'details',
       '#title' => t('Front page'),
+      '#open' => TRUE,
     );
     $front_page = $site_config->get('page.front') != 'user' ? $this->aliasManager->getPathAlias($site_config->get('page.front')) : '';
     $form['front_page']['site_frontpage'] = array(
@@ -104,6 +106,7 @@ class SiteInformationForm extends ConfigFormBase {
     $form['error_page'] = array(
       '#type' => 'details',
       '#title' => t('Error pages'),
+      '#open' => TRUE,
     );
     $form['error_page']['site_403'] = array(
       '#type' => 'textfield',

@@ -19,7 +19,7 @@ use Drupal\filter\Plugin\FilterBase;
  * @Filter(
  *   id = "filter_null",
  *   title = @Translation("Provides a fallback for missing filters. Do not use."),
- *   type = FILTER_TYPE_HTML_RESTRICTOR,
+ *   type = Drupal\filter\Plugin\FilterInterface::TYPE_HTML_RESTRICTOR,
  *   weight = -10
  * )
  */
@@ -63,7 +63,7 @@ class FilterNull extends FilterBase {
    * {@inheritdoc}
    */
   public function tips($long = FALSE) {
-    return t('Missing filter. All text is removed');
+    return $this->t('Missing filter. All text is removed');
   }
 
 }

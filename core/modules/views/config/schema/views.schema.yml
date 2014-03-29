@@ -72,12 +72,15 @@ views.view.*:
   type: mapping
   label: 'View'
   mapping:
+    langcode:
+      type: string
+      label: 'Default language'
     status:
       type: boolean
       label: 'Status'
     module:
       label: 'Module'
-    name:
+    id:
       label: 'Machine name'
     description:
       type: text
@@ -114,3 +117,6 @@ views.view.*:
               label: 'Position'
             display_options:
               type: views.display.[%parent.display_plugin]
+    dependencies:
+      type: config_dependencies
+      label: 'Dependencies'

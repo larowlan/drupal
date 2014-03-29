@@ -18,13 +18,19 @@ use Drupal\Core\Field\FieldItemListInterface;
  *   description = @Translation("Display the label of the referenced entities."),
  *   field_types = {
  *     "entity_reference"
- *   },
- *   settings = {
- *     "link" = TRUE
  *   }
  * )
  */
 class EntityReferenceLabelFormatter extends EntityReferenceFormatterBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function defaultSettings() {
+    return array(
+      'link' => TRUE,
+    ) + parent::defaultSettings();
+  }
 
   /**
    * {@inheritdoc}
@@ -59,17 +65,16 @@ class EntityReferenceLabelFormatter extends EntityReferenceFormatterBase {
         // User doesn't have access to the referenced entity.
         continue;
       }
+      /** @var $referenced_entity \Drupal\Core\Entity\EntityInterface */
       if ($referenced_entity = $item->entity) {
         $label = $referenced_entity->label();
         // If the link is to be displayed and the entity has a uri,
         // display a link.
-        if ($this->getSetting('link') && $uri = $referenced_entity->uri()) {
+        if ($this->getSetting('link') && $uri = $referenced_entity->urlInfo()) {
           $elements[$delta] = array(
             '#type' => 'link',
             '#title' => $label,
-            '#href' => $uri['path'],
-            '#options' => $uri['options'],
-          );
+          ) + $uri->toRenderArray();
         }
         else {
           $elements[$delta] = array('#markup' => check_plain($label));

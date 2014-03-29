@@ -7,7 +7,7 @@
 
 namespace Drupal\views\Plugin\Derivative;
 
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Plugin\Discovery\ContainerDerivativeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -33,11 +33,11 @@ class ViewsBlock implements ContainerDerivativeInterface {
   protected $basePluginId;
 
   /**
-   * The view storage controller.
+   * The view storage.
    *
-   * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+   * @var \Drupal\Core\Entity\EntityStorageInterface
    */
-  protected $viewStorageController;
+  protected $viewStorage;
 
   /**
    * {@inheritdoc}
@@ -45,7 +45,7 @@ class ViewsBlock implements ContainerDerivativeInterface {
   public static function create(ContainerInterface $container, $base_plugin_id) {
     return new static(
       $base_plugin_id,
-      $container->get('entity.manager')->getStorageController('view')
+      $container->get('entity.manager')->getStorage('view')
     );
   }
 
@@ -54,18 +54,18 @@ class ViewsBlock implements ContainerDerivativeInterface {
    *
    * @param string $base_plugin_id
    *   The base plugin ID.
-   * @param \Drupal\Core\Entity\EntityStorageControllerInterface $view_storage_controller
-   *   The entity storage controller to load views.
+   * @param \Drupal\Core\Entity\EntityStorageInterface $view_storage
+   *   The entity storage to load views.
    */
-  public function __construct($base_plugin_id, EntityStorageControllerInterface $view_storage_controller) {
+  public function __construct($base_plugin_id, EntityStorageInterface $view_storage) {
     $this->basePluginId = $base_plugin_id;
-    $this->viewStorageController = $view_storage_controller;
+    $this->viewStorage = $view_storage;
   }
 
   /**
    * Implements \Drupal\Component\Plugin\Derivative\DerivativeInterface::getDerivativeDefinition().
    */
-  public function getDerivativeDefinition($derivative_id, array $base_plugin_definition) {
+  public function getDerivativeDefinition($derivative_id, $base_plugin_definition) {
     if (!empty($this->derivatives) && !empty($this->derivatives[$derivative_id])) {
       return $this->derivatives[$derivative_id];
     }
@@ -76,9 +76,9 @@ class ViewsBlock implements ContainerDerivativeInterface {
   /**
    * Implements \Drupal\Component\Plugin\Derivative\DerivativeInterface::getDerivativeDefinitions().
    */
-  public function getDerivativeDefinitions(array $base_plugin_definition) {
+  public function getDerivativeDefinitions($base_plugin_definition) {
     // Check all Views for block displays.
-    foreach ($this->viewStorageController->loadMultiple() as $view) {
+    foreach ($this->viewStorage->loadMultiple() as $view) {
       // Do not return results for disabled views.
       if (!$view->status()) {
         continue;
@@ -102,7 +102,6 @@ class ViewsBlock implements ContainerDerivativeInterface {
           $this->derivatives[$delta] = array(
             'category' => $display->getOption('block_category'),
             'admin_label' => $desc,
-            'cache' => $display->getCacheType()
           );
           $this->derivatives[$delta] += $base_plugin_definition;
         }

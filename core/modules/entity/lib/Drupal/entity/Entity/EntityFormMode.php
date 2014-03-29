@@ -24,29 +24,28 @@ use Drupal\entity\EntityFormModeInterface;
  * display settings, or just replicate the settings of the 'default' form mode,
  * thus reducing the amount of form display configurations to keep track of.
  *
- * @see entity_get_form_modes()
+ * @see \Drupal\Core\Entity\EntityManagerInterface::getAllFormModes()
+ * @see \Drupal\Core\Entity\EntityManagerInterface::getFormModes()
  * @see hook_entity_form_mode_info_alter()
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "form_mode",
  *   label = @Translation("Form mode"),
  *   controllers = {
- *     "list" = "Drupal\entity\EntityFormModeListController",
+ *     "list_builder" = "Drupal\entity\EntityFormModeListBuilder",
  *     "form" = {
  *       "add" = "Drupal\entity\Form\EntityFormModeAddForm",
  *       "edit" = "Drupal\entity\Form\EntityDisplayModeEditForm",
  *       "delete" = "Drupal\entity\Form\EntityDisplayModeDeleteForm"
- *     },
- *     "storage" = "Drupal\entity\EntityDisplayModeStorageController"
+ *     }
  *   },
  *   admin_permission = "administer display modes",
- *   config_prefix = "entity.form_mode",
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "label",
- *     "uuid" = "uuid"
+ *     "label" = "label"
  *   },
  *   links = {
+ *     "delete-form" = "entity.form_mode_delete",
  *     "edit-form" = "entity.form_mode_edit"
  *   }
  * )

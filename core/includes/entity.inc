@@ -5,43 +5,15 @@
  * Entity API for handling entities like nodes or users.
  */
 
-use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Language\Language;
 
 /**
- * Gets the entity definition for an entity type.
- *
- * @param string|null $entity_type
- *   (optional) The entity type (e.g. 'node'). Leave NULL to retrieve
- *   information for all entity types.
- *
- * @return array
- *   An array containing the entity type's definition, as retrieved with
- *   \Drupal\Core\Entity\EntityManagerInterface. If $entity_type is NULL, an
- *   associative array of all entity type definitions keyed by entity type is
- *   returned.
- *
- * @see \Drupal\Core\Entity\EntityManagerInterface
- * @see hook_entity_info_alter()
- *
- * @deprecated Use \Drupal\Core\Entity\EntityManagerInterface::getDefinitions() directly.
- */
-function entity_get_info($entity_type = NULL) {
-  if (empty($entity_type)) {
-    return \Drupal::entityManager()->getDefinitions();
-  }
-  else {
-    return \Drupal::entityManager()->getDefinition($entity_type);
-  }
-}
-
-/**
  * Resets the cached information about entity types.
  */
 function entity_info_cache_clear() {
-  drupal_static_reset('entity_get_view_modes');
   // Clear all languages.
   \Drupal::entityManager()->clearCachedDefinitions();
   \Drupal::entityManager()->clearCachedFieldDefinitions();
@@ -97,11 +69,11 @@ function entity_get_bundles($entity_type = NULL) {
 function entity_invoke_bundle_hook($hook, $entity_type, $bundle, $bundle_new = NULL) {
   entity_info_cache_clear();
 
-  // Notify the entity storage controller.
+  // Notify the entity storage.
   $method = 'onBundle' . ucfirst($hook);
-  $storage_controller = \Drupal::entityManager()->getStorageController($entity_type);
-  if (method_exists($storage_controller, $method)) {
-    $storage_controller->$method($bundle, $bundle_new);
+  $storage = \Drupal::entityManager()->getStorage($entity_type);
+  if (method_exists($storage, $method)) {
+    $storage->$method($bundle, $bundle_new);
   }
   // Invoke hook_entity_bundle_*() hooks.
   \Drupal::moduleHandler()->invokeAll('entity_bundle_' . $hook, array($entity_type, $bundle, $bundle_new));
@@ -110,77 +82,45 @@ function entity_invoke_bundle_hook($hook, $entity_type, $bundle, $bundle_new = N
 /**
  * Returns the entity form mode info.
  *
- * @param string|null $entity_type
+ * @param string|null $entity_type_id
  *   The entity type whose form mode info should be returned, or NULL for all
  *   form mode info. Defaults to NULL.
  *
  * @return array
  *   The form mode info for a specific entity type, or all entity types.
+ *
+ * @deprecated Use \Drupal::entityManager()->getFormModes() or
+ *   \Drupal::entityManager()->getAllFormModes().
  */
-function entity_get_form_modes($entity_type = NULL) {
-  $form_modes = &drupal_static(__FUNCTION__);
-  if (!$form_modes) {
-    $langcode = language(Language::TYPE_INTERFACE)->id;
-    if ($cache = cache()->get("entity_form_mode_info:$langcode")) {
-      $form_modes = $cache->data;
-    }
-    else {
-      $form_modes = array();
-      foreach (entity_load_multiple('form_mode') as $form_mode) {
-        list($form_mode_entity_type, $form_mode_name) = explode('.', $form_mode->id(), 2);
-        $form_modes[$form_mode_entity_type][$form_mode_name] = (array) $form_mode;
-      }
-      drupal_alter('entity_form_mode_info', $form_modes);
-      cache()->set("entity_form_mode_info:$langcode", $form_modes, CacheBackendInterface::CACHE_PERMANENT, array('entity_info' => TRUE));
-    }
+function entity_get_form_modes($entity_type_id = NULL) {
+  if (isset($entity_type_id)) {
+    return \Drupal::entityManager()->getFormModes($entity_type_id);
   }
-
-  if (empty($entity_type)) {
-    return $form_modes;
+  else {
+    return \Drupal::entityManager()->getAllFormModes();
   }
-  elseif (isset($form_modes[$entity_type])) {
-    return $form_modes[$entity_type];
-  }
-
-  return array();
 }
 
 /**
  * Returns the entity view mode info.
  *
- * @param string|null $entity_type
+ * @param string|null $entity_type_id
  *   The entity type whose view mode info should be returned, or NULL for all
  *   view mode info. Defaults to NULL.
  *
  * @return array
  *   The view mode info for a specific entity type, or all entity types.
+ *
+ * @deprecated Use \Drupal::entityManager()->getViewModes() or
+ *   \Drupal::entityManager()->getAllViewModes().
  */
-function entity_get_view_modes($entity_type = NULL) {
-  $view_modes = &drupal_static(__FUNCTION__);
-  if (!$view_modes) {
-    $langcode = language(Language::TYPE_INTERFACE)->id;
-    if ($cache = cache()->get("entity_view_mode_info:$langcode")) {
-      $view_modes = $cache->data;
-    }
-    else {
-      $view_modes = array();
-      foreach (entity_load_multiple('view_mode') as $view_mode) {
-        list($view_mode_entity_type, $view_mode_name) = explode('.', $view_mode->id(), 2);
-        $view_modes[$view_mode_entity_type][$view_mode_name] = (array) $view_mode;
-      }
-      drupal_alter('entity_view_mode_info', $view_modes);
-      cache()->set("entity_view_mode_info:$langcode", $view_modes, CacheBackendInterface::CACHE_PERMANENT, array('entity_info' => TRUE));
-    }
+function entity_get_view_modes($entity_type_id = NULL) {
+  if (isset($entity_type_id)) {
+    return \Drupal::entityManager()->getViewModes($entity_type_id);
   }
-
-  if (empty($entity_type)) {
-    return $view_modes;
+  else {
+    return \Drupal::entityManager()->getAllViewModes();
   }
-  elseif (isset($view_modes[$entity_type])) {
-    return $view_modes[$entity_type];
-  }
-
-  return array();
 }
 
 /**
@@ -197,12 +137,12 @@ function entity_get_view_modes($entity_type = NULL) {
  *   The entity object, or NULL if there is no entity with the given id.
  *
  * @see \Drupal\Core\Entity\EntityManagerInterface
- * @see \Drupal\Core\Entity\EntityStorageControllerInterface
- * @see \Drupal\Core\Entity\DatabaseStorageController
+ * @see \Drupal\Core\Entity\EntityStorageInterface
+ * @see \Drupal\Core\Entity\ContentEntityDatabaseStorage
  * @see \Drupal\Core\Entity\Query\QueryInterface
  */
 function entity_load($entity_type, $id, $reset = FALSE) {
-  $controller = \Drupal::entityManager()->getStorageController($entity_type);
+  $controller = \Drupal::entityManager()->getStorage($entity_type);
   if ($reset) {
     $controller->resetCache(array($id));
   }
@@ -222,12 +162,12 @@ function entity_load($entity_type, $id, $reset = FALSE) {
  *   id.
  *
  * @see \Drupal\Core\Entity\EntityManagerInterface
- * @see \Drupal\Core\Entity\EntityStorageControllerInterface
- * @see \Drupal\Core\Entity\DatabaseStorageController
+ * @see \Drupal\Core\Entity\EntityStorageInterface
+ * @see \Drupal\Core\Entity\ContentEntityDatabaseStorage
  */
 function entity_revision_load($entity_type, $revision_id) {
   return \Drupal::entityManager()
-    ->getStorageController($entity_type)
+    ->getStorage($entity_type)
     ->loadRevision($revision_id);
 }
 
@@ -241,7 +181,7 @@ function entity_revision_load($entity_type, $revision_id) {
  */
 function entity_revision_delete($entity_type, $revision_id) {
   \Drupal::entityManager()
-    ->getStorageController($entity_type)
+    ->getStorage($entity_type)
     ->deleteRevision($revision_id);
 }
 
@@ -250,7 +190,7 @@ function entity_revision_delete($entity_type, $revision_id) {
  *
  * Note that some entity types may not support UUIDs.
  *
- * @param string $entity_type
+ * @param string $entity_type_id
  *   The entity type to load; e.g., 'node' or 'user'.
  * @param string $uuid
  *   The UUID of the entity to load.
@@ -265,13 +205,14 @@ function entity_revision_delete($entity_type, $revision_id) {
  *
  * @see \Drupal\Core\Entity\EntityManagerInterface
  */
-function entity_load_by_uuid($entity_type, $uuid, $reset = FALSE) {
-  $entity_info = \Drupal::entityManager()->getDefinition($entity_type);
-  if (!$uuid_key = $entity_info->getKey('uuid')) {
-    throw new EntityStorageException("Entity type $entity_type does not support UUIDs.");
+function entity_load_by_uuid($entity_type_id, $uuid, $reset = FALSE) {
+  $entity_type = \Drupal::entityManager()->getDefinition($entity_type_id);
+
+  if (!$uuid_key = $entity_type->getKey('uuid')) {
+    throw new EntityStorageException("Entity type $entity_type_id does not support UUIDs.");
   }
 
-  $controller = \Drupal::entityManager()->getStorageController($entity_type);
+  $controller = \Drupal::entityManager()->getStorage($entity_type_id);
   if ($reset) {
     $controller->resetCache();
   }
@@ -287,14 +228,15 @@ function entity_load_by_uuid($entity_type, $uuid, $reset = FALSE) {
  * database access if loaded again during the same page request.
  *
  * The actual loading is done through a class that has to implement the
- * Drupal\Core\Entity\EntityStorageControllerInterface interface. By default,
- * Drupal\Core\Entity\DatabaseStorageController is used. Entity types can
- * specify that a different class should be used by setting the
+ * Drupal\Core\Entity\EntityStorageInterface interface. By default,
+ * Drupal\Core\Entity\ContentEntityDatabaseStorage is used for content entities
+ * and Drupal\Core\Config\Entity\ConfigEntityStorage for config entities. Entity
+ * types can specify that a different class should be used by setting the
  * "controllers['storage']" key in the entity plugin annotation. These classes
- * can either implement the Drupal\Core\Entity\EntityStorageControllerInterface
+ * can either implement the Drupal\Core\Entity\EntityStorageInterface
  * interface, or, most commonly, extend the
- * Drupal\Core\Entity\DatabaseStorageController class.
- * See Drupal\node\Entity\Node and Drupal\node\NodeStorageController
+ * Drupal\Core\Entity\ContentEntityDatabaseStorage class.
+ * See Drupal\node\Entity\Node and Drupal\node\NodeStorage
  * for an example.
  *
  * @param string $entity_type
@@ -308,12 +250,12 @@ function entity_load_by_uuid($entity_type, $uuid, $reset = FALSE) {
  *   An array of entity objects indexed by their ids.
  *
  * @see \Drupal\Core\Entity\EntityManagerInterface
- * @see \Drupal\Core\Entity\EntityStorageControllerInterface
- * @see \Drupal\Core\Entity\DatabaseStorageController
+ * @see \Drupal\Core\Entity\EntityStorageInterface
+ * @see \Drupal\Core\Entity\ContentEntityDatabaseStorage
  * @see \Drupal\Core\Entity\Query\QueryInterface
  */
 function entity_load_multiple($entity_type, array $ids = NULL, $reset = FALSE) {
-  $controller = \Drupal::entityManager()->getStorageController($entity_type);
+  $controller = \Drupal::entityManager()->getStorage($entity_type);
   if ($reset) {
     $controller->resetCache($ids);
   }
@@ -334,7 +276,7 @@ function entity_load_multiple($entity_type, array $ids = NULL, $reset = FALSE) {
  */
 function entity_load_multiple_by_properties($entity_type, array $values) {
   return \Drupal::entityManager()
-    ->getStorageController($entity_type)
+    ->getStorage($entity_type)
     ->loadByProperties($values);
 }
 
@@ -356,7 +298,7 @@ function entity_load_multiple_by_properties($entity_type, array $values) {
  */
 function entity_load_unchanged($entity_type, $id) {
   return \Drupal::entityManager()
-    ->getStorageController($entity_type)
+    ->getStorage($entity_type)
     ->loadUnchanged($id);
 }
 
@@ -369,7 +311,7 @@ function entity_load_unchanged($entity_type, $id) {
  *   An array of entity IDs of the entities to delete.
  */
 function entity_delete_multiple($entity_type, array $ids) {
-  $controller = \Drupal::entityManager()->getStorageController($entity_type);
+  $controller = \Drupal::entityManager()->getStorage($entity_type);
   $entities = $controller->loadMultiple($ids);
   $controller->delete($entities);
 }
@@ -377,31 +319,34 @@ function entity_delete_multiple($entity_type, array $ids) {
 /**
  * Constructs a new entity object, without permanently saving it.
  *
- * @param $entity_type
+ * @param string $entity_type
  *   The type of the entity.
- * @param $values
- *   An array of values to set, keyed by property name. If the entity type has
- *   bundles the bundle key has to be specified.
+ * @param array $values
+ *   (optional) An array of values to set, keyed by property name. If the
+ *   entity type has bundles, the bundle key has to be specified.
  *
  * @return \Drupal\Core\Entity\EntityInterface
  *   A new entity object.
  */
-function entity_create($entity_type, array $values) {
+function entity_create($entity_type, array $values = array()) {
   return \Drupal::entityManager()
-    ->getStorageController($entity_type)
+    ->getStorage($entity_type)
     ->create($values);
 }
 
 /**
  * Gets the entity controller class for an entity type.
  *
- * @return \Drupal\Core\Entity\EntityStorageControllerInterface
+ * @return \Drupal\Core\Entity\EntityStorageInterface
  *
- * @deprecated Use \Drupal\Core\Entity\EntityManagerInterface::getStorageController().
+ * @see \Drupal\Core\Entity\EntityManagerInterface::getStorage()
+ *
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::entityManager()->getStorage().
  */
 function entity_get_controller($entity_type) {
   return \Drupal::entityManager()
-    ->getStorageController($entity_type);
+    ->getStorage($entity_type);
 }
 
 /**
@@ -435,52 +380,14 @@ function entity_page_label(EntityInterface $entity, $langcode = NULL) {
  * @return \Drupal\Core\Entity\EntityAccessControllerInterface
  *   An entity access controller instance.
  *
- * @deprecated Use \Drupal\Core\Entity\EntityManagerInterface::getAccessController().
+ * @see \Drupal\Core\Entity\EntityManagerInterface::getAccessController().
+ *
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::entityManager()->getAccessController().
  */
 function entity_access_controller($entity_type) {
   return \Drupal::entityManager()
     ->getAccessController($entity_type);
-}
-
-/**
- * Returns the built and processed entity form for the given entity.
- *
- * @param \Drupal\Core\Entity\EntityInterface $entity
- *   The entity to be created or edited.
- * @param string $operation
- *   (optional) The operation identifying the form variation to be returned.
- * @param array $form_state
- *   (optional) An associative array containing the current state of the form.
- *   Use this to pass additional information to the form, such as the langcode.
- *   @code
- *   $form_state['langcode'] = $langcode;
- *   $form = entity_get_form($entity, 'default', $form_state);
- *   @endcode
- *
- * @return array
- *   The processed form for the given entity and operation.
- *
- * @deprecated Use \Drupal::entityManager()->getForm() or _entity_form from a
- *   routing.yml file instead of a page callback.
- */
-function entity_get_form(EntityInterface $entity, $operation = 'default', array $form_state = array()) {
-  return \Drupal::entityManager()->getForm($entity, $operation, $form_state);
-}
-
-/**
- * Returns an entity list controller for a given entity type.
- *
- * @param string $entity_type
- *   The type of the entity.
- *
- * @return \Drupal\Core\Entity\EntityListControllerInterface
- *   An entity list controller.
- *
- * @deprecated Use \Drupal\Core\Entity\EntityManagerInterface::getFormController().
- */
-function entity_list_controller($entity_type) {
-  return \Drupal::entityManager()
-    ->getListController($entity_type);
 }
 
 /**
@@ -501,7 +408,7 @@ function entity_list_controller($entity_type) {
  *   A render array for the entity.
  */
 function entity_view(EntityInterface $entity, $view_mode, $langcode = NULL, $reset = FALSE) {
-  $render_controller = \Drupal::entityManager()->getViewBuilder($entity->entityType());
+  $render_controller = \Drupal::entityManager()->getViewBuilder($entity->getEntityTypeId());
   if ($reset) {
     $render_controller->resetCache(array($entity->id()));
   }
@@ -511,7 +418,7 @@ function entity_view(EntityInterface $entity, $view_mode, $langcode = NULL, $res
 /**
  * Returns the render array for the provided entities.
  *
- * @param array $entities
+ * @param \Drupal\Core\Entity\EntityInterface[] $entities
  *   The entities to be rendered, must be of the same type.
  * @param string $view_mode
  *   The view mode that should be used to display the entity.
@@ -527,7 +434,7 @@ function entity_view(EntityInterface $entity, $view_mode, $langcode = NULL, $res
  *   entities array passed in $entities.
  */
 function entity_view_multiple(array $entities, $view_mode, $langcode = NULL, $reset = FALSE) {
-  $render_controller = \Drupal::entityManager()->getViewBuilder(reset($entities)->entityType());
+  $render_controller = \Drupal::entityManager()->getViewBuilder(reset($entities)->getEntityTypeId());
   if ($reset) {
     $render_controller->resetCache(array_keys($entities));
   }
@@ -535,18 +442,18 @@ function entity_view_multiple(array $entities, $view_mode, $langcode = NULL, $re
 }
 
 /**
- * Returns the entity_display object associated to a bundle and view mode.
+ * Returns the entity view display associated to a bundle and view mode.
  *
  * Use this function when assigning suggested display options for a component
  * in a given view mode. Note that they will only be actually used at render
  * time if the view mode itself is configured to use dedicated display settings
  * for the bundle; if not, the 'default' display is used instead.
  *
- * The function reads the entity_display object from the current configuration,
- * or returns a ready-to-use empty one if configuration entry exists yet for
- * this bundle and view mode. This streamlines manipulation of display objects
- * by always returning a consistent object that reflects the current state of
- * the configuration.
+ * The function reads the entity view display from the current configuration, or
+ * returns a ready-to-use empty one if configuration entry exists yet for this
+ * bundle and view mode. This streamlines manipulation of display objects by
+ * always returning a consistent object that reflects the current state of the
+ * configuration.
  *
  * Example usage:
  * - Set the 'body' field to be displayed and the 'field_image' field to be
@@ -571,19 +478,19 @@ function entity_view_multiple(array $entities, $view_mode, $langcode = NULL, $re
  *   this bundle.
  *
  * @return \Drupal\Core\Entity\Display\EntityViewDisplayInterface
- *   The display object associated to the view mode.
+ *   The entity view display associated to the view mode.
  */
 function entity_get_display($entity_type, $bundle, $view_mode) {
   // Try loading the display from configuration.
-  $display = entity_load('entity_display', $entity_type . '.' . $bundle . '.' . $view_mode);
+  $display = entity_load('entity_view_display', $entity_type . '.' . $bundle . '.' . $view_mode);
 
   // If not found, create a fresh display object. We do not preemptively create
-  // new entity_display configuration entries for each existing entity type and
-  // bundle whenever a new view mode becomes available. Instead, configuration
-  // entries are only created when a display object is explicitly configured
-  // and saved.
+  // new entity_view_display configuration entries for each existing entity type
+  // and bundle whenever a new view mode becomes available. Instead,
+  // configuration entries are only created when a display object is explicitly
+  // configured and saved.
   if (!$display) {
-    $display = entity_create('entity_display', array(
+    $display = entity_create('entity_view_display', array(
       'targetEntityType' => $entity_type,
       'bundle' => $bundle,
       'mode' => $view_mode,
@@ -595,69 +502,13 @@ function entity_get_display($entity_type, $bundle, $view_mode) {
 }
 
 /**
- * Returns the entity_display object used to render an entity.
+ * Returns the entity form display associated to a bundle and form mode.
  *
- * Depending on the configuration of the view mode for the bundle, this can be
- * either the display object associated to the view mode, or the 'default'
- * display.
- *
- * This function should only be used internally when rendering an entity. When
- * assigning suggested display options for a component in a given view mode,
- * entity_get_display() should be used instead, in order to avoid inadvertently
- * modifying the output of other view modes that might happen to use the
- * 'default' display too. Those options will then be effectively applied only
- * if the view mode is configured to use them.
- *
- * @param \Drupal\Core\Entity\EntityInterface $entity
- *   The entity being rendered.
- * @param string $view_mode
- *  The view mode being rendered.
- *
- * @return \Drupal\Core\Entity\Display\EntityViewDisplayInterface
- *   The display object that should be used to render the entity.
- *
- * @see entity_get_display().
- */
-function entity_get_render_display(EntityInterface $entity, $view_mode) {
-  $entity_type = $entity->entityType();
-  $bundle = $entity->bundle();
-  $render_view_mode = 'default';
-
-  // Look at the default display and display for the view mode, and fallback to
-  // the former if the latter does not exist is disabled.
-  if ($view_mode != 'default') {
-    $ids = array(
-      'default' => $entity_type . '.' . $bundle . '.default',
-      $view_mode => $entity_type . '.' . $bundle . '.' . $view_mode,
-    );
-    $entity_displays = entity_load_multiple('entity_display', $ids);
-    if (isset($entity_displays[$ids[$view_mode]]) && $entity_displays[$ids[$view_mode]]->status()) {
-      $render_view_mode = $view_mode;
-    }
-  }
-
-  $display = entity_get_display($entity_type, $bundle, $render_view_mode);
-  $display->originalMode = $view_mode;
-
-  // Let modules alter the display.
-  $display_context = array(
-    'entity_type' => $entity_type,
-    'bundle' => $bundle,
-    'view_mode' => $view_mode,
-  );
-  drupal_alter('entity_display', $display, $display_context);
-
-  return $display;
-}
-
-/**
- * Returns the entity_form_display object associated to a bundle and form mode.
- *
- * The function reads the entity_form_display object from the current
- * configuration, or returns a ready-to-use empty one if configuration entry
+ * The function reads the entity form display object from the current
+ * configuration, or returns a ready-to-use empty one if no configuration entry
  * exists yet for this bundle and form mode. This streamlines manipulation of
- * EntityFormDisplay objects by always returning a consistent object that
- * reflects the current state of the configuration.
+ * entity form displays by always returning a consistent object that reflects
+ * the current state of the configuration.
  *
  * Example usage:
  * - Set the 'body' field to be displayed with the 'text_textarea_with_summary'
@@ -683,16 +534,16 @@ function entity_get_render_display(EntityInterface $entity, $view_mode) {
  *   The form mode.
  *
  * @return \Drupal\Core\Entity\Display\EntityFormDisplayInterface
- *   The EntityFormDisplay object associated to the form mode.
+ *   The entity form display associated to the given form mode.
  */
 function entity_get_form_display($entity_type, $bundle, $form_mode) {
   // Try loading the entity from configuration.
   $entity_form_display = entity_load('entity_form_display', $entity_type . '.' . $bundle . '.' . $form_mode);
 
   // If not found, create a fresh entity object. We do not preemptively create
-  // new EntityFormDisplay configuration entries for each existing entity type
+  // new entity form display configuration entries for each existing entity type
   // and bundle whenever a new form mode becomes available. Instead,
-  // configuration entries are only created when a EntityFormDisplay object is
+  // configuration entries are only created when an entity form display is
   // explicitly configured and saved.
   if (!$entity_form_display) {
     $entity_form_display = entity_create('entity_form_display', array(
@@ -704,58 +555,6 @@ function entity_get_form_display($entity_type, $bundle, $form_mode) {
   }
 
   return $entity_form_display;
-}
-
-/**
- * Returns the entity_form_display object used to render an entity form.
- *
- * This function should only be used internally when rendering an entity form.
- * When assigning suggested form display options for a component in a given form
- * mode, entity_get_form_display() should be used instead, in order to avoid
- * inadvertently modifying the output of other form modes that might happen to
- * use the 'default' form display too. Those options will then be effectively
- * applied only if the form mode is configured to use them.
- *
- * @param \Drupal\Core\Entity\EntityInterface $entity
- *   The entity for which the form is being rendered.
- * @param string $form_mode
- *   The form mode being rendered.
- *
- * @return \Drupal\Core\Entity\Display\EntityFormDisplayInterface
- *   The form display object that should be used to render the entity form.
- *
- * @see entity_get_form_display().
- */
-function entity_get_render_form_display(EntityInterface $entity, $form_mode) {
-  $entity_type = $entity->entityType();
-  $bundle = $entity->bundle();
-  $render_form_mode = 'default';
-
-  // Look at the default form display and form display for the view mode, and
-  // fallback to the former if the latter does not exist is disabled.
-  if ($form_mode != 'default') {
-    $ids = array(
-      'default' => $entity_type . '.' . $bundle . '.default',
-      $form_mode => $entity_type . '.' . $bundle . '.' . $form_mode,
-    );
-    $entity_form_displays = entity_load_multiple('entity_form_display', $ids);
-    if (isset($entity_form_displays[$ids[$form_mode]]) && $entity_form_displays[$ids[$form_mode]]->status()) {
-      $render_form_mode = $form_mode;
-    }
-  }
-
-  $form_display = entity_get_form_display($entity_type, $bundle, $render_form_mode);
-  $form_display->originalMode = $form_mode;
-
-  // Let modules alter the form display.
-  $form_display_context = array(
-    'entity_type' => $entity_type,
-    'bundle' => $bundle,
-    'form_mode' => $form_mode,
-  );
-  drupal_alter('entity_form_display', $form_display, $form_display_context);
-
-  return $form_display;
 }
 
 /**

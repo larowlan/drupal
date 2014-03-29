@@ -7,7 +7,7 @@
 
 namespace Drupal\language\Form;
 
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -30,7 +30,7 @@ class NegotiationBrowserForm extends ConfigFormBase {
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler
    */
-  public function __construct(ConfigFactory $config_factory, ModuleHandlerInterface $module_handler) {
+  public function __construct(ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler) {
     parent::__construct($config_factory);
     $this->moduleHandler = $module_handler;
   }
@@ -107,7 +107,6 @@ class NegotiationBrowserForm extends ConfigFormBase {
     $form['new_mapping'] = array(
       '#type' => 'details',
       '#title' => $this->t('Add a new mapping'),
-      '#collapsed' => TRUE,
       '#tree' => TRUE,
     );
     $form['new_mapping']['browser_langcode'] = array(

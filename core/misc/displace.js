@@ -1,5 +1,8 @@
 /**
  * Manages elements that can offset the size of the viewport.
+ *
+ * Measures and reports viewport offset dimensions from elements like the
+ * toolbar that can potentially displace the positioning of other elements.
  */
 (function ($, Drupal, debounce) {
 
@@ -39,7 +42,7 @@
    *   and left. The value of each key is the viewport displacement distance for
    *   that edge.
    */
-  function displace (broadcast) {
+  function displace(broadcast) {
     offsets = Drupal.displace.offsets = calculateOffsets();
     if (typeof broadcast === 'undefined' || broadcast) {
       $(document).trigger('drupalViewportOffsetChange', offsets);
@@ -55,7 +58,7 @@
    *   and left. The value of each key is the viewport displacement distance for
    *   that edge.
    */
-  function calculateOffsets () {
+  function calculateOffsets() {
     return {
       top: calculateOffset('top'),
       right: calculateOffset('right'),
@@ -79,7 +82,7 @@
    * @return {number}
    *   The viewport displacement distance for the requested edge.
    */
-  function calculateOffset (edge) {
+  function calculateOffset(edge) {
     var edgeOffset = 0;
     var displacingElements = document.querySelectorAll('[data-offset-' + edge + ']');
     for (var i = 0, n = displacingElements.length; i < n; i++) {
@@ -94,7 +97,7 @@
       // but is not a valid number then get the displacement
       // dimensions directly from the element.
       if (isNaN(displacement)) {
-          displacement = getRawOffset(el, edge);
+        displacement = getRawOffset(el, edge);
       }
       // If the displacement value is larger than the current value for this
       // edge, use the displacement value.
@@ -117,7 +120,7 @@
    * @return {number}
    *   The viewport displacement distance for the requested edge.
    */
-  function getRawOffset (el, edge) {
+  function getRawOffset(el, edge) {
     var $el = $(el);
     var documentElement = document.documentElement;
     var displacement = 0;

@@ -7,9 +7,10 @@
 
 namespace Drupal\views\Form;
 
-use Drupal\Component\Utility\Url;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Controller\ControllerResolverInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+use Drupal\Core\DependencyInjection\DependencySerialization;
 use Drupal\Core\Form\FormInterface;
 use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\views\ViewExecutable;
@@ -24,7 +25,7 @@ use Symfony\Component\HttpFoundation\Request;
  * default is \Drupal\views\Form\ViewsFormMainForm). That way it is actually
  * possible for modules to have a multistep form if they need to.
  */
-class ViewsForm implements FormInterface, ContainerInjectionInterface {
+class ViewsForm extends DependencySerialization implements FormInterface, ContainerInjectionInterface {
 
   /**
    * The controller resolver to get the subform form objects.
@@ -125,7 +126,7 @@ class ViewsForm implements FormInterface, ContainerInjectionInterface {
     $form = array();
 
     $query = $this->request->query->all();
-    $query = Url::filterQueryParameters($query, array(), '');
+    $query = UrlHelper::filterQueryParameters($query, array(), '');
 
     $form['#action'] = $this->urlGenerator->generateFromPath($view->getUrl(), array('query' => $query));
     // Tell the preprocessor whether it should hide the header, footer, pager...

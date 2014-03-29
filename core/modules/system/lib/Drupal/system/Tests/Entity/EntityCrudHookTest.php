@@ -7,6 +7,7 @@
 
 namespace Drupal\system\Tests\Entity;
 
+use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Database\Database;
 
@@ -78,8 +79,9 @@ class EntityCrudHookTest extends EntityUnitTestBase {
    */
   public function testBlockHooks() {
     $entity = entity_create('block', array(
-      'id' => 'stark.test_html_id',
-      'plugin' => 'test_html_id',
+      'id' => 'stark_test_html',
+      'plugin' => 'test_html',
+      'theme' => 'stark',
     ));
 
     $this->assertHookMessageOrder(array(
@@ -133,7 +135,11 @@ class EntityCrudHookTest extends EntityUnitTestBase {
   public function testCommentHooks() {
     $account = $this->createUser();
     $this->enableModules(array('entity', 'filter'));
-    $this->container->get('comment.manager')->addDefaultField('node', 'article', 'comment', COMMENT_OPEN);
+    entity_create('node_type', array(
+      'type' => 'article',
+      'name' => 'Article',
+    ))->save();
+    $this->container->get('comment.manager')->addDefaultField('node', 'article', 'comment', CommentItemInterface::OPEN);
 
     $node = entity_create('node', array(
       'uid' => $account->id(),
@@ -188,7 +194,7 @@ class EntityCrudHookTest extends EntityUnitTestBase {
     ));
 
     $_SESSION['entity_crud_hook_test'] = array();
-    $comment->subject->value = 'New subject';
+    $comment->setSubject('New subject');
     $comment->save();
 
     $this->assertHookMessageOrder(array(
@@ -384,7 +390,7 @@ class EntityCrudHookTest extends EntityUnitTestBase {
     ));
 
     $_SESSION['entity_crud_hook_test'] = array();
-    $term->name = 'New name';
+    $term->setName('New name');
     $term->save();
 
     $this->assertHookMessageOrder(array(

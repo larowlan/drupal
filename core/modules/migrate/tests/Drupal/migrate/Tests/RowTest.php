@@ -156,6 +156,11 @@ class RowTest extends UnitTestCase {
     $row->setSourceProperty('title', 'new title');
     $row->rehash();
     $this->assertSame($this->testHashMod, $row->getHash(), 'Hash changed correctly.');
+    // Check hash calculation algorithm.
+    $hash = hash('sha256', serialize($row->getSource()));
+    $this->assertSame($hash, $row->getHash());
+    // Check length of generated hash used for mapping schema.
+    $this->assertSame(64, strlen($row->getHash()));
 
     // Set the map to successfully imported.
     $test_id_map = array(
@@ -243,8 +248,8 @@ class RowTest extends UnitTestCase {
   public function testMultipleDestination() {
     $row = new Row($this->testValues, $this->testSourceIds);
     // Set some deep nested values.
-    $row->setDestinationProperty('image:alt', 'alt text');
-    $row->setDestinationProperty('image:fid', 3);
+    $row->setDestinationProperty('image.alt', 'alt text');
+    $row->setDestinationProperty('image.fid', 3);
 
     $this->assertTrue($row->hasDestinationProperty('image'));
     $this->assertFalse($row->hasDestinationProperty('alt'));
@@ -253,8 +258,8 @@ class RowTest extends UnitTestCase {
     $destination = $row->getDestination();
     $this->assertEquals('alt text', $destination['image']['alt']);
     $this->assertEquals(3, $destination['image']['fid']);
-    $this->assertEquals('alt text', $row->getDestinationProperty('image:alt'));
-    $this->assertEquals(3, $row->getDestinationProperty('image:fid'));
+    $this->assertEquals('alt text', $row->getDestinationProperty('image.alt'));
+    $this->assertEquals(3, $row->getDestinationProperty('image.fid'));
   }
 
 }

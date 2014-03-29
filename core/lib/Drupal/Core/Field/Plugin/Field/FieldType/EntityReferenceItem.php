@@ -7,9 +7,11 @@
 
 namespace Drupal\Core\Field\Plugin\Field\FieldType;
 
+use Drupal\Core\Entity\TypedData\EntityDataDefinition;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemBase;
 use Drupal\Core\TypedData\DataDefinition;
+use Drupal\Core\TypedData\DataReferenceDefinition;
 
 /**
  * Defines the 'entity_reference' entity field type.
@@ -24,63 +26,72 @@ use Drupal\Core\TypedData\DataDefinition;
  *   id = "entity_reference",
  *   label = @Translation("Entity reference"),
  *   description = @Translation("An entity field containing an entity reference."),
- *   configurable = FALSE,
- *   constraints = {"ValidReference" = TRUE}
+ *   no_ui = TRUE,
+ *   constraints = {"ValidReference" = {}}
  * )
  */
 class EntityReferenceItem extends FieldItemBase {
 
   /**
-   * Definitions of the contained properties.
-   *
-   * @see EntityReferenceItem::getPropertyDefinitions()
-   *
-   * @var array
+   * {@inheritdoc}
    */
-  static $propertyDefinitions;
+  public static function defaultSettings() {
+    return array(
+      'target_type' => \Drupal::moduleHandler()->moduleExists('node') ? 'node' : 'user',
+      'target_bundle' => NULL,
+    ) + parent::defaultSettings();
+  }
 
   /**
-   * Implements \Drupal\Core\TypedData\ComplexDataInterface::getPropertyDefinitions().
+   * {@inheritdoc}
    */
-  public function getPropertyDefinitions() {
-    $settings = $this->definition->getSettings();
-    $target_type = $settings['target_type'];
+  public static function defaultInstanceSettings() {
+    return array(
+      'handler' => 'default',
+    ) + parent::defaultInstanceSettings();
+  }
 
-    // Definitions vary by entity type and bundle, so key them accordingly.
-    $key = $target_type . ':';
-    $key .= isset($settings['target_bundle']) ? $settings['target_bundle'] : '';
+  /**
+   * {@inheritdoc}
+   */
+  public static function propertyDefinitions(FieldDefinitionInterface $field_definition) {
+    $settings = $field_definition->getSettings();
+    $target_type_info = \Drupal::entityManager()->getDefinition($settings['target_type']);
 
-    if (!isset(static::$propertyDefinitions[$key])) {
-      $target_type_info = \Drupal::entityManager()->getDefinition($target_type);
-      if ($target_type_info->isSubclassOf('\Drupal\Core\Entity\ContentEntityInterface')) {
-        // @todo: Lookup the entity type's ID data type and use it here.
-        // https://drupal.org/node/2107249
-        static::$propertyDefinitions[$key]['target_id'] = DataDefinition::create('integer')
-          ->setLabel(t('Entity ID'))
-          ->setConstraints(array(
-            'Range' => array('min' => 0),
-          ));
-      }
-      else {
-        static::$propertyDefinitions[$key]['target_id'] = DataDefinition::create('string')
-          ->setLabel(t('Entity ID'));
-      }
-
-      static::$propertyDefinitions[$key]['entity'] = DataDefinition::create('entity_reference')
-        ->setLabel(t('Entity'))
-        ->setDescription(t('The referenced entity'))
-        // The entity object is computed out of the entity ID.
-        ->setComputed(TRUE)
-        ->setReadOnly(FALSE)
+    if ($target_type_info->isSubclassOf('\Drupal\Core\Entity\ContentEntityInterface')) {
+      // @todo: Lookup the entity type's ID data type and use it here.
+      // https://drupal.org/node/2107249
+      $target_id_definition = DataDefinition::create('integer')
+        ->setLabel(t('Entity ID'))
         ->setConstraints(array(
-          'EntityType' => $settings['target_type'],
+          'Range' => array('min' => 0),
         ));
-
-      if (isset($settings['target_bundle'])) {
-        static::$propertyDefinitions[$key]['entity']->addConstraint('Bundle', $settings['target_bundle']);
-      }
     }
-    return static::$propertyDefinitions[$key];
+    else {
+      $target_id_definition = DataDefinition::create('string')
+        ->setLabel(t('Entity ID'));
+    }
+    $properties['target_id'] = $target_id_definition;
+    $properties['entity'] = DataReferenceDefinition::create('entity')
+      ->setLabel(t('Entity'))
+      ->setDescription(t('The referenced entity'))
+      // The entity object is computed out of the entity ID.
+      ->setComputed(TRUE)
+      ->setReadOnly(FALSE)
+      ->setTargetDefinition(EntityDataDefinition::create($settings['target_type']));
+
+    if (isset($settings['target_bundle'])) {
+      $properties['entity']->getTargetDefinition()->addConstraint('Bundle', $settings['target_bundle']);
+    }
+
+    return $properties;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function mainPropertyName() {
+    return 'target_id';
   }
 
   /**
@@ -169,6 +180,20 @@ class EntityReferenceItem extends FieldItemBase {
   /**
    * {@inheritdoc}
    */
+  public function getValue($include_computed = FALSE) {
+    $values = parent::getValue($include_computed);
+
+    // If there is an unsaved entity, return it as part of the field item values
+    // to ensure idempotency of getValue() / setValue().
+    if ($this->hasUnsavedEntity()) {
+      $values['entity'] = $this->entity;
+    }
+    return $values;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function onChange($property_name) {
     // Make sure that the target ID and the target property stay in sync.
     if ($property_name == 'target_id') {
@@ -183,8 +208,41 @@ class EntityReferenceItem extends FieldItemBase {
   /**
    * {@inheritdoc}
    */
-  public function getMainPropertyName() {
-    return 'target_id';
+  public function isEmpty() {
+    // Avoid loading the entity by first checking the 'target_id'.
+    $target_id = $this->target_id;
+    if ($target_id !== NULL) {
+      return FALSE;
+    }
+    // Allow auto-create entities.
+    if ($this->hasUnsavedEntity()) {
+      return FALSE;
+    }
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function preSave() {
+    if ($this->hasUnsavedEntity()) {
+      $this->entity->save();
+      $this->target_id = $this->entity->id();
+    }
+  }
+
+  /**
+   * Determines whether the item holds an unsaved entity.
+   *
+   * This is notably used for "autocreate" widgets, and more generally to
+   * support referencing freshly created entities (they will get saved
+   * automatically as the hosting entity gets saved).
+   *
+   * @return bool
+   *   TRUE if the item holds an unsaved entity.
+   */
+  public function hasUnsavedEntity() {
+    return $this->target_id === NULL && ($entity = $this->entity) && $entity->isNew();
   }
 
 }

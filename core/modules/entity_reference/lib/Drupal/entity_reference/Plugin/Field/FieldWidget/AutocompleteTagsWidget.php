@@ -7,7 +7,7 @@
 
 namespace Drupal\entity_reference\Plugin\Field\FieldWidget;
 
-use Drupal\entity_reference\Plugin\Field\FieldWidget\AutocompleteWidgetBase;
+use Drupal\Component\Utility\Tags;
 
 /**
  * Plugin implementation of the 'entity_reference autocomplete-tags' widget.
@@ -19,16 +19,22 @@ use Drupal\entity_reference\Plugin\Field\FieldWidget\AutocompleteWidgetBase;
  *   field_types = {
  *     "entity_reference"
  *   },
- *   settings = {
- *     "match_operator" = "CONTAINS",
- *     "size" = 60,
- *     "autocomplete_type" = "tags",
- *     "placeholder" = ""
- *   },
  *   multiple_values = TRUE
  * )
  */
 class AutocompleteTagsWidget extends AutocompleteWidgetBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function defaultSettings() {
+    return array(
+      'match_operator' => 'CONTAINS',
+      'size' => '60',
+      'autocomplete_type' => 'tags',
+      'placeholder' => '',
+    ) + parent::defaultSettings();
+  }
 
   /**
    * {@inheritdoc}
@@ -42,11 +48,16 @@ class AutocompleteTagsWidget extends AutocompleteWidgetBase {
 
     if (!empty($element['#value'])) {
       $value = array();
-      foreach (drupal_explode_tags($element['#value']) as $input) {
+      foreach (Tags::explode($element['#value']) as $input) {
         $match = FALSE;
 
-        // Take "label (entity id)', match the id from parenthesis.
+        // Take "label (entity id)', match the ID from parenthesis when it's a
+        // number.
         if (preg_match("/.+\((\d+)\)/", $input, $matches)) {
+          $match = $matches[1];
+        }
+        // Match the ID when it's a string (e.g. for config entity types).
+        elseif (preg_match("/.+\(([\w.]+)\)/", $input, $matches)) {
           $match = $matches[1];
         }
         else {
@@ -59,9 +70,10 @@ class AutocompleteTagsWidget extends AutocompleteWidgetBase {
           $value[] = array('target_id' => $match);
         }
         elseif ($auto_create && (count($this->getSelectionHandlerSetting('target_bundles')) == 1 || count($bundles) == 1)) {
-          // Auto-create item. see entity_reference_field_presave().
+          // Auto-create item. See
+          // \Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem::presave().
           $value[] = array(
-            'target_id' => 0,
+            'target_id' => NULL,
             'entity' => $this->createNewEntity($input, $element['#autocreate_uid']),
           );
         }

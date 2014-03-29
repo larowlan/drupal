@@ -11,7 +11,7 @@ use Drupal\Core\StreamWrapper\PublicStream;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 
@@ -30,12 +30,12 @@ class ThemeSettingsForm extends ConfigFormBase {
   /**
    * Constructs a ThemeSettingsForm object.
    *
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface
    *   The module handler instance to use.
    */
-  public function __construct(ConfigFactory $config_factory, ModuleHandlerInterface $module_handler) {
+  public function __construct(ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler) {
     parent::__construct($config_factory);
 
     $this->moduleHandler = $module_handler;
@@ -122,6 +122,7 @@ class ThemeSettingsForm extends ConfigFormBase {
     $form['theme_settings'] = array(
       '#type' => 'details',
       '#title' => t('Toggle display'),
+      '#open' => TRUE,
       '#description' => t('Enable or disable the display of certain page elements.'),
     );
     foreach ($toggles as $name => $title) {
@@ -145,6 +146,7 @@ class ThemeSettingsForm extends ConfigFormBase {
       $form['logo'] = array(
         '#type' => 'details',
         '#title' => t('Logo image settings'),
+        '#open' => TRUE,
         '#attributes' => array('class' => array('theme-settings-bottom')),
         '#states' => array(
           // Hide the logo image settings fieldset when logo display is disabled.
@@ -185,6 +187,7 @@ class ThemeSettingsForm extends ConfigFormBase {
       $form['favicon'] = array(
         '#type' => 'details',
         '#title' => t('Shortcut icon settings'),
+        '#open' => TRUE,
         '#description' => t("Your shortcut icon, or 'favicon', is displayed in the address bar and bookmarks of most browsers."),
         '#states' => array(
           // Hide the shortcut icon settings fieldset when shortcut icon display
@@ -261,6 +264,7 @@ class ThemeSettingsForm extends ConfigFormBase {
         $form['engine_specific'] = array(
           '#type' => 'details',
           '#title' => t('Theme-engine-specific settings'),
+          '#open' => TRUE,
           '#description' => t('These settings only exist for the themes based on the %engine theme engine.', array('%engine' => $themes[$theme]->prefix)),
         );
         $function($form, $form_state);
@@ -284,7 +288,7 @@ class ThemeSettingsForm extends ConfigFormBase {
       // Process the theme and all its base themes.
       foreach ($theme_keys as $theme) {
         // Include the theme-settings.php file.
-        $filename = DRUPAL_ROOT . '/' . str_replace("/$theme.info.yml", '', $themes[$theme]->filename) . '/theme-settings.php';
+        $filename = DRUPAL_ROOT . '/' . $themes[$theme]->getPath() . '/theme-settings.php';
         if (file_exists($filename)) {
           require_once $filename;
         }

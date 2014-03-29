@@ -16,9 +16,6 @@ use Drupal\Core\Field\FieldDefinitionInterface;
  *   id = "text_long",
  *   label = @Translation("Long text"),
  *   description = @Translation("This field stores long text in the database."),
- *   instance_settings = {
- *     "text_processing" = "0"
- *   },
  *   default_widget = "text_textarea",
  *   default_formatter = "text_default"
  * )
@@ -57,7 +54,7 @@ class TextLongItem extends TextItemBase {
     $element['text_processing'] = array(
       '#type' => 'radios',
       '#title' => t('Text processing'),
-      '#default_value' => $this->getFieldSetting('text_processing'),
+      '#default_value' => $this->getSetting('text_processing'),
       '#options' => array(
         t('Plain text'),
         t('Filtered text (user selects text format)'),

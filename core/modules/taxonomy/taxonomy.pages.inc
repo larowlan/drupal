@@ -13,18 +13,18 @@ use Drupal\taxonomy\Entity\Term;
  * @param \Drupal\taxonomy\Entity\Term $term
  *   The taxonomy term entity.
  *
- * @deprecated Use \Drupal\taxonomy\Controller\TaxonomyController::termPage()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal\taxonomy\Controller\TaxonomyController::termPage().
  */
 function taxonomy_term_page(Term $term) {
-  $build['#attached']['drupal_add_feed'][] = array('taxonomy/term/' . $term->id() . '/feed', 'RSS - ' . $term->label());
+  $build['#attached']['drupal_add_feed'][] = array('taxonomy/term/' . $term->id() . '/feed', 'RSS - ' . $term->getName());
 
   foreach ($term->uriRelationships() as $rel) {
-    $uri = $term->uri($rel);
     // Set the term path as the canonical URL to prevent duplicate content.
     $build['#attached']['drupal_add_html_head_link'][] = array(
       array(
         'rel' => $rel,
-        'href' => url($uri['path'], $uri['options']),
+        'href' => $term->url($rel),
       ),
       TRUE,
     );
@@ -34,7 +34,7 @@ function taxonomy_term_page(Term $term) {
       $build['#attached']['drupal_add_html_head_link'][] = array(
         array(
           'rel' => 'shortlink',
-          'href' => url($uri['path'], array_merge($uri['options'], array('alias' => TRUE))),
+          'href' => $term->url($rel, array('alias' => TRUE)),
         ),
         TRUE,
       );
@@ -66,11 +66,12 @@ function taxonomy_term_page(Term $term) {
  * @param \Drupal\taxonomy\Entity\Term $term
  *   The taxonomy term entity.
  *
- * @deprecated Use \Drupal\taxonomy\Controller\TaxonomyController::termFeed()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal\taxonomy\Controller\TaxonomyController::termFeed().
  */
 function taxonomy_term_feed(Term $term) {
   $channel['link'] = url('taxonomy/term/' . $term->id(), array('absolute' => TRUE));
-  $channel['title'] = \Drupal::config('system.site')->get('name') . ' - ' . $term->label();
+  $channel['title'] = \Drupal::config('system.site')->get('name') . ' - ' . $term->getName();
   // Only display the description if we have a single term, to avoid clutter and confusion.
   // HTML will be removed from feed description.
   $channel['description'] = $term->description->processed;

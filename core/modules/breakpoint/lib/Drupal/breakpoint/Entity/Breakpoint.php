@@ -14,21 +14,17 @@ use Drupal\breakpoint\InvalidBreakpointNameException;
 use Drupal\breakpoint\InvalidBreakpointSourceException;
 use Drupal\breakpoint\InvalidBreakpointSourceTypeException;
 use Drupal\breakpoint\InvalidBreakpointMediaQueryException;
+use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
  * Defines the Breakpoint entity.
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "breakpoint",
  *   label = @Translation("Breakpoint"),
- *   controllers = {
- *     "storage" = "Drupal\Core\Config\Entity\ConfigStorageController"
- *   },
- *   config_prefix = "breakpoint.breakpoint",
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "label",
- *     "uuid" = "uuid"
+ *     "label" = "label"
  *   }
  * )
  */
@@ -55,13 +51,6 @@ class Breakpoint extends ConfigEntityBase implements BreakpointInterface {
    * @var string
    */
   public $id;
-
-  /**
-   * The breakpoint UUID.
-   *
-   * @var string
-   */
-  public $uuid;
 
   /**
    * The breakpoint name (machine name) as specified by theme or module.
@@ -281,4 +270,20 @@ class Breakpoint extends ConfigEntityBase implements BreakpointInterface {
     }
     throw new InvalidBreakpointMediaQueryException('Media query is empty.');
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function calculateDependencies() {
+    parent::calculateDependencies();
+    $this->dependencies = array();
+    if ($this->sourceType == static::SOURCE_TYPE_MODULE) {
+      $this->addDependency('module', $this->source);
+    }
+    elseif ($this->sourceType == static::SOURCE_TYPE_THEME) {
+      $this->addDependency('theme', $this->source);
+    }
+    return $this->dependencies;
+  }
+
 }

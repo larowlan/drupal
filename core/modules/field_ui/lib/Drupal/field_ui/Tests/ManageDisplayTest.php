@@ -51,11 +51,27 @@ class ManageDisplayTest extends FieldUiTestBase {
     $setting_name = key($default_settings);
     $setting_value = $display_options['settings'][$setting_name];
 
-    // Display the "Manage display" screen and check that the expected formatter is
-    // selected.
+    // Display the "Manage display" screen and check that the expected formatter
+    // is selected.
     $this->drupalGet($manage_display);
     $this->assertFieldByName('fields[field_test][type]', $format, 'The expected formatter is selected.');
     $this->assertText("$setting_name: $setting_value", 'The expected summary is displayed.');
+
+    // Check whether formatter weights are respected.
+    $result = $this->xpath('//select[@id=:id]/option', array(':id' => 'edit-fields-field-test-type'));
+    $options = array_map(function($item) {
+      return (string) $item->attributes()->value[0];
+    }, $result);
+    $expected_options = array (
+      'field_no_settings',
+      'field_empty_test',
+      'field_empty_setting',
+      'field_test_default',
+      'field_test_multiple',
+      'field_test_with_prepare_view',
+      'hidden',
+    );
+    $this->assertEqual($options, $expected_options, 'The expected formatter ordering is respected.');
 
     // Change the formatter and check that the summary is updated.
     $edit = array('fields[field_test][type]' => 'field_test_multiple', 'refresh_rows' => 'field_test');
@@ -90,9 +106,9 @@ class ManageDisplayTest extends FieldUiTestBase {
     $edit = array($fieldname => 'foo');
     $this->drupalPostAjaxForm(NULL, $edit, "field_test_plugin_settings_update");
 
-    // Confirm that the settings are updated on the settings form.
+    // Confirm that the extra settings are not updated on the settings form.
     $this->drupalPostAjaxForm(NULL, array(), "field_test_settings_edit");
-    $this->assertFieldByName($fieldname, 'foo');
+    $this->assertFieldByName($fieldname, '');
 
     // Test the empty setting formatter.
     $edit = array('fields[field_test][type]' => 'field_empty_setting');
@@ -139,6 +155,18 @@ class ManageDisplayTest extends FieldUiTestBase {
     $this->assertFieldByName('fields[field_test][type]', $widget_type, 'The expected widget is selected.');
     $this->assertText("$setting_name: $setting_value", 'The expected summary is displayed.');
 
+    // Check whether widget weights are respected.
+    $result = $this->xpath('//select[@id=:id]/option', array(':id' => 'edit-fields-field-test-type'));
+    $options = array_map(function($item) {
+      return (string) $item->attributes()->value[0];
+    }, $result);
+    $expected_options = array (
+      'test_field_widget',
+      'test_field_widget_multiple',
+      'hidden',
+    );
+    $this->assertEqual($options, $expected_options, 'The expected widget ordering is respected.');
+
     // Change the widget and check that the summary is updated.
     $edit = array('fields[field_test][type]' => 'test_field_widget_multiple', 'refresh_rows' => 'field_test');
     $this->drupalPostAjaxForm(NULL, $edit, array('op' => t('Refresh')));
@@ -171,9 +199,9 @@ class ManageDisplayTest extends FieldUiTestBase {
     $edit = array($fieldname => 'foo');
     $this->drupalPostAjaxForm(NULL, $edit, "field_test_plugin_settings_update");
 
-    // Confirm that the settings are updated on the settings form.
+    // Confirm that the extra settings are not updated on the settings form.
     $this->drupalPostAjaxForm(NULL, array(), "field_test_settings_edit");
-    $this->assertFieldByName($fieldname, 'foo');
+    $this->assertFieldByName($fieldname, '');
   }
 
   /**
@@ -197,10 +225,12 @@ class ManageDisplayTest extends FieldUiTestBase {
     $node = $this->drupalCreateNode($settings);
 
     // Gather expected output values with the various formatters.
-    $formatters = \Drupal::service('plugin.manager.field.formatter')->getDefinitions();
+    $formatter_plugin_manager = \Drupal::service('plugin.manager.field.formatter');
+    $field_test_default_settings = $formatter_plugin_manager->getDefaultSettings('field_test_default');
+    $field_test_with_prepare_view_settings = $formatter_plugin_manager->getDefaultSettings('field_test_with_prepare_view');
     $output = array(
-      'field_test_default' => $formatters['field_test_default']['settings']['test_formatter_setting'] . '|' . $value,
-      'field_test_with_prepare_view' => $formatters['field_test_with_prepare_view']['settings']['test_formatter_setting_additional'] . '|' . $value. '|' . ($value + 1),
+      'field_test_default' => $field_test_default_settings['test_formatter_setting'] . '|' . $value,
+      'field_test_with_prepare_view' => $field_test_with_prepare_view_settings['test_formatter_setting_additional'] . '|' . $value. '|' . ($value + 1),
     );
 
     // Check that the field is displayed with the default formatter in 'rss'
@@ -273,7 +303,7 @@ class ManageDisplayTest extends FieldUiTestBase {
     $this->assertNoText('Use custom display settings for the following view modes', 'Custom display settings fieldset found.');
 
     // This may not trigger a notice when 'view_modes_custom' isn't available.
-    $this->drupalPostForm('admin/structure/taxonomy/manage/' . $this->vocabulary . '/display', array(), t('Save'));
+    $this->drupalPostForm('admin/structure/taxonomy/manage/' . $this->vocabulary . '/overview/display', array(), t('Save'));
   }
 
   /**

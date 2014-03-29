@@ -18,29 +18,19 @@ use Drupal\Core\TypedData\DataDefinition;
  *   id = "boolean",
  *   label = @Translation("Boolean"),
  *   description = @Translation("An entity field containing a boolean value."),
- *   configurable = FALSE
+ *   no_ui = TRUE
  * )
  */
 class BooleanItem extends FieldItemBase {
 
   /**
-   * Definitions of the contained properties.
-   *
-   * @see BooleanItem::getPropertyDefinitions()
-   *
-   * @var array
+   * {@inheritdoc}
    */
-  static $propertyDefinitions;
+  public static function propertyDefinitions(FieldDefinitionInterface $field_definition) {
+    $properties['value'] = DataDefinition::create('boolean')
+      ->setLabel(t('Boolean value'));
 
-  /**
-   * Implements \Drupal\Core\TypedData\ComplexDataInterface::getPropertyDefinitions().
-   */
-  public function getPropertyDefinitions() {
-    if (!isset(static::$propertyDefinitions)) {
-      static::$propertyDefinitions['value'] = DataDefinition::create('boolean')
-        ->setLabel(t('Boolean value'));
-    }
-    return static::$propertyDefinitions;
+    return $properties;
   }
 
   /**

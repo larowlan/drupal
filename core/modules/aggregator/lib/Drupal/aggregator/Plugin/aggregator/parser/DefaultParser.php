@@ -8,7 +8,7 @@
 namespace Drupal\aggregator\Plugin\aggregator\parser;
 
 use Drupal\aggregator\Plugin\ParserInterface;
-use Drupal\aggregator\Entity\Feed;
+use Drupal\aggregator\FeedInterface;
 use Drupal\Core\Cache\Cache;
 use Zend\Feed\Reader\Reader;
 use Zend\Feed\Reader\Exception\ExceptionInterface;
@@ -29,7 +29,7 @@ class DefaultParser implements ParserInterface {
   /**
    * {@inheritdoc}
    */
-  public function parse(Feed $feed) {
+  public function parse(FeedInterface $feed) {
     // Set our bridge extension manager to Zend Feed.
     Reader::setExtensionManager(\Drupal::service('feed.bridge.reader'));
     try {
@@ -42,10 +42,10 @@ class DefaultParser implements ParserInterface {
       return FALSE;
     }
 
-    $feed->link->value = $channel->getLink();
-    $feed->description->value = $channel->getDescription();
+    $feed->setWebsiteUrl($channel->getLink());
+    $feed->setDescription($channel->getDescription());
     if ($image = $channel->getImage()) {
-      $feed->image->value = $image['uri'];
+      $feed->setImage($image['uri']);
     }
     // Initialize items array.
     $feed->items = array();

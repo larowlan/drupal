@@ -7,7 +7,7 @@
 namespace Drupal\search\Tests;
 
 /**
- * Test search_simplify() on every Unicode character, and some other cases.
+ * Tests that the search prepocessing uses the correct language code.
  */
 class SearchPreprocessLangcodeTest extends SearchTestBase {
 
@@ -21,7 +21,7 @@ class SearchPreprocessLangcodeTest extends SearchTestBase {
   public static function getInfo() {
     return array(
       'name' => 'Search preprocess langcode',
-      'description' => 'Check that the hook_search_preprocess passes the correct langcode from the entity.',
+      'description' => 'Tests that the search prepocessing uses the correct language code.',
       'group' => 'Search',
     );
   }
@@ -43,7 +43,7 @@ class SearchPreprocessLangcodeTest extends SearchTestBase {
    */
   function testPreprocessLangcode() {
     // Create a node.
-    $node = $this->drupalCreateNode(array('body' => array(array()), 'langcode' => 'en'));
+    $this->node = $this->drupalCreateNode(array('body' => array(array()), 'langcode' => 'en'));
 
     // First update the index. This does the initial processing.
     $this->container->get('plugin.manager.search')->createInstance('node_search')->updateIndex();
@@ -68,7 +68,7 @@ class SearchPreprocessLangcodeTest extends SearchTestBase {
    */
   function testPreprocessStemming() {
     // Create a node.
-    $node = $this->drupalCreateNode(array(
+    $this->node = $this->drupalCreateNode(array(
       'title' => 'we are testing',
       'body' => array(array()),
       'langcode' => 'en',

@@ -7,12 +7,10 @@
 
 namespace Drupal\views\Tests\Plugin;
 
-use Drupal\Core\Routing\RouteBuildEvent;
-use Drupal\views\EventSubscriber\RouteSubscriber;
+use Drupal\views\Views;
 use Drupal\views\Tests\ViewUnitTestBase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
-use Symfony\Component\Routing\RouteCollection;
 
 /**
  * Tests the page display plugin.
@@ -57,17 +55,14 @@ class DisplayPageTest extends ViewUnitTestBase {
     parent::setUp();
 
     // Setup the needed tables in order to make the drupal router working.
-    $this->installSchema('system', array('router', 'menu_router', 'url_alias'));
+    $this->installSchema('system', array('url_alias'));
     $this->installSchema('menu_link', 'menu_links');
   }
 
   /**
-   * Checks the behavior of the page for access denied/not found behaviours.
+   * Checks the behavior of the page for access denied/not found behaviors.
    */
   public function testPageResponses() {
-    // @todo Importing a route should fire a container rebuild.
-    $this->container->get('router.builder')->rebuild();
-
     $subrequest = Request::create('/test_page_display_403', 'GET');
     $response = $this->container->get('http_kernel')->handle($subrequest, HttpKernelInterface::SUB_REQUEST);
     $this->assertEqual($response->getStatusCode(), 403);
@@ -84,9 +79,12 @@ class DisplayPageTest extends ViewUnitTestBase {
     \Drupal::getContainer()->set('request', $subrequest);
 
     // Test accessing a disabled page for a view.
-    $view = views_get_view('test_page_display');
+    $view = Views::getView('test_page_display');
     // Disable the view, rebuild menu, and request the page again.
     $view->storage->disable()->save();
+    // Router rebuild would occur in a kernel terminate event so we need to
+    // simulate that here.
+    \Drupal::service('router.builder')->rebuildIfNeeded();
 
     $response = $this->container->get('http_kernel')->handle($subrequest, HttpKernelInterface::SUB_REQUEST);
     $this->assertEqual($response->getStatusCode(), 404);

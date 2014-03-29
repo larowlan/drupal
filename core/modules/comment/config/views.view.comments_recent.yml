@@ -4,35 +4,32 @@ core: 8.x
 description: 'Recent comments.'
 status: true
 display:
-  block_1:
-    display_plugin: block
-    id: block_1
-    display_title: Block
-    position: 0
-    display_options:
-      block_description: 'Recent comments'
-      block_category: Lists (Views)
   default:
     display_plugin: default
     id: default
     display_title: Master
-    position: 1
+    position: 0
     display_options:
       access:
         type: perm
         options:
           perm: 'access comments'
+        provider: user
       cache:
         type: none
+        provider: views
       query:
         type: views_query
+        provider: views
       exposed_form:
         type: basic
+        provider: views
       pager:
         type: some
         options:
           items_per_page: 10
           offset: 0
+        provider: views
       style:
         type: html_list
         options:
@@ -43,6 +40,7 @@ display:
           type: ul
           wrapper_class: item-list
           class: ''
+        provider: views
       row:
         type: fields
         options:
@@ -52,6 +50,7 @@ display:
             changed: changed
           separator: ' '
           hide_empty: false
+        provider: views
       relationships:
         node:
           field: node
@@ -110,7 +109,7 @@ display:
           empty_zero: false
           hide_alter_empty: true
           link_to_comment: true
-          link_to_node: false
+          link_to_entity: false
         changed:
           id: changed
           table: comment
@@ -171,7 +170,7 @@ display:
           id: status
           plugin_id: boolean
           expose:
-            operator: false
+            operator: ''
           group: 1
         status_node:
           value: true
@@ -181,7 +180,7 @@ display:
           id: status_node
           plugin_id: boolean
           expose:
-            operator: false
+            operator: ''
           group: 1
       sorts:
         created:
@@ -222,9 +221,19 @@ display:
           content: 'No comments available.'
           tokenize: false
           plugin_id: text_custom
+  block_1:
+    display_plugin: block
+    id: block_1
+    display_title: Block
+    position: 1
+    display_options:
+      block_description: 'Recent comments'
+      block_category: 'Lists (Views)'
 label: 'Recent comments'
 module: views
 id: comments_recent
 tag: default
 langcode: en
-uuid: 67212880-6a63-453b-a902-2d13580f7d1c
+dependencies:
+  module:
+    - comment

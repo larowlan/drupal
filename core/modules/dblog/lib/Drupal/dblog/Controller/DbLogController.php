@@ -13,7 +13,6 @@ use Drupal\Component\Utility\Xss;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Datetime\Date;
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormBuilderInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -21,7 +20,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Returns responses for dblog routes.
  */
-class DbLogController extends ControllerBase implements ContainerInjectionInterface {
+class DbLogController extends ControllerBase {
 
   /**
    * The database service.
@@ -206,7 +205,7 @@ class DbLogController extends ControllerBase implements ContainerInjectionInterf
     }
 
     $build['dblog_table'] = array(
-      '#theme' => 'table',
+      '#type' => 'table',
       '#header' => $header,
       '#rows' => $rows,
       '#attributes' => array('id' => 'admin-dblog', 'class' => array('admin-dblog')),
@@ -281,7 +280,7 @@ class DbLogController extends ControllerBase implements ContainerInjectionInterf
         ),
       );
       $build['dblog_table'] = array(
-        '#theme' => 'table',
+        '#type' => 'table',
         '#rows' => $rows,
         '#attributes' => array('class' => array('dblog-event')),
       );
@@ -380,7 +379,7 @@ class DbLogController extends ControllerBase implements ContainerInjectionInterf
     }
 
     $build['dblog_top_table']  = array(
-      '#theme' => 'table',
+      '#type' => 'table',
       '#header' => $header,
       '#rows' => $rows,
       '#empty' => $this->t('No log messages available.'),

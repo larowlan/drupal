@@ -7,16 +7,16 @@
 
 namespace Drupal\entity_test\Entity;
 
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\FieldDefinition;
 
 /**
  * Defines a test entity class for base fields display.
  *
- * @EntityType(
+ * @ContentEntityType(
  *   id = "entity_test_base_field_display",
  *   label = @Translation("Test entity - base field display"),
  *   controllers = {
- *     "storage" = "Drupal\Core\Entity\FieldableDatabaseStorageController",
  *     "access" = "Drupal\entity_test\EntityTestAccessController",
  *     "form" = {
  *       "default" = "Drupal\entity_test\EntityTestFormController"
@@ -42,7 +42,7 @@ class EntityTestBaseFieldDisplay extends EntityTest {
   /**
    * {@inheritdoc}
    */
-  public static function baseFieldDefinitions($entity_type) {
+  public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
 
     $fields['test_no_display'] = FieldDefinition::create('text')

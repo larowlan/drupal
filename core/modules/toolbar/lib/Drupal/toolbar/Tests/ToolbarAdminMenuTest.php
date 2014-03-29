@@ -53,7 +53,7 @@ class ToolbarAdminMenuTest extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('block', 'menu', 'user', 'taxonomy', 'toolbar', 'language', 'test_page_test', 'locale');
+  public static $modules = array('node', 'block', 'menu', 'user', 'taxonomy', 'toolbar', 'language', 'test_page_test', 'locale');
 
   public static function getInfo() {
     return array(
@@ -73,6 +73,7 @@ class ToolbarAdminMenuTest extends WebTestBase {
       'bypass node access',
       'administer themes',
       'administer nodes',
+      'access content overview',
       'administer blocks',
       'administer menu',
       'administer modules',
@@ -410,6 +411,7 @@ class ToolbarAdminMenuTest extends WebTestBase {
       'translation' => 'untranslated',
     );
     $this->drupalPostForm('admin/config/regional/translate', $search, t('Filter'));
+    $this->assertNoText(t('No strings available'));
     $this->assertText($name, 'Search found the string as untranslated.');
 
     // Assume this is the only result.
@@ -437,6 +439,19 @@ class ToolbarAdminMenuTest extends WebTestBase {
     // subtrees hash are different.
     $this->assertTrue($new_subtree_hash, 'A valid hash value for the admin menu subtrees was created.');
     $this->assertNotEqual($original_subtree_hash, $new_subtree_hash, 'The user-specific subtree menu hash has been updated.');
+  }
+
+  /**
+   * Tests that the 'toolbar/subtrees/{hash}' is reachable.
+   */
+  function testSubtreesJsonRequest() {
+    $admin_user = $this->admin_user;
+    $this->drupalLogin($admin_user);
+    // Request a new page to refresh the drupalSettings object.
+    $subtrees_hash = $this->getSubtreesHash();
+
+    $this->drupalGetJSON('toolbar/subtrees/' . $subtrees_hash);
+    $this->assertResponse('200');
   }
 
   /**

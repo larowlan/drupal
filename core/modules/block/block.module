@@ -7,7 +7,7 @@
 
 use Drupal\block\BlockInterface;
 use Drupal\Component\Plugin\Exception\PluginException;
-use Drupal\Component\Utility\NestedArray;
+use Drupal\language\Entity\Language;
 use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 
 /**
@@ -94,29 +94,6 @@ function block_permission() {
 }
 
 /**
- * Implements hook_menu().
- *
- * @todo Clarify the documentation for the per-plugin block admin links.
- */
-function block_menu() {
-  $items['admin/structure/block'] = array(
-    'title' => 'Block layout',
-    'description' => 'Configure what block content appears in your site\'s sidebars and other regions.',
-    'route_name' => 'block.admin_display',
-  );
-  $items['admin/structure/block/manage/%block'] = array(
-    'title' => 'Configure block',
-    'route_name' => 'block.admin_edit',
-  );
-  $items['admin/structure/block/add/%/%'] = array(
-    'title' => 'Place block',
-    'type' => MENU_VISIBLE_IN_BREADCRUMB,
-    'route_name' => 'block.admin_add',
-  );
-  return $items;
-}
-
-/**
  * Implements hook_page_build().
  *
  * Renders blocks into their regions.
@@ -179,69 +156,16 @@ function block_page_build(&$page) {
 function block_get_blocks_by_region($region) {
   $build = array();
   if ($list = block_list($region)) {
-    $build = _block_get_renderable_region($list);
-  }
-  return $build;
-}
-
-/**
- * Gets an array of blocks suitable for drupal_render().
- *
- * @param $list
- *   A list of blocks such as that returned by block_list().
- *
- * @return
- *   A renderable array.
- */
-function _block_get_renderable_region($list = array()) {
-  $build = array();
-  // Block caching is not compatible with node_access modules. We also
-  // preserve the submission of forms in blocks, by fetching from cache
-  // only if the request method is 'GET' (or 'HEAD'). User 1 being out of
-  // the regular 'roles define permissions' schema, it brings too many
-  // chances of having unwanted output get in the cache and later be served
-  // to other users. We therefore exclude user 1 from block caching.
-  $not_cacheable = \Drupal::currentUser()->id() == 1 ||
-    count(\Drupal::moduleHandler()->getImplementations('node_grants')) ||
-    !\Drupal::request()->isMethodSafe();
-
-  foreach ($list as $key => $block) {
-    $settings = $block->get('settings');
-    if ($not_cacheable || in_array($settings['cache'], array(DRUPAL_NO_CACHE, DRUPAL_CACHE_CUSTOM))) {
-      // Non-cached blocks get built immediately.
-      if ($block->access()) {
+    foreach ($list as $key => $block) {
+      if ($block->access('view')) {
         $build[$key] = entity_view($block, 'block');
       }
     }
-    else {
-      $build[$key] = array(
-        '#block' => $block,
-        '#weight' => $block->get('weight'),
-        '#pre_render' => array('_block_get_renderable_block'),
-        '#cache' => array(
-          'keys' => array($key, $settings['module']),
-          'granularity' => $settings['cache'],
-          'bin' => 'block',
-          'tags' => array('content' => TRUE),
-        ),
-      );
-    }
-
-    // Add contextual links for this block; skip the main content block, since
-    // contextual links are basically output as tabs/local tasks already. Also
-    // skip the help block, since we assume that most users do not need or want
-    // to perform contextual actions on the help block, and the links needlessly
-    // draw attention on it.
-    if (isset($build[$key]) && !in_array($block->get('plugin'), array('system_help_block', 'system_main_block'))) {
-      $build[$key]['#contextual_links']['block'] = array(
-        'route_parameters' => array('block' => $key),
-      );
-
-      // If there are any nested contextual links, move them to the top level.
-      if (isset($build[$key]['content']['#contextual_links'])) {
-        $build[$key]['#contextual_links'] += $build[$key]['content']['#contextual_links'];
-        unset($build[$key]['content']['#contextual_links']);
-      }
+    // If none of the blocks in this region are visible, then don't set anything
+    // else in the render array, because that would cause the region to show up.
+    if (!empty($build)) {
+      // block_list() already returned the blocks in sorted order.
+      $build['#sorted'] = TRUE;
     }
   }
   return $build;
@@ -278,7 +202,7 @@ function _block_rehash($theme = NULL) {
       $block->disable()->save();
     }
     // Set region to none if not enabled.
-    if (!$status) {
+    if (!$status && $region != BlockInterface::BLOCK_REGION_NONE) {
       $block->set('region', BlockInterface::BLOCK_REGION_NONE);
       $block->save();
     }
@@ -369,9 +293,7 @@ function block_list($region) {
     $blocks[$region] = array();
   }
 
-  uasort($blocks[$region], function($first, $second) {
-    return $first->weight === $second->weight ? 0 : ($first->weight < $second->weight ? -1 : 1);
-  });
+  uasort($blocks[$region], 'Drupal\block\Entity\Block::sort');
 
   return $blocks[$region];
 }
@@ -389,26 +311,6 @@ function block_list($region) {
  */
 function block_load($entity_id) {
   return entity_load('block', $entity_id);
-}
-
-/**
- * Builds the content and label for a block.
- *
- * For cacheable blocks, this is called during #pre_render.
- *
- * @param $element
- *   A renderable array.
- *
- * @return
- *   A renderable array.
- */
-function _block_get_renderable_block($element) {
-  $block = $element['#block'];
-  // Don't bother to build blocks that aren't accessible.
-  if ($element['#access'] = $block->access()) {
-    $element += entity_view($block, 'block');
-  }
-  return $element;
 }
 
 /**
@@ -483,19 +385,14 @@ function template_preprocess_block(&$variables) {
   $variables['derivative_plugin_id'] = $variables['elements']['#derivative_plugin_id'];
   $variables['label'] = !empty($variables['configuration']['label_display']) ? $variables['configuration']['label'] : '';
   $variables['content'] = $variables['elements']['content'];
+  // A block's label is configuration: it is static. Allow dynamic labels to be
+  // set in the render array.
+  if (isset($variables['elements']['content']['#title']) && !empty($variables['configuration']['label_display'])) {
+    $variables['label'] = $variables['elements']['content']['#title'];
+  }
 
   $variables['attributes']['class'][] = 'block';
   $variables['attributes']['class'][] = drupal_html_class('block-' . $variables['configuration']['module']);
-
-  // The block template provides a wrapping element for the content. Render the
-  // #attributes of the content on this wrapping element rather than passing
-  // them through to the content's #theme function/template. This allows the
-  // content to not require a function/template at all, or if it does use one,
-  // to not require it to output an extra wrapping element.
-  if (isset($variables['content']['#attributes'])) {
-    $variables['content_attributes'] = NestedArray::mergeDeep($variables['content_attributes'], $variables['content']['#attributes']);
-    unset($variables['content']['#attributes']);
-  }
 
   // Add default class for block content.
   $variables['content_attributes']['class'][] = 'content';
@@ -534,63 +431,18 @@ function block_menu_delete($menu) {
 }
 
 /**
- * Implements hook_admin_paths().
- */
-function block_admin_paths() {
-  $paths = array(
-    // Exclude the block demonstration page from admin treatment.
-    // This allows us to present this page in its true form, full page.
-    'admin/structure/block/demo/*' => FALSE,
-  );
-  return $paths;
-}
-
-/**
- * Implements hook_language_delete().
+ * Implements hook_ENTITY_TYPE_delete() for 'language_entity'.
  *
  * Delete the potential block visibility settings of the deleted language.
  */
-function block_language_delete($language) {
+function block_language_entity_delete(Language $language) {
   // Remove the block visibility settings for the deleted language.
   foreach (entity_load_multiple('block') as $block) {
     $visibility = $block->get('visibility');
-    if (isset($visibility['language']['langcodes'][$language->id])) {
-      unset($visibility['language']['langcodes'][$language->id]);
+    if (isset($visibility['language']['langcodes'][$language->id()])) {
+      unset($visibility['language']['langcodes'][$language->id()]);
       $block->set('visibility', $visibility);
       $block->save();
     }
   }
-}
-
-/**
- * Implements hook_library_info().
- */
-function block_library_info() {
-  $libraries['drupal.block'] = array(
-    'title' => 'Block',
-    'version' => \Drupal::VERSION,
-    'js' => array(
-      drupal_get_path('module', 'block') . '/block.js' => array(),
-    ),
-    'dependencies' => array(
-      array('system', 'jquery'),
-      array('system', 'drupal'),
-    ),
-  );
-  $libraries['drupal.block.admin'] = array(
-    'title' => 'Block admin',
-    'version' => \Drupal::VERSION,
-    'js' => array(
-      drupal_get_path('module', 'block') . '/js/block.admin.js' => array(),
-    ),
-    'css' => array(
-      drupal_get_path('module', 'block') . '/css/block.admin.css' => array(),
-    ),
-    'dependencies' => array(
-      array('system', 'jquery'),
-      array('system', 'drupal'),
-    ),
-  );
-
-  return $libraries;
 }

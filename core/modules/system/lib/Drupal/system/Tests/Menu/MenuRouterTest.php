@@ -10,7 +10,7 @@ namespace Drupal\system\Tests\Menu;
 use Drupal\simpletest\WebTestBase;
 
 /**
- * Tests menu router and hook_menu() functionality.
+ * Tests menu router and default menu link functionality.
  */
 class MenuRouterTest extends WebTestBase {
 
@@ -45,7 +45,7 @@ class MenuRouterTest extends WebTestBase {
   public static function getInfo() {
     return array(
       'name' => 'Menu router',
-      'description' => 'Tests menu router and hook_menu() functionality.',
+      'description' => 'Tests menu router and default menu links functionality.',
       'group' => 'Menu',
     );
   }
@@ -62,17 +62,13 @@ class MenuRouterTest extends WebTestBase {
    */
   public function testMenuIntegration() {
     $this->doTestTitleMenuCallback();
-    $this->doTestMenuSetItem();
     $this->doTestMenuOptionalPlaceholders();
     $this->doTestMenuOnRoute();
-    $this->doTestMenuHidden();
-    $this->doTestMenuGetItemNoAncestors();
     $this->doTestMenuName();
     $this->doTestMenuItemTitlesCases();
     $this->doTestMenuLinkMaintain();
     $this->doTestMenuLinkOptions();
     $this->doTestMenuItemHooks();
-    $this->doTestDescriptionMenuItems();
     $this->doTestHookMenuIntegration();
     $this->doTestExoticPath();
   }
@@ -122,14 +118,13 @@ class MenuRouterTest extends WebTestBase {
     // Verify that the menu router item title is output as page title.
     $this->drupalGet('menu_callback_description');
     $this->assertText(t('Menu item description text'));
-    $this->assertRaw(check_plain('<strong>Menu item description arguments</strong>'));
   }
 
   /**
    * Tests for menu_link_maintain().
    */
   protected function doTestMenuLinkMaintain() {
-    $admin_user = $this->drupalCreateUser(array('access content', 'administer site configuration'));
+    $admin_user = $this->drupalCreateUser(array('administer site configuration'));
     $this->drupalLogin($admin_user);
 
     // Create three menu items.
@@ -138,13 +133,11 @@ class MenuRouterTest extends WebTestBase {
     menu_link_maintain('menu_test', 'insert', 'menu_test_maintain/2', 'Menu link #2');
 
     // Move second link to the main-menu, to test caching later on.
-    db_update('menu_links')
-      ->fields(array('menu_name' => 'main'))
-      ->condition('link_title', 'Menu link #1-main')
-      ->condition('customized', 0)
-      ->condition('module', 'menu_test')
-      ->execute();
-    menu_cache_clear_all();
+    $menu_links_to_update = entity_load_multiple_by_properties('menu_link', array('link_title' => 'Menu link #1-main', 'customized' => 0, 'module' => 'menu_test'));
+    foreach ($menu_links_to_update as $menu_link) {
+      $menu_link->menu_name = 'main';
+      $menu_link->save();
+    }
 
     // Load front page.
     $this->drupalGet('');
@@ -172,13 +165,13 @@ class MenuRouterTest extends WebTestBase {
   }
 
   /**
-   * Tests for menu_name parameter for hook_menu().
+   * Tests for menu_name parameter for default menu links.
    */
   protected function doTestMenuName() {
     $admin_user = $this->drupalCreateUser(array('administer site configuration'));
     $this->drupalLogin($admin_user);
 
-    $menu_links = entity_load_multiple_by_properties('menu_link', array('router_path' => 'menu_name_test'));
+    $menu_links = entity_load_multiple_by_properties('menu_link', array('link_path' => 'menu_name_test'));
     $menu_link = reset($menu_links);
     $this->assertEqual($menu_link->menu_name, 'original', 'Menu name is "original".');
 
@@ -186,9 +179,8 @@ class MenuRouterTest extends WebTestBase {
     // rebuild.
     menu_test_menu_name('changed');
     \Drupal::service('router.builder')->rebuild();
-    menu_router_rebuild();
 
-    $menu_links = entity_load_multiple_by_properties('menu_link', array('router_path' => 'menu_name_test'));
+    $menu_links = entity_load_multiple_by_properties('menu_link', array('link_path' => 'menu_name_test'));
     $menu_link = reset($menu_links);
     $this->assertEqual($menu_link->menu_name, 'changed', 'Menu name was successfully changed after rebuild.');
   }
@@ -206,112 +198,6 @@ class MenuRouterTest extends WebTestBase {
 
     $this->assertEqual($child_link['plid'], $parent_link['mlid'], 'The parent of a directly attached child is correct.');
     $this->assertEqual($unattached_child_link['plid'], $parent_link['mlid'], 'The parent of a non-directly attached child is correct.');
-  }
-
-  /**
-   * Tests menu link depth and parents of local tasks and menu callbacks.
-   */
-  protected function doTestMenuHidden() {
-    // Verify links for one dynamic argument.
-    $query = \Drupal::entityQuery('menu_link')
-      ->condition('router_path', 'menu-test/hidden/menu', 'STARTS_WITH')
-      ->sort('router_path');
-    $result = $query->execute();
-    $menu_links = menu_link_load_multiple($result);
-
-    $links = array();
-    foreach ($menu_links as $menu_link) {
-      $links[$menu_link->router_path] = $menu_link;
-    }
-
-    $parent = $links['menu-test/hidden/menu'];
-    $depth = $parent['depth'] + 1;
-    $plid = $parent['mlid'];
-
-    $link = $links['menu-test/hidden/menu/list'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    $link = $links['menu-test/hidden/menu/settings'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    $link = $links['menu-test/hidden/menu/manage/%'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    $parent = $links['menu-test/hidden/menu/manage/%'];
-    $depth = $parent['depth'] + 1;
-    $plid = $parent['mlid'];
-
-    $link = $links['menu-test/hidden/menu/manage/%/list'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    $link = $links['menu-test/hidden/menu/manage/%/edit'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    $link = $links['menu-test/hidden/menu/manage/%/delete'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    // Verify links for two dynamic arguments.
-    $query = \Drupal::entityQuery('menu_link')
-      ->condition('router_path', 'menu-test/hidden/block', 'STARTS_WITH')
-      ->sort('router_path');
-    $result = $query->execute();
-    $menu_links = menu_link_load_multiple($result);
-
-    $links = array();
-    foreach ($menu_links as $menu_link) {
-      $links[$menu_link->router_path] = $menu_link;
-    }
-
-    $parent = $links['menu-test/hidden/block'];
-    $depth = $parent['depth'] + 1;
-    $plid = $parent['mlid'];
-
-    $link = $links['menu-test/hidden/block/list'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    $link = $links['menu-test/hidden/block/manage/%/%'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-
-    $parent = $links['menu-test/hidden/block/manage/%/%'];
-    $depth = $parent['depth'] + 1;
-    $plid = $parent['mlid'];
-
-    $link = $links['menu-test/hidden/block/manage/%/%/delete'];
-    $this->assertEqual($link['depth'], $depth, format_string('%path depth @link_depth is equal to @depth.', array('%path' => $link['router_path'], '@link_depth' => $link['depth'], '@depth' => $depth)));
-    $this->assertEqual($link['plid'], $plid, format_string('%path plid @link_plid is equal to @plid.', array('%path' => $link['router_path'], '@link_plid' => $link['plid'], '@plid' => $plid)));
-  }
-
-  /**
-   * Test menu_get_item() with empty ancestors.
-   */
-  protected function doTestMenuGetItemNoAncestors() {
-    \Drupal::state()->set('menu.masks', array());
-    $this->drupalGet('');
-  }
-
-  /**
-   * Test menu_set_item().
-   */
-  protected function doTestMenuSetItem() {
-    $item = menu_get_item('test-page');
-
-    $this->assertEqual($item['path'], 'test-page', "Path from menu_get_item('test-page') is equal to 'test-page'", 'menu');
-
-    // Modify the path for the item then save it.
-    $item['path'] = 'test-page-test';
-    $item['href'] = 'test-page-test';
-
-    menu_set_item('test-page', $item);
-    $compare_item = menu_get_item('test-page');
-    $this->assertEqual($compare_item, $item, 'Modified menu item is equal to newly retrieved menu item.', 'menu');
   }
 
   /**
@@ -364,9 +250,8 @@ class MenuRouterTest extends WebTestBase {
     // Build array with string overrides.
     $test_data = array(
       1 => array('Example title - Case 1' => 'Alternative example title - Case 1'),
-      2 => array('Example @sub1 - Case @op2' => 'Alternative example @sub1 - Case @op2'),
+      2 => array('Example title' => 'Alternative example title'),
       3 => array('Example title' => 'Alternative example title'),
-      4 => array('Example title' => 'Alternative example title'),
     );
 
     foreach ($test_data as $case_no => $override) {
@@ -423,7 +308,6 @@ class MenuRouterTest extends WebTestBase {
     $this->assertLinkByHref('menu-title-test/case1');
     $this->assertLinkByHref('menu-title-test/case2');
     $this->assertLinkByHref('menu-title-test/case3');
-    $this->assertLinkByHref('menu-title-test/case4');
   }
 
   /**

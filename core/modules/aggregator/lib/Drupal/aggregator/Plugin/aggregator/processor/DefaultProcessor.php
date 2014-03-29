@@ -7,11 +7,13 @@
 
 namespace Drupal\aggregator\Plugin\aggregator\processor;
 
+use Drupal\aggregator\ItemStorageInterface;
 use Drupal\aggregator\Plugin\AggregatorPluginSettingsBase;
 use Drupal\aggregator\Plugin\ProcessorInterface;
-use Drupal\aggregator\Entity\Feed;
+use Drupal\aggregator\FeedInterface;
 use Drupal\Core\Database\Database;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\Query\QueryInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -31,9 +33,23 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
   /**
    * Contains the configuration object factory.
    *
-   * @var \Drupal\Core\Config\ConfigFactory
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
+
+  /**
+   * The entity query object for feed items.
+   *
+   * @var \Drupal\Core\Entity\Query\QueryInterface
+   */
+  protected $itemQuery;
+
+  /**
+   * The entity storage for items.
+   *
+   * @var \Drupal\aggregator\ItemStorageInterface
+   */
+  protected $itemStorage;
 
   /**
    * Constructs a DefaultProcessor object.
@@ -44,11 +60,17 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
    *   The plugin_id for the plugin instance.
    * @param array $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Config\ConfigFactory $config
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   The configuration factory object.
+   * @param \Drupal\Core\Entity\Query\QueryInterface $item_query
+   *   The entity query object for feed items.
+   * @param \Drupal\aggregator\ItemStorageInterface $item_storage
+   *   The entity storage for feed items.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ConfigFactory $config) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ConfigFactoryInterface $config, QueryInterface $item_query, ItemStorageInterface $item_storage) {
     $this->configFactory = $config;
+    $this->itemStorage = $item_storage;
+    $this->itemQuery = $item_query;
     // @todo Refactor aggregator plugins to ConfigEntity so merging
     //   the configuration here is not needed.
     parent::__construct($configuration + $this->getConfiguration(), $plugin_id, $plugin_definition);
@@ -62,7 +84,9 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('entity.query')->get('aggregator_item'),
+      $container->get('entity.manager')->getStorage('aggregator_item')
     );
   }
 
@@ -72,8 +96,12 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
   public function buildConfigurationForm(array $form, array &$form_state) {
     $processors = $this->configuration['processors'];
     $info = $this->getPluginDefinition();
-    $items = drupal_map_assoc(array(3, 5, 10, 15, 20, 25), array($this, 'formatItems'));
-    $period = drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
+    $counts = array(3, 5, 10, 15, 20, 25);
+    $items = array_map(function ($count) {
+      return format_plural($count, '1 item', '@count items');
+    }, array_combine($counts, $counts));
+    $intervals = array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800);
+    $period = array_map('format_interval', array_combine($intervals, $intervals));
     $period[AGGREGATOR_CLEAR_NEVER] = t('Never');
 
     $form['processors'][$info['id']] = array();
@@ -83,7 +111,7 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
         '#type' => 'details',
         '#title' => t('Default processor settings'),
         '#description' => $info['description'],
-        '#collapsed' => !in_array($info['id'], $processors),
+        '#open' => in_array($info['id'], $processors),
       );
     }
 
@@ -103,11 +131,16 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
       '#description' => t('Requires a correctly configured <a href="@cron">cron maintenance task</a>.', array('@cron' => url('admin/reports/status'))),
     );
 
+    $lengths = array(0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000);
+    $options = array_map(function($length) {
+      return ($length == 0) ? t('Unlimited') : format_plural($length, '1 character', '@count characters');
+    }, array_combine($lengths, $lengths));
+
     $form['processors'][$info['id']]['aggregator_teaser_length'] = array(
       '#type' => 'select',
       '#title' => t('Length of trimmed description'),
       '#default_value' => $this->configuration['items']['teaser_length'],
-      '#options' => drupal_map_assoc(array(0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000), array($this, 'formatCharacters')),
+      '#options' => $options,
       '#description' => t('The maximum number of characters used in the trimmed version of content.'),
     );
     return $form;
@@ -127,7 +160,7 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
   /**
    * {@inheritdoc}
    */
-  public function process(Feed $feed) {
+  public function process(FeedInterface $feed) {
     if (!is_array($feed->items)) {
       return;
     }
@@ -169,8 +202,14 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
 
       $entry->setFeedId($feed->id());
       $entry->setLink($item['link']);
-      $entry->setDescription($item['description']);
       $entry->setGuid($item['guid']);
+
+      $description = '';
+      if (!empty($item['description'])) {
+        $description = $item['description'];
+      }
+      $entry->setDescription($description);
+
       $entry->save();
     }
   }
@@ -178,13 +217,12 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
   /**
    * {@inheritdoc}
    */
-  public function remove(Feed $feed) {
-    $iids = Database::getConnection()->query('SELECT iid FROM {aggregator_item} WHERE fid = :fid', array(':fid' => $feed->id()))->fetchCol();
-    if ($iids) {
-      entity_delete_multiple('aggregator_item', $iids);
+  public function delete(FeedInterface $feed) {
+    if ($items = $this->itemStorage->loadByFeed($feed->id())) {
+      $this->itemStorage->delete($items);
     }
     // @todo This should be moved out to caller with a different message maybe.
-    drupal_set_message(t('The news items from %site have been removed.', array('%site' => $feed->label())));
+    drupal_set_message(t('The news items from %site have been deleted.', array('%site' => $feed->label())));
   }
 
   /**
@@ -192,19 +230,19 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
    *
    * Expires items from a feed depending on expiration settings.
    */
-  public function postProcess(Feed $feed) {
+  public function postProcess(FeedInterface $feed) {
     $aggregator_clear = $this->configuration['items']['expire'];
 
     if ($aggregator_clear != AGGREGATOR_CLEAR_NEVER) {
-      // Remove all items that are older than flush item timer.
+      // Delete all items that are older than flush item timer.
       $age = REQUEST_TIME - $aggregator_clear;
-      $iids = Database::getConnection()->query('SELECT iid FROM {aggregator_item} WHERE fid = :fid AND timestamp < :timestamp', array(
-        ':fid' => $feed->id(),
-        ':timestamp' => $age,
-      ))
-      ->fetchCol();
-      if ($iids) {
-        entity_delete_multiple('aggregator_item', $iids);
+      $result = $this->itemQuery
+        ->condition('fid', $feed->id())
+        ->condition('timestamp', $age, '<')
+        ->execute();
+      if ($result) {
+        $entities = $this->itemStorage->loadMultiple($result);
+        $this->itemStorage->delete($entities);
       }
     }
   }
@@ -225,34 +263,6 @@ class DefaultProcessor extends AggregatorPluginSettingsBase implements Processor
       $config->set($key, $value);
     }
     $config->save();
-  }
-
-  /**
-   * Helper function for drupal_map_assoc.
-   *
-   * @param int $count
-   *   Items count.
-   *
-   * @return string
-   *   A string that is plural-formatted as "@count items".
-   */
-  protected function formatItems($count) {
-    return format_plural($count, '1 item', '@count items');
-  }
-
-  /**
-   * Creates display text for teaser length option values.
-   *
-   * Callback for drupal_map_assoc() within settingsForm().
-   *
-   * @param int $length
-   *   The desired length of teaser text, in bytes.
-   *
-   * @return string
-   *   A translated string explaining the teaser string length.
-   */
-  protected function formatCharacters($length) {
-    return ($length == 0) ? t('Unlimited') : format_plural($length, '1 character', '@count characters');
   }
 
 }

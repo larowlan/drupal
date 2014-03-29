@@ -17,7 +17,7 @@ use Drupal\user;
  * An entity field item.
  *
  * Entity field items making use of this base class have to implement
- * ComplexDataInterface::getPropertyDefinitions().
+ * the static method propertyDefinitions().
  *
  * @see \Drupal\Core\Field\FieldItemInterface
  */
@@ -26,11 +26,32 @@ abstract class FieldItemBase extends Map implements FieldItemInterface {
   /**
    * {@inheritdoc}
    */
+  public static function defaultSettings() {
+    return array();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function defaultInstanceSettings() {
+    return array();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function mainPropertyName() {
+    return 'value';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function __construct(DataDefinitionInterface $definition, $name = NULL, TypedDataInterface $parent = NULL) {
     parent::__construct($definition, $name, $parent);
     // Initialize computed properties by default, such that they get cloned
     // with the whole item.
-    foreach ($this->getPropertyDefinitions() as $name => $definition) {
+    foreach ($this->definition->getPropertyDefinitions() as $name => $definition) {
       if ($definition->isComputed()) {
         $this->properties[$name] = \Drupal::typedDataManager()->getPropertyInstance($this, $name);
       }
@@ -64,7 +85,7 @@ abstract class FieldItemBase extends Map implements FieldItemInterface {
    * @return array
    *   The array of settings.
    */
-  protected function getFieldSettings() {
+  protected function getSettings() {
     return $this->getFieldDefinition()->getSettings();
   }
 
@@ -77,7 +98,7 @@ abstract class FieldItemBase extends Map implements FieldItemInterface {
    * @return mixed
    *   The setting value.
    */
-  protected function getFieldSetting($setting_name) {
+  protected function getSetting($setting_name) {
     return $this->getFieldDefinition()->getSetting($setting_name);
   }
 
@@ -91,7 +112,7 @@ abstract class FieldItemBase extends Map implements FieldItemInterface {
     // Treat the values as property value of the first property, if no array is
     // given.
     if (isset($values) && !is_array($values)) {
-      $keys = array_keys($this->getPropertyDefinitions());
+      $keys = array_keys($this->definition->getPropertyDefinitions());
       $values = array($keys[0] => $values);
     }
     $this->values = $values;
@@ -189,6 +210,14 @@ abstract class FieldItemBase extends Map implements FieldItemInterface {
   /**
    * {@inheritdoc}
    */
+  public function view($display_options = array()) {
+    $view_builder = \Drupal::entityManager()->getViewBuilder($this->getEntity()->getEntityTypeId());
+    return $view_builder->viewFieldItem($this, $display_options);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function preSave() { }
 
   /**
@@ -214,8 +243,15 @@ abstract class FieldItemBase extends Map implements FieldItemInterface {
   /**
    * {@inheritdoc}
    */
-  public function getMainPropertyName() {
-    return 'value';
+  public function settingsForm(array $form, array &$form_state, $has_data) {
+    return array();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function instanceSettingsForm(array $form, array &$form_state) {
+    return array();
   }
 
 }

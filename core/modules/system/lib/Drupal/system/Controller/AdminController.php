@@ -7,40 +7,12 @@
 
 namespace Drupal\system\Controller;
 
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
-use Drupal\Core\Extension\ModuleHandlerInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Controller\ControllerBase;
 
 /**
  * Controller for admin section.
  */
-class AdminController implements ContainerInjectionInterface {
-
-  /**
-   * Module handler service.
-   *
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface
-   */
-  protected $moduleHandler;
-
-  /**
-   * Constructs an AdminController object.
-   *
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
-   *   Module Handler Service.
-   */
-  public function __construct(ModuleHandlerInterface $module_handler) {
-    $this->moduleHandler = $module_handler;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('module_handler')
-    );
-  }
+class AdminController extends ControllerBase {
 
   /**
    * Prints a listing of admin tasks, organized by module.
@@ -62,9 +34,9 @@ class AdminController implements ContainerInjectionInterface {
       // Only display a section if there are any available tasks.
       if ($admin_tasks = system_get_module_admin_tasks($module, $info->info)) {
         // Sort links by title.
-        uasort($admin_tasks, 'drupal_sort_title');
+        uasort($admin_tasks, array('\Drupal\Component\Utility\SortArray', 'sortByTitleElement'));
         // Move 'Configure permissions' links to the bottom of each section.
-        $permission_key = "admin/people/permissions#module-$module";
+        $permission_key = "user.admin.people.permissions.$module";
         if (isset($admin_tasks[$permission_key])) {
           $permission_task = $admin_tasks[$permission_key];
           unset($admin_tasks[$permission_key]);
@@ -82,4 +54,5 @@ class AdminController implements ContainerInjectionInterface {
 
     return $output;
   }
+
 }

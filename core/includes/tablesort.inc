@@ -3,14 +3,15 @@
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Query\SelectExtender;
 use Drupal\Core\Database\Query\SelectInterface;
-use Drupal\Component\Utility\Url;
+use Drupal\Component\Utility\UrlHelper;
 
 /**
  * @file
  * Functions to aid in the creation of sortable tables.
  *
- * All tables created with a call to theme('table') have the option of having
- * column headers that the user can click on to sort the table by that column.
+ * All tables created when rendering a '#type' => 'table' have the option of
+ * having column headers that the user can click on to sort the table by that
+ * column.
  */
 
 /**
@@ -32,7 +33,7 @@ function tablesort_init($header) {
  * @param $cell
  *   The cell to format.
  * @param $header
- *   An array of column headers in the format described in theme_table().
+ *   An array of column headers in the format described in '#type' => 'table'.
  * @param $ts
  *   The current table sort context as returned from tablesort_init().
  *
@@ -50,7 +51,11 @@ function tablesort_header($cell, $header, $ts) {
       $cell['aria-sort'] = ($ts['sort'] == 'asc') ? 'ascending' : 'descending';
       $ts['sort'] = (($ts['sort'] == 'asc') ? 'desc' : 'asc');
       $cell['class'][] = 'active';
-      $image = theme('tablesort_indicator', array('style' => $ts['sort']));
+      $tablesort_indicator = array(
+        '#theme' => 'tablesort_indicator',
+        '#style' => $ts['sort'],
+      );
+      $image = drupal_render($tablesort_indicator);
     }
     else {
       // If the user clicks a different header, we want to sort ascending initially.
@@ -72,7 +77,7 @@ function tablesort_header($cell, $header, $ts) {
  * @param $cell
  *   The cell to format.
  * @param $header
- *   An array of column headers in the format described in theme_table().
+ *   An array of column headers in the format described in '#type' => 'table'.
  * @param $ts
  *   The current table sort context as returned from tablesort_init().
  * @param $i
@@ -101,14 +106,14 @@ function tablesort_cell($cell, $header, $ts, $i) {
  *   page request except for those pertaining to table sorting.
  */
 function tablesort_get_query_parameters() {
-  return Url::filterQueryParameters(\Drupal::request()->query->all(), array('sort', 'order'));
+  return UrlHelper::filterQueryParameters(\Drupal::request()->query->all(), array('sort', 'order'));
 }
 
 /**
  * Determines the current sort criterion.
  *
  * @param $headers
- *   An array of column headers in the format described in theme_table().
+ *   An array of column headers in the format described in '#type' => 'table'.
  *
  * @return
  *   An associative array describing the criterion, containing the keys:
@@ -145,7 +150,7 @@ function tablesort_get_order($headers) {
  * Determines the current sort direction.
  *
  * @param $headers
- *   An array of column headers in the format described in theme_table().
+ *   An array of column headers in the format described in '#type' => 'table'.
  *
  * @return
  *   The current sort direction ("asc" or "desc").

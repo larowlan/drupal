@@ -10,12 +10,12 @@ namespace Drupal\file\Tests;
 /**
  * Move related tests
  */
-class MoveTest extends FileManagedTestBase {
+class MoveTest extends FileManagedUnitTestBase {
   public static function getInfo() {
     return array(
       'name' => 'File moving',
       'description' => 'Tests the file move function.',
-      'group' => 'File API',
+      'group' => 'File Managed API',
     );
   }
 

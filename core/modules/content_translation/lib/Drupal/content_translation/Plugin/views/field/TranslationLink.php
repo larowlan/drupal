@@ -16,7 +16,7 @@ use Drupal\views\ResultRow;
  *
  * @ingroup views_field_handlers
  *
- * @PluginID("content_translation_link")
+ * @ViewsField("content_translation_link")
  */
 class TranslationLink extends FieldPluginBase {
 
@@ -64,8 +64,7 @@ class TranslationLink extends FieldPluginBase {
       $text = !empty($this->options['text']) ? $this->options['text'] : t('translate');
 
       $this->options['alter']['make_link'] = TRUE;
-      $uri = $entity->uri();
-      $this->options['alter']['path'] = $uri['path'] . '/translations';
+      $this->options['alter']['path'] = $entity->getSystemPath('drupal:content-translation-overview');
 
       return $text;
     }

@@ -5,6 +5,7 @@
  * Administration functions for language.module.
  */
 
+use Drupal\Component\Utility\String;
 use Drupal\Core\Language\LanguageManager;
 
 /**
@@ -39,7 +40,7 @@ function theme_language_negotiation_configure_form($variables) {
 
   foreach ($form['#language_types'] as $type) {
     $rows = array();
-    $title = '<h4 class="label">' . $form[$type]['#title'] . '</h4>';
+    $title = '<h2>' . $form[$type]['#title'] . '</h2>';
     $description = '<div class="description">' . $form[$type]['#description'] . '</div>';
 
     foreach ($form[$type]['title'] as $id => $element) {
@@ -139,7 +140,7 @@ function theme_language_negotiation_configure_browser_form_table($variables) {
   );
 
   $table = array(
-    '#theme' => 'table',
+    '#type' => 'table',
     '#header' => $header,
     '#rows' => $rows,
     '#attributes' => array('id' => 'lang-neg-browser'),
@@ -152,7 +153,8 @@ function theme_language_negotiation_configure_browser_form_table($variables) {
 /**
  * Returns the content language settings form.
  *
- * @deprecated Use \Drupal\language\Controller\LanguageController::contentSettings()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal\language\Controller\LanguageController::contentSettings().
  */
 function language_content_settings_page() {
   return drupal_get_form('language_content_settings_form', language_entity_supported());
@@ -169,21 +171,21 @@ function language_content_settings_page() {
  * @ingroup forms
  */
 function language_content_settings_form(array $form, array $form_state, array $supported) {
-  $entity_info = \Drupal::entityManager()->getDefinitions();
+  $entity_types = \Drupal::entityManager()->getDefinitions();
   $labels = array();
   $default = array();
 
-  foreach ($supported as $entity_type) {
-    $labels[$entity_type] = $entity_info[$entity_type]->getLabel() ?: $entity_type;
-    $default[$entity_type] = FALSE;
+  foreach ($supported as $entity_type_id) {
+    $labels[$entity_type_id] = $entity_types[$entity_type_id]->getLabel() ?: $entity_type_id;
+    $default[$entity_type_id] = FALSE;
 
     // Check whether we have any custom setting.
-    foreach (entity_get_bundles($entity_type) as $bundle => $bundle_info) {
-      $conf = language_get_default_configuration($entity_type, $bundle);
+    foreach (entity_get_bundles($entity_type_id) as $bundle => $bundle_info) {
+      $conf = language_get_default_configuration($entity_type_id, $bundle);
       if (!empty($conf['language_show']) || $conf['langcode'] != 'site_default') {
-        $default[$entity_type] = $entity_type;
+        $default[$entity_type_id] = $entity_type_id;
       }
-      $language_configuration[$entity_type][$bundle] = $conf;
+      $language_configuration[$entity_type_id][$bundle] = $conf;
     }
   }
 
@@ -206,33 +208,33 @@ function language_content_settings_form(array $form, array $form_state, array $s
 
   $form['settings'] = array('#tree' => TRUE);
 
-  foreach ($labels as $entity_type => $label) {
-    $info = $entity_info[$entity_type];
+  foreach ($labels as $entity_type_id => $label) {
+    $entity_type = $entity_types[$entity_type_id];
 
-    $form['settings'][$entity_type] = array(
+    $form['settings'][$entity_type_id] = array(
       '#title' => $label,
       '#type' => 'container',
-      '#entity_type' => $entity_type,
+      '#entity_type' => $entity_type_id,
       '#theme' => 'language_content_settings_table',
-      '#bundle_label' => $info->getBundleLabel() ?: $label,
+      '#bundle_label' => $entity_type->getBundleLabel() ?: $label,
       '#states' => array(
         'visible' => array(
-          ':input[name="entity_types[' . $entity_type . ']"]' => array('checked' => TRUE),
+          ':input[name="entity_types[' . $entity_type_id . ']"]' => array('checked' => TRUE),
         ),
       ),
     );
 
-    foreach (entity_get_bundles($entity_type) as $bundle => $bundle_info) {
-      $form['settings'][$entity_type][$bundle]['settings'] = array(
+    foreach (entity_get_bundles($entity_type_id) as $bundle => $bundle_info) {
+      $form['settings'][$entity_type_id][$bundle]['settings'] = array(
         '#type' => 'item',
         '#label' => $bundle_info['label'],
         'language' => array(
           '#type' => 'language_configuration',
           '#entity_information' => array(
-            'entity_type' => $entity_type,
+            'entity_type' => $entity_type_id,
             'bundle' => $bundle,
           ),
-          '#default_value' => $language_configuration[$entity_type][$bundle],
+          '#default_value' => $language_configuration[$entity_type_id][$bundle],
         ),
       );
     }
@@ -273,7 +275,7 @@ function template_preprocess_language_content_settings_table(&$variables) {
           'data' => array(
             '#prefix' => '<label>',
             '#suffix' => '</label>',
-            '#markup' => check_plain($element[$bundle]['settings']['#label']),
+            '#markup' => String::checkPlain($element[$bundle]['settings']['#label']),
           ),
           'class' => array('bundle'),
         ),
@@ -290,7 +292,7 @@ function template_preprocess_language_content_settings_table(&$variables) {
     '#title' => $element['#title'],
     '#header' => $header,
     '#rows' => $rows,
-    '#theme' => 'table',
+    '#type' => 'table',
   );
 }
 

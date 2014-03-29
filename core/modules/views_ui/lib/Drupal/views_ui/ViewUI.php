@@ -7,8 +7,10 @@
 
 namespace Drupal\views_ui;
 
+use Drupal\Component\Utility\String;
+use Drupal\Component\Utility\Timer;
 use Drupal\views\Views;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\views\ViewExecutable;
 use Drupal\Core\Database\Database;
 use Drupal\Core\TypedData\TypedDataInterface;
@@ -100,7 +102,7 @@ class ViewUI implements ViewStorageInterface {
   /**
    * The View storage object.
    *
-   * @var \Drupal\views\Entity\View
+   * @var \Drupal\views\ViewStorageInterface
    */
   protected $storage;
 
@@ -145,6 +147,13 @@ class ViewUI implements ViewStorageInterface {
    * @var bool
    */
   private $isSyncing = FALSE;
+
+  /**
+   * Whether the config is being deleted through the uninstall process.
+   *
+   * @var bool
+   */
+  private $isUninstalling = FALSE;
 
   /**
    * Constructs a View UI object.
@@ -205,8 +214,22 @@ class ViewUI implements ViewStorageInterface {
   /**
    * {@inheritdoc}
    */
+  public function setUninstalling($isUninstalling) {
+    $this->isUninstalling = $isUninstalling;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function isSyncing() {
     return $this->isSyncing;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isUninstalling() {
+    return $this->isUninstalling;
   }
 
   /**
@@ -277,10 +300,7 @@ class ViewUI implements ViewStorageInterface {
       $this->cacheSet();
     }
 
-    $form_state['redirect_route'] = array(
-      'route_name' => 'views_ui.edit',
-      'route_parameters' => array('view' => $this->id()),
-    );
+    $form_state['redirect_route'] = $this->urlInfo('edit-form');
   }
 
   /**
@@ -455,7 +475,7 @@ class ViewUI implements ViewStorageInterface {
    */
   public function submitItemAdd($form, &$form_state) {
     $type = $form_state['type'];
-    $types = ViewExecutable::viewsHandlerTypes();
+    $types = ViewExecutable::getHandlerTypes();
     $section = $types[$type]['plural'];
 
     // Handle the override select.
@@ -612,7 +632,7 @@ class ViewUI implements ViewStorageInterface {
 
       $show_additional_queries = $config->get('ui.show.additional_queries');
 
-      timer_start('views_ui.preview');
+      Timer::start('views_ui.preview');
 
       if ($show_additional_queries) {
         $this->startQueryCapture();
@@ -626,7 +646,7 @@ class ViewUI implements ViewStorageInterface {
         $this->endQueryCapture();
       }
 
-      $this->render_time = timer_stop('views_ui.preview');
+      $this->render_time = Timer::stop('views_ui.preview');
 
       views_ui_contextual_links_suppress_pop();
 
@@ -656,7 +676,7 @@ class ViewUI implements ViewStorageInterface {
                 }
               }
             }
-            $rows['query'][] = array('<strong>' . t('Query') . '</strong>', '<pre>' . check_plain(strtr($query_string, $quoted)) . '</pre>');
+            $rows['query'][] = array('<strong>' . t('Query') . '</strong>', '<pre>' . String::checkPlain(strtr($query_string, $quoted)) . '</pre>');
             if (!empty($this->additionalQueries)) {
               $queries = '<strong>' . t('These queries were run during view rendering:') . '</strong>';
               foreach ($this->additionalQueries as $query) {
@@ -713,7 +733,7 @@ class ViewUI implements ViewStorageInterface {
     // Assemble the preview, the query info, and the query statistics in the
     // requested order.
     $table = array(
-      '#theme' => 'table',
+      '#type' => 'table',
       '#prefix' => '<div class="views-query-info">',
       '#suffix' => '</div>',
     );
@@ -841,10 +861,10 @@ class ViewUI implements ViewStorageInterface {
   }
 
   /**
-   * Implements \Drupal\Core\Entity\EntityInterface::entityType().
+   * {@inheritdoc}
    */
-  public function entityType() {
-    return $this->storage->entityType();
+  public function getEntityTypeId() {
+    return $this->storage->getEntityTypeId();
   }
 
   /**
@@ -855,10 +875,10 @@ class ViewUI implements ViewStorageInterface {
   }
 
   /**
-   * Implements \Drupal\Core\Entity\EntityInterface::entityInfo().
+   * {@inheritdoc}
    */
-  public function entityInfo() {
-    return $this->storage->entityInfo();
+  public function getEntityType() {
+    return $this->storage->getEntityType();
   }
 
   /**
@@ -885,8 +905,15 @@ class ViewUI implements ViewStorageInterface {
   /**
    * Implements \Drupal\Core\Entity\EntityInterface::uri().
    */
-  public function uri() {
-    return $this->storage->uri();
+  public function urlInfo($rel = 'edit-form') {
+    return $this->storage->urlInfo($rel);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getSystemPath($rel = 'edit-form') {
+    return $this->storage->getSystemPath($rel);
   }
 
   /**
@@ -904,10 +931,10 @@ class ViewUI implements ViewStorageInterface {
   }
 
   /**
-   * Implements \Drupal\Core\Entity\EntityInterface::getExportProperties().
+   * {@inheritdoc}
    */
-  public function getExportProperties() {
-    return $this->storage->getExportProperties();
+  public function toArray() {
+    return $this->storage->toArray();
   }
 
 
@@ -1003,10 +1030,10 @@ class ViewUI implements ViewStorageInterface {
   }
 
   /**
-   * Implements \Drupal\Core\TypedData\TypedDataInterface::getDefinition().
+   * Implements \Drupal\Core\TypedData\TypedDataInterface::getDataDefinition().
    */
-  public function getDefinition() {
-    return $this->storage->getDefinition();
+  public function getDataDefinition() {
+    return $this->storage->getDataDefinition();
   }
 
   /**
@@ -1096,46 +1123,46 @@ class ViewUI implements ViewStorageInterface {
   /**
    * {@inheritdoc}
    */
-  public function preSave(EntityStorageControllerInterface $storage_controller) {
-    $this->storage->presave($storage_controller);
+  public function preSave(EntityStorageInterface $storage) {
+    $this->storage->presave($storage);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
-    $this->storage->postSave($storage_controller, $update);
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    $this->storage->postSave($storage, $update);
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function preCreate(EntityStorageControllerInterface $storage_controller, array &$values) {
+  public static function preCreate(EntityStorageInterface $storage, array &$values) {
   }
 
   /**
    * {@inheritdoc}
    */
-  public function postCreate(EntityStorageControllerInterface $storage_controller) {
-    $this->storage->postCreate($storage_controller);
+  public function postCreate(EntityStorageInterface $storage) {
+    $this->storage->postCreate($storage);
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function preDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
+  public static function preDelete(EntityStorageInterface $storage, array $entities) {
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function postDelete(EntityStorageControllerInterface $storage_controller, array $entities) {
+  public static function postDelete(EntityStorageInterface $storage, array $entities) {
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function postLoad(EntityStorageControllerInterface $storage_controller, array &$entities) {
+  public static function postLoad(EntityStorageInterface $storage, array &$entities) {
   }
 
   /**
@@ -1159,11 +1186,30 @@ class ViewUI implements ViewStorageInterface {
      return $this->storage->referencedEntities();
    }
 
-   /**
-    * {@inheritdoc}
-    */
-   public function changed() {
-     return $this->storage->changed();
-   }
+  /**
+   * {@inheritdoc}
+   */
+  public function url($rel = 'edit-form', $options = array()) {
+    return $this->storage->url($rel, $options);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function hasLinkTemplate($key) {
+    return $this->storage->hasLinkTemplate($key);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function calculateDependencies() {
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfigDependencyName() {
+  }
 
 }

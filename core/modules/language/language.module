@@ -5,9 +5,11 @@
  * Add language handling functionality to Drupal.
  */
 
+use Drupal\Component\PhpStorage\PhpStorageFactory;
 use Drupal\Core\Language\Language;
 use Drupal\language\ConfigurableLanguageManager;
 use Drupal\language\ConfigurableLanguageManagerInterface;
+use Drupal\language\Entity\Language as LanguageEntity;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUI;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrlFallback;
@@ -68,32 +70,10 @@ function language_help($path, $arg) {
 }
 
 /**
- * Implements hook_menu().
- */
-function language_menu() {
-  // Base language management and configuration.
-  $items['admin/config/regional/language'] = array(
-    'title' => 'Languages',
-    'description' => 'Configure languages for content and the user interface.',
-    'route_name' => 'language.admin_overview',
-    'weight' => 0,
-  );
-
-  // Content language settings.
-  $items['admin/config/regional/content-language'] = array(
-    'title' => 'Content language',
-    'description' => 'Configure language support for content.',
-    'route_name' => 'language.content_settings_page',
-    'weight' => 10,
-  );
-
-  return $items;
-}
-
-/**
  * Editing or deleting locked languages should not be possible.
  *
- * @deprecated Use \Drupal\language\LanguageAccessController instead.
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal\language\LanguageAccessController.
  */
 function language_access_language_edit_or_delete($language) {
   return !$language->locked && \Drupal::currentUser()->hasPermission('administer languages');
@@ -138,9 +118,9 @@ function language_theme() {
  */
 function language_entity_supported() {
   $supported = array();
-  foreach (\Drupal::entityManager()->getDefinitions() as $entity_type => $info) {
-    if ($info->isTranslatable()) {
-      $supported[$entity_type] = $entity_type;
+  foreach (\Drupal::entityManager()->getDefinitions() as $entity_type_id => $entity_type) {
+    if ($entity_type->isTranslatable()) {
+      $supported[$entity_type_id] = $entity_type_id;
     }
   }
   return $supported;
@@ -400,7 +380,7 @@ function language_get_default_langcode($entity_type, $bundle) {
   }
 
   $default_value = NULL;
-  $language_interface = language(Language::TYPE_INTERFACE);
+  $language_interface = \Drupal::languageManager()->getCurrentLanguage();
   switch ($configuration['langcode']) {
     case 'site_default':
       $default_value = language_default()->id;
@@ -446,9 +426,6 @@ function language_save($language) {
   }
   $language->is_new = $language_entity->isNew();
 
-  // Let other modules modify $language before saved.
-  \Drupal::moduleHandler()->invokeAll('language_presave', array($language));
-
   // Assign language properties to language entity.
   $language_entity->label = isset($language->name) ? $language->name : '';
   $language_entity->direction = isset($language->direction) ? $language->direction : '0';
@@ -460,17 +437,17 @@ function language_save($language) {
   $language_entity->save();
   $t_args = array('%language' => $language->name, '%langcode' => $language->id);
   if ($language->is_new) {
-    \Drupal::moduleHandler()->invokeAll('language_insert', array($language));
     watchdog('language', 'The %language (%langcode) language has been created.', $t_args);
   }
   else {
-    \Drupal::moduleHandler()->invokeAll('language_update', array($language));
     watchdog('language', 'The %language (%langcode) language has been updated.', $t_args);
   }
 
   if (!empty($language->default)) {
-    // Set the new version of this language as default in a variable.
-    variable_set('language_default', (array) $language);
+    // Update the config. Saving the configuration fires and event that causes
+    // the container to be rebuilt.
+    \Drupal::config('system.site')->set('langcode', $language->id)->save();
+    \Drupal::service('language.default')->set($language);
   }
 
   $language_manager = \Drupal::languageManager();
@@ -506,8 +483,6 @@ function language_delete($langcode) {
   if (isset($languages[$langcode]) && !$languages[$langcode]->locked) {
     $language = $languages[$langcode];
 
-    \Drupal::moduleHandler()->invokeAll('language_delete', array($language));
-
     // Remove the language.
     entity_delete_multiple('language_entity', array($language->id));
 
@@ -528,26 +503,6 @@ function language_delete($langcode) {
     return TRUE;
   }
   return FALSE;
-}
-
-/**
- * Implements hook_library_info().
- */
-function language_library_info() {
-  $libraries['language.admin'] = array(
-    'title' => 'Language detection admin',
-    'version' => \Drupal::VERSION,
-    'js' => array(
-      drupal_get_path('module', 'language') . '/language.admin.js' => array(),
-    ),
-    'dependencies' => array(
-      array('system', 'jquery'),
-      array('system', 'drupal'),
-      array('system', 'jquery.once'),
-    ),
-  );
-
-  return $libraries;
 }
 
 /**
@@ -653,31 +608,31 @@ function language_modules_uninstalled($modules) {
 }
 
 /**
- * Implements hook_language_insert().
+ * Implements hook_ENTITY_TYPE_insert() for 'language_entity'.
  */
-function language_language_insert($language) {
+function language_language_entity_insert(LanguageEntity $language) {
   if (!empty($language->locked)) {
     return;
   }
 
   // Add language to the list of language domains.
   $domains = language_negotiation_url_domains();
-  $domains[$language->id] = '';
+  $domains[$language->id()] = '';
   language_negotiation_url_domains_save($domains);
 }
 
 /**
- * Implements hook_language_delete().
+ * Implements hook_ENTITY_TYPE_delete() for 'language_entity'.
  */
-function language_language_delete($language) {
+function language_language_entity_delete(LanguageEntity $language) {
   // Remove language from language prefix list.
   $prefixes = language_negotiation_url_prefixes();
-  unset($prefixes[$language->id]);
+  unset($prefixes[$language->id()]);
   language_negotiation_url_prefixes_save($prefixes);
 
   // Remove language from language domain list.
   $domains = language_negotiation_url_domains();
-  unset($domains[$language->id]);
+  unset($domains[$language->id()]);
   language_negotiation_url_domains_save($domains);
 }
 

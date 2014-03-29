@@ -17,9 +17,11 @@ class NodeTest extends RESTTestBase {
   /**
    * Modules to enable.
    *
+   * Ensure that the node resource works with comment module enabled.
+   *
    * @var array
    */
-  public static $modules = array('hal', 'rest');
+  public static $modules = array('hal', 'rest', 'comment');
 
   public static function getInfo() {
     return array(
@@ -49,14 +51,20 @@ class NodeTest extends RESTTestBase {
    * Performs various tests on nodes and their REST API.
    */
   public function testNodes() {
-    // Tests that the node resource works with comment module enabled.
-    $this->container->get('module_handler')->install(array('comment'));
     $this->enableNodeConfiguration('GET', 'view');
 
     $node = $this->entityCreate('node');
     $node->save();
-    $this->httpRequest('entity/node/' . $node->id(), 'GET', NULL, $this->defaultMimeType);
+    $this->httpRequest('node/' . $node->id(), 'GET', NULL, $this->defaultMimeType);
     $this->assertResponse(200);
+    $this->assertHeader('Content-type', $this->defaultMimeType);
+
+    // Also check that JSON works and the routing system selects the correct
+    // REST route.
+    $this->enableService('entity:node', 'GET', 'json');
+    $this->httpRequest('node/' . $node->id(), 'GET', NULL, 'application/json');
+    $this->assertResponse(200);
+    $this->assertHeader('Content-type', 'application/json');
 
     // Check that a simple PATCH update to the node title works as expected.
     $this->enableNodeConfiguration('PATCH', 'update');
@@ -76,12 +84,12 @@ class NodeTest extends RESTTestBase {
       ),
     );
     $serialized = $this->container->get('serializer')->serialize($data, $this->defaultFormat);
-    $this->httpRequest('entity/node/' . $node->id(), 'PATCH', $serialized, $this->defaultMimeType);
+    $this->httpRequest('node/' . $node->id(), 'PATCH', $serialized, $this->defaultMimeType);
     $this->assertResponse(204);
 
     // Reload the node from the DB and check if the title was correctly updated.
     $updated_node = entity_load('node', $node->id(), TRUE);
-    $this->assertEqual($updated_node->get('title')->get('value')->getValue(), $new_title);
+    $this->assertEqual($updated_node->getTitle(), $new_title);
     // Make sure that the UUID of the node has not changed.
     $this->assertEqual($node->get('uuid')->getValue(), $updated_node->get('uuid')->getValue(), 'UUID was not changed.');
   }

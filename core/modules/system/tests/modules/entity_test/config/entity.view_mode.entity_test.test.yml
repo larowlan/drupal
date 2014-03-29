@@ -1,5 +1,8 @@
 id: entity_test.test
 label: Test
-status: '0'
-cache: '0'
+status: false
+cache: false
 targetEntityType: entity_test
+dependencies:
+  module:
+    - entity_test

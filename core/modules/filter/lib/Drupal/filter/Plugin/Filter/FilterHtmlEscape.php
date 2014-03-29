@@ -15,7 +15,7 @@ use Drupal\filter\Plugin\FilterBase;
  * @Filter(
  *   id = "filter_html_escape",
  *   title = @Translation("Display any HTML as plain text"),
- *   type = FILTER_TYPE_HTML_RESTRICTOR,
+ *   type = Drupal\filter\Plugin\FilterInterface::TYPE_HTML_RESTRICTOR,
  *   weight = -10
  * )
  */
@@ -40,7 +40,7 @@ class FilterHtmlEscape extends FilterBase {
    * {@inheritdoc}
    */
   public function tips($long = FALSE) {
-    return t('No HTML tags allowed.');
+    return $this->t('No HTML tags allowed.');
   }
 
 }

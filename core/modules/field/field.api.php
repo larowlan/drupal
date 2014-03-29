@@ -6,97 +6,7 @@
  */
 
 use Drupal\Component\Utility\NestedArray;
-use Drupal\field\FieldUpdateForbiddenException;
-
-/**
- * Exposes "pseudo-field" components on fieldable entities.
- *
- * Field UI's "Manage fields" and "Manage display" pages let users re-order
- * fields, but also non-field components. For nodes, these include the title
- * and other elements exposed by modules through hook_form_alter().
- *
- * Fieldable entities or modules that want to have their components supported
- * should expose them using this hook. The user-defined settings (weight,
- * visible) are automatically applied on rendered forms and displayed entities
- * in a #pre_render callback added by field_attach_form() and
- * field_attach_view().
- *
- * @see hook_field_extra_fields_alter()
- *
- * @return array
- *   A nested array of 'pseudo-field' elements. Each list is nested within the
- *   following keys: entity type, bundle name, context (either 'form' or
- *   'display'). The keys are the name of the elements as appearing in the
- *   renderable array (either the entity form or the displayed entity). The
- *   value is an associative array:
- *   - label: The human readable name of the element. Make sure you sanitize
- *     this appropriately.
- *   - description: A short description of the element contents.
- *   - weight: The default weight of the element.
- *   - visible: (optional) The default visibility of the element. Defaults to
- *     TRUE.
- *   - edit: (optional) String containing markup (normally a link) used as the
- *     element's 'edit' operation in the administration interface. Only for
- *     'form' context.
- *   - delete: (optional) String containing markup (normally a link) used as the
- *     element's 'delete' operation in the administration interface. Only for
- *     'form' context.
- */
-function hook_field_extra_fields() {
-  $extra = array();
-  $module_language_enabled = \Drupal::moduleHandler()->moduleExists('language');
-  $description = t('Node module element');
-
-  foreach (node_type_get_types() as $bundle) {
-    if ($bundle->has_title) {
-      $extra['node'][$bundle->type]['form']['title'] = array(
-        'label' => check_plain($bundle->title_label),
-        'description' => $description,
-        'weight' => -5,
-      );
-    }
-
-    // Add also the 'language' select if Language module is enabled and the
-    // bundle has multilingual support.
-    // Visibility of the ordering of the language selector is the same as on the
-    // node/add form.
-    if ($module_language_enabled) {
-      $configuration = language_get_default_configuration('node', $bundle->type);
-      if ($configuration['language_show']) {
-        $extra['node'][$bundle->type]['form']['language'] = array(
-          'label' => t('Language'),
-          'description' => $description,
-          'weight' => 0,
-        );
-      }
-    }
-    $extra['node'][$bundle->type]['display']['language'] = array(
-      'label' => t('Language'),
-      'description' => $description,
-      'weight' => 0,
-      'visible' => FALSE,
-    );
-  }
-
-  return $extra;
-}
-
-/**
- * Alter "pseudo-field" components on fieldable entities.
- *
- * @param $info
- *   The associative array of 'pseudo-field' components.
- *
- * @see hook_field_extra_fields()
- */
-function hook_field_extra_fields_alter(&$info) {
-  // Force node title to always be at the top of the list by default.
-  foreach (node_type_get_types() as $bundle) {
-    if (isset($info['node'][$bundle->type]['form']['title'])) {
-      $info['node'][$bundle->type]['form']['title']['weight'] = -20;
-    }
-  }
-}
+use Drupal\field\FieldConfigUpdateForbiddenException;
 
 /**
  * @defgroup field_types Field Types API
@@ -126,13 +36,6 @@ function hook_field_extra_fields_alter(&$info) {
  *   manager.
  */
 function hook_field_info_alter(&$info) {
-  // Add a setting to all field types.
-  foreach ($info as $field_type => $field_type_info) {
-    $info[$field_type]['settings'] += array(
-      'mymodule_additional_setting' => 'default value',
-    );
-  }
-
   // Change the default widget for fields of type 'foo'.
   if (isset($info['foo'])) {
     $info['foo']['default widget'] = 'mymodule_widget';
@@ -162,8 +65,8 @@ function hook_field_info_alter(&$info) {
  *
  * Widgets are @link forms_api_reference.html Form API @endlink
  * elements with additional processing capabilities. The methods of the
- * WidgetInterface object are typically called by the Field Attach API during
- * the creation of the field form structure with field_attach_form().
+ * WidgetInterface object are typically called by respective methods in the
+ * \Drupal\entity\Entity\EntityFormDisplay class.
  *
  * @see field
  * @see field_types
@@ -174,15 +77,10 @@ function hook_field_info_alter(&$info) {
  * Perform alterations on Field API widget types.
  *
  * @param array $info
- *   An array of informations on existing widget types, as collected by the
+ *   An array of information on existing widget types, as collected by the
  *   annotation discovery mechanism.
  */
 function hook_field_widget_info_alter(array &$info) {
-  // Add a setting to a widget type.
-  $info['text_textfield']['settings'] += array(
-    'mymodule_additional_setting' => 'default value',
-  );
-
   // Let a new field type re-use an existing widget.
   $info['options_select']['field_types'][] = 'my_field_type';
 }
@@ -274,131 +172,16 @@ function hook_field_widget_WIDGET_TYPE_form_alter(&$element, &$form_state, $cont
  * Perform alterations on Field API formatter types.
  *
  * @param array $info
- *   An array of informations on existing formatter types, as collected by the
+ *   An array of information on existing formatter types, as collected by the
  *   annotation discovery mechanism.
  */
 function hook_field_formatter_info_alter(array &$info) {
-  // Add a setting to a formatter type.
-  $info['text_default']['settings'] += array(
-    'mymodule_additional_setting' => 'default value',
-  );
-
   // Let a new field type re-use an existing formatter.
   $info['text_default']['field types'][] = 'my_field_type';
 }
 
 /**
  * @} End of "defgroup field_formatter".
- */
-
-/**
- * @addtogroup field_attach
- * @{
- */
-
-/**
- * Act on field_attach_form().
- *
- * This hook is invoked after the field module has performed the operation.
- * Implementing modules should alter the $form or $form_state parameters.
- *
- * @param \Drupal\Core\Entity\EntityInterface $entity
- *   The entity for which an edit form is being built.
- * @param $form
- *   The form structure field elements are attached to. This might be a full
- *   form structure, or a sub-element of a larger form. The $form['#parents']
- *   property can be used to identify the corresponding part of
- *   $form_state['values']. Hook implementations that need to act on the
- *   top-level properties of the global form (like #submit, #validate...) can
- *   add a #process callback to the array received in the $form parameter, and
- *   act on the $complete_form parameter in the process callback.
- * @param $form_state
- *   An associative array containing the current state of the form.
- * @param $langcode
- *   The language the field values are going to be entered in. If no language is
- *   provided the default site language will be used.
- *
- * @deprecated as of Drupal 8.0. Use the entity system instead.
- */
-function hook_field_attach_form(\Drupal\Core\Entity\EntityInterface $entity, &$form, &$form_state, $langcode) {
-  // Add a checkbox allowing a given field to be emptied.
-  // See hook_field_attach_extract_form_values() for the corresponding
-  // processing code.
-  $form['empty_field_foo'] = array(
-    '#type' => 'checkbox',
-    '#title' => t("Empty the 'field_foo' field"),
-  );
-}
-
-/**
- * Act on field_attach_extract_form_values().
- *
- * This hook is invoked after the field module has performed the operation.
- *
- * @param \Drupal\Core\Entity\EntityInterface $entity
- *   The entity for which an edit form is being submitted. The incoming form
- *   values have been extracted as field values of the $entity object.
- * @param $form
- *   The form structure field elements are attached to. This might be a full
- *   form structure, or a sub-part of a larger form. The $form['#parents']
- *   property can be used to identify the corresponding part of
- *   $form_state['values'].
- * @param $form_state
- *   An associative array containing the current state of the form.
- *
- * @deprecated as of Drupal 8.0. Use the entity system instead.
- */
-function hook_field_attach_extract_form_values(\Drupal\Core\Entity\EntityInterface $entity, $form, &$form_state) {
-  // Sample case of an 'Empty the field' checkbox added on the form, allowing
-  // a given field to be emptied.
-  $values = NestedArray::getValue($form_state['values'], $form['#parents']);
-  if (!empty($values['empty_field_foo'])) {
-    unset($entity->field_foo);
-  }
-}
-
-/**
- * Perform alterations on field_attach_view() or field_view_field().
- *
- * This hook is invoked after the field module has performed the operation.
- *
- * @param $output
- *   The structured content array tree for all of the entity's fields.
- * @param $context
- *   An associative array containing:
- *   - entity: The entity with fields to render.
- *   - view_mode: View mode; for example, 'full' or 'teaser'.
- *   - display_options: Either a view mode string or an array of display
- *     options. If this hook is being invoked from field_attach_view(), the
- *     'display_options' element is set to the view mode string. If this hook
- *     is being invoked from field_view_field(), this element is set to the
- *     $display_options argument and the view_mode element is set to '_custom'.
- *     See field_view_field() for more information on what its $display_options
- *     argument contains.
- *   - langcode: The language code used for rendering.
- *
- * @deprecated as of Drupal 8.0. Use the entity system instead.
- */
-function hook_field_attach_view_alter(&$output, $context) {
-  // Append RDF term mappings on displayed taxonomy links.
-  foreach (element_children($output) as $field_name) {
-    $element = &$output[$field_name];
-    if ($element['#field_type'] == 'entity_reference' && $element['#formatter'] == 'entity_reference_label') {
-      foreach ($element['#items'] as $delta => $item) {
-        $term = $item['entity'];
-        if (!empty($term->rdf_mapping['rdftype'])) {
-          $element[$delta]['#options']['attributes']['typeof'] = $term->rdf_mapping['rdftype'];
-        }
-        if (!empty($term->rdf_mapping['name']['predicates'])) {
-          $element[$delta]['#options']['attributes']['property'] = $term->rdf_mapping['name']['predicates'];
-        }
-      }
-    }
-  }
-}
-
-/**
- * @} End of "addtogroup field_attach".
  */
 
 /**
@@ -447,14 +230,14 @@ function hook_field_info_max_weight($entity_type, $bundle, $context, $context_mo
  * that cannot be updated.
  *
  * To forbid the update from occurring, throw a
- * Drupal\field\FieldUpdateForbiddenException.
+ * Drupal\field\FieldConfigUpdateForbiddenException.
  *
- * @param $field
+ * @param \Drupal\field\FieldConfigInterface $field
  *   The field as it will be post-update.
- * @param $prior_field
+ * @param \Drupal\field\FieldConfigInterface $prior_field
  *   The field as it is pre-update.
  */
-function hook_field_update_forbid($field, $prior_field) {
+function hook_field_config_update_forbid(\Drupal\field\FieldConfigInterface $field, \Drupal\field\FieldConfigInterface $prior_field) {
   // A 'list' field stores integer keys mapped to display values. If
   // the new field will have fewer values, and any data exists for the
   // abandoned keys, the field will have no way to display them. So,
@@ -469,7 +252,7 @@ function hook_field_update_forbid($field, $prior_field) {
       ->range(0, 1)
       ->execute();
     if ($found) {
-      throw new FieldUpdateForbiddenException("Cannot update a list field not to include keys with existing data");
+      throw new FieldConfigUpdateForbiddenException("Cannot update a list field not to include keys with existing data");
     }
   }
 }

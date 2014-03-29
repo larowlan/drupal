@@ -8,7 +8,7 @@
 namespace Drupal\taxonomy;
 
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\ContentEntityFormController;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Language\Language;
@@ -22,7 +22,7 @@ class TermFormController extends ContentEntityFormController {
   /**
    * The config factory.
    *
-   * @var \Drupal\Core\Config\ConfigFactory
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
@@ -31,10 +31,10 @@ class TermFormController extends ContentEntityFormController {
    *
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager.
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
    */
-  public function __construct(EntityManagerInterface $entity_manager, ConfigFactory $config_factory) {
+  public function __construct(EntityManagerInterface $entity_manager, ConfigFactoryInterface $config_factory) {
     parent::__construct($entity_manager);
     $this->configFactory = $config_factory;
   }
@@ -54,7 +54,7 @@ class TermFormController extends ContentEntityFormController {
    */
   public function form(array $form, array &$form_state) {
     $term = $this->entity;
-    $vocab_storage = $this->entityManager->getStorageController('taxonomy_vocabulary');
+    $vocab_storage = $this->entityManager->getStorage('taxonomy_vocabulary');
     $vocabulary = $vocab_storage->load($term->bundle());
 
     $parent = array_keys(taxonomy_term_load_parents($term->id()));
@@ -64,7 +64,7 @@ class TermFormController extends ContentEntityFormController {
     $form['name'] = array(
       '#type' => 'textfield',
       '#title' => $this->t('Name'),
-      '#default_value' => $term->name->value,
+      '#default_value' => $term->getName(),
       '#maxlength' => 255,
       '#required' => TRUE,
       '#weight' => -5,
@@ -73,8 +73,8 @@ class TermFormController extends ContentEntityFormController {
     $form['description'] = array(
       '#type' => 'text_format',
       '#title' => $this->t('Description'),
-      '#default_value' => $term->description->value,
-      '#format' => $term->description->format,
+      '#default_value' => $term->getDescription(),
+      '#format' => $term->getFormat(),
       '#weight' => 0,
     );
     $language_configuration = $this->moduleHandler->moduleExists('language') ? language_get_default_configuration('taxonomy_term', $vocabulary->id()) : FALSE;
@@ -89,7 +89,7 @@ class TermFormController extends ContentEntityFormController {
     $form['relations'] = array(
       '#type' => 'details',
       '#title' => $this->t('Relations'),
-      '#collapsed' => ($vocabulary->hierarchy != TAXONOMY_HIERARCHY_MULTIPLE),
+      '#open' => $vocabulary->hierarchy == TAXONOMY_HIERARCHY_MULTIPLE,
       '#weight' => 10,
     );
 
@@ -112,6 +112,7 @@ class TermFormController extends ContentEntityFormController {
       if (empty($parent)) {
         $parent = array(0);
       }
+
       foreach ($tree as $item) {
         if (!in_array($item->tid, $exclude)) {
           $options[$item->tid] = str_repeat('-', $item->depth) . $item->name;
@@ -131,7 +132,7 @@ class TermFormController extends ContentEntityFormController {
       '#type' => 'textfield',
       '#title' => $this->t('Weight'),
       '#size' => 6,
-      '#default_value' => $term->weight->value,
+      '#default_value' => $term->getWeight(),
       '#description' => $this->t('Terms are displayed in ascending order by weight.'),
       '#required' => TRUE,
     );
@@ -172,13 +173,7 @@ class TermFormController extends ContentEntityFormController {
     $term = parent::buildEntity($form, $form_state);
 
     // Prevent leading and trailing spaces in term names.
-    $term->name->value = trim($term->name->value);
-
-    // Convert text_format field into values expected by
-    // \Drupal\Core\Entity\Entity::save() method.
-    $description = $form_state['values']['description'];
-    $term->description->value = $description['value'];
-    $term->description->format = $description['format'];
+    $term->setName(trim($term->getName()));
 
     // Assign parents with proper delta values starting from 0.
     $term->parent = array_keys($form_state['values']['parent']);
@@ -194,12 +189,12 @@ class TermFormController extends ContentEntityFormController {
 
     switch ($term->save()) {
       case SAVED_NEW:
-        drupal_set_message($this->t('Created new term %term.', array('%term' => $term->label())));
-        watchdog('taxonomy', 'Created new term %term.', array('%term' => $term->label()), WATCHDOG_NOTICE, l($this->t('edit'), 'taxonomy/term/' . $term->id() . '/edit'));
+        drupal_set_message($this->t('Created new term %term.', array('%term' => $term->getName())));
+        watchdog('taxonomy', 'Created new term %term.', array('%term' => $term->getName()), WATCHDOG_NOTICE, l($this->t('edit'), 'taxonomy/term/' . $term->id() . '/edit'));
         break;
       case SAVED_UPDATED:
-        drupal_set_message($this->t('Updated term %term.', array('%term' => $term->label())));
-        watchdog('taxonomy', 'Updated term %term.', array('%term' => $term->label()), WATCHDOG_NOTICE, l($this->t('edit'), 'taxonomy/term/' . $term->id() . '/edit'));
+        drupal_set_message($this->t('Updated term %term.', array('%term' => $term->getName())));
+        watchdog('taxonomy', 'Updated term %term.', array('%term' => $term->getName()), WATCHDOG_NOTICE, l($this->t('edit'), 'taxonomy/term/' . $term->id() . '/edit'));
         // Clear the page and block caches to avoid stale data.
         Cache::invalidateTags(array('content' => TRUE));
         break;
@@ -227,21 +222,6 @@ class TermFormController extends ContentEntityFormController {
 
     $form_state['values']['tid'] = $term->id();
     $form_state['tid'] = $term->id();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function delete(array $form, array &$form_state) {
-    $destination = array();
-    if ($this->getRequest()->query->has('destination')) {
-      $destination = drupal_get_destination();
-    }
-    $form_state['redirect_route'] = array(
-      'route_name' => 'taxonomy.term_delete',
-      'route_parameters' => array('taxonomy_term' => $this->entity->id()),
-      'options' => array('query' => $destination),
-    );
   }
 
 }

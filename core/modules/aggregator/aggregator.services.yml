@@ -1,18 +1,13 @@
 services:
   plugin.manager.aggregator.fetcher:
     class: Drupal\aggregator\Plugin\AggregatorPluginManager
-    arguments: [fetcher, '@container.namespaces', '@cache.cache', '@language_manager']
+    arguments: [fetcher, '@container.namespaces', '@cache.cache', '@language_manager', '@module_handler']
   plugin.manager.aggregator.parser:
     class: Drupal\aggregator\Plugin\AggregatorPluginManager
-    arguments: [parser, '@container.namespaces', '@cache.cache', '@language_manager']
+    arguments: [parser, '@container.namespaces', '@cache.cache', '@language_manager', '@module_handler']
   plugin.manager.aggregator.processor:
     class: Drupal\aggregator\Plugin\AggregatorPluginManager
-    arguments: [processor, '@container.namespaces', '@cache.cache', '@language_manager']
-  access_check.aggregator.categories:
-    class: Drupal\aggregator\Access\CategoriesAccessCheck
-    arguments: ['@database']
-    tags:
-      - { name: access_check, applies_to: _access_aggregator_categories }
-  aggregator.category.storage:
-    class: Drupal\aggregator\CategoryStorageController
-    arguments: ['@database']
+    arguments: [processor, '@container.namespaces', '@cache.cache', '@language_manager', '@module_handler']
+  aggregator.items.importer:
+    class: Drupal\aggregator\ItemsImporter
+    arguments: ['@config.factory', '@plugin.manager.aggregator.fetcher', '@plugin.manager.aggregator.parser', '@plugin.manager.aggregator.processor']

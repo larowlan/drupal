@@ -9,14 +9,16 @@ namespace Drupal\filter\Entity;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Config\Entity\EntityWithPluginBagInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\filter\FilterFormatInterface;
 use Drupal\filter\FilterBag;
+use Drupal\filter\Plugin\FilterInterface;
 
 /**
  * Represents a text format.
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "filter_format",
  *   label = @Translation("Text format"),
  *   controllers = {
@@ -25,24 +27,24 @@ use Drupal\filter\FilterBag;
  *       "edit" = "Drupal\filter\FilterFormatEditFormController",
  *       "disable" = "Drupal\filter\Form\FilterDisableForm"
  *     },
- *     "list" = "Drupal\filter\FilterFormatListController",
+ *     "list_builder" = "Drupal\filter\FilterFormatListBuilder",
  *     "access" = "Drupal\filter\FilterFormatAccessController",
- *     "storage" = "Drupal\Core\Config\Entity\ConfigStorageController"
  *   },
- *   config_prefix = "filter.format",
+ *   config_prefix = "format",
+ *   admin_permission = "administer filters",
  *   entity_keys = {
  *     "id" = "format",
  *     "label" = "name",
- *     "uuid" = "uuid",
  *     "weight" = "weight",
  *     "status" = "status"
  *   },
  *   links = {
- *     "edit-form" = "filter.format_edit"
+ *     "edit-form" = "filter.format_edit",
+ *     "disable" = "filter.admin_disable"
  *   }
  * )
  */
-class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
+class FilterFormat extends ConfigEntityBase implements FilterFormatInterface, EntityWithPluginBagInterface {
 
   /**
    * Unique machine name of the format.
@@ -65,13 +67,6 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
    * @var string
    */
   public $name;
-
-  /**
-   * The UUID for this entity.
-   *
-   * @var string
-   */
-  public $uuid;
 
   /**
    * Weight of this format in the text format selector.
@@ -134,6 +129,11 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
   /**
    * {@inheritdoc}
    */
+  protected $pluginConfigKey = 'filters';
+
+  /**
+   * {@inheritdoc}
+   */
   public function id() {
     return $this->format;
   }
@@ -142,11 +142,19 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
    * {@inheritdoc}
    */
   public function filters($instance_id = NULL) {
+    $filter_bag = $this->getPluginBag();
+    if (isset($instance_id)) {
+      return $filter_bag->get($instance_id);
+    }
+    return $filter_bag;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPluginBag() {
     if (!isset($this->filterBag)) {
       $this->filterBag = new FilterBag(\Drupal::service('plugin.manager.filter'), $this->filters);
-    }
-    if (isset($instance_id)) {
-      return $this->filterBag->get($instance_id);
     }
     return $this->filterBag;
   }
@@ -157,7 +165,7 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
   public function setFilterConfig($instance_id, array $configuration) {
     $this->filters[$instance_id] = $configuration;
     if (isset($this->filterBag)) {
-      $this->filterBag->setConfiguration($instance_id, $configuration);
+      $this->filterBag->setInstanceConfiguration($instance_id, $configuration);
     }
     return $this;
   }
@@ -165,11 +173,15 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
   /**
    * {@inheritdoc}
    */
-  public function getExportProperties() {
-    $properties = parent::getExportProperties();
-    // Sort and export the configuration of all filters.
-    $properties['filters'] = $this->filters()->sort()->getConfiguration();
-
+  public function toArray() {
+    $properties = parent::toArray();
+    // @todo Make self::$weight and self::$cache protected and add them here.
+    $names = array(
+      'filters',
+    );
+    foreach ($names as $name) {
+      $properties[$name] = $this->get($name);
+    }
     return $properties;
   }
 
@@ -180,7 +192,7 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
     parent::disable();
 
     // Allow modules to react on text format deletion.
-    module_invoke_all('filter_format_disable', $this);
+    \Drupal::moduleHandler()->invokeAll('filter_format_disable', array($this));
 
     // Clear the filter cache whenever a text format is disabled.
     filter_formats_reset();
@@ -192,8 +204,11 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
   /**
    * {@inheritdoc}
    */
-  public function preSave(EntityStorageControllerInterface $storage_controller) {
-    parent::preSave($storage_controller);
+  public function preSave(EntityStorageInterface $storage) {
+    // Ensure the filters have been sorted before saving.
+    $this->filters()->sort();
+
+    parent::preSave($storage);
 
     $this->name = trim($this->label());
 
@@ -213,8 +228,8 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
   /**
    * {@inheritdoc}
    */
-  public function postSave(EntityStorageControllerInterface $storage_controller, $update = TRUE) {
-    parent::postSave($storage_controller, $update);
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    parent::postSave($storage, $update);
 
     // Clear the static caches of filter_formats() and others.
     filter_formats_reset();
@@ -258,6 +273,152 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface {
    */
   public function getPermissionName() {
     return !$this->isFallbackFormat() ? 'use text format ' . $this->id() : FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFilterTypes() {
+    $filter_types = array();
+
+    $filters = $this->filters();
+    foreach ($filters as $filter) {
+      if ($filter->status) {
+        $filter_types[] = $filter->getType();
+      }
+    }
+
+    return array_unique($filter_types);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getHtmlRestrictions() {
+    // Ignore filters that are disabled or don't have HTML restrictions.
+    $filters = array_filter($this->filters()->getAll(), function($filter) {
+      if (!$filter->status) {
+        return FALSE;
+      }
+      if ($filter->getType() === FilterInterface::TYPE_HTML_RESTRICTOR && $filter->getHTMLRestrictions() !== FALSE) {
+        return TRUE;
+      }
+      return FALSE;
+    });
+
+    if (empty($filters)) {
+      return FALSE;
+    }
+    else {
+      // From the set of remaining filters (they were filtered by array_filter()
+      // above), collect the list of tags and attributes that are allowed by all
+      // filters, i.e. the intersection of all allowed tags and attributes.
+      $restrictions = array_reduce($filters, function($restrictions, $filter) {
+        $new_restrictions = $filter->getHTMLRestrictions();
+
+        // The first filter with HTML restrictions provides the initial set.
+        if (!isset($restrictions)) {
+          return $new_restrictions;
+        }
+        // Subsequent filters with an "allowed html" setting must be intersected
+        // with the existing set, to ensure we only end up with the tags that are
+        // allowed by *all* filters with an "allowed html" setting.
+        else {
+          // Track the union of forbidden (blacklisted) tags.
+          if (isset($new_restrictions['forbidden_tags'])) {
+            if (!isset($restrictions['forbidden_tags'])) {
+              $restrictions['forbidden_tags'] = $new_restrictions['forbidden_tags'];
+            }
+            else {
+              $restrictions['forbidden_tags'] = array_unique(array_merge($restrictions['forbidden_tags'], $new_restrictions['forbidden_tags']));
+            }
+          }
+
+          // Track the intersection of allowed (whitelisted) tags.
+          if (isset($restrictions['allowed'])) {
+            $intersection = $restrictions['allowed'];
+            foreach ($intersection as $tag => $attributes) {
+              // If the current tag is not whitelisted by the new filter, then
+              // it's outside of the intersection.
+              if (!array_key_exists($tag, $new_restrictions['allowed'])) {
+                // The exception is the asterisk (which applies to all tags): it
+                // does not need to be whitelisted by every filter in order to be
+                // used; not every filter needs attribute restrictions on all tags.
+                if ($tag === '*') {
+                  continue;
+                }
+                unset($intersection[$tag]);
+              }
+              // The tag is in the intersection, but now we must calculate the
+              // intersection of the allowed attributes.
+              else {
+                $current_attributes = $intersection[$tag];
+                $new_attributes = $new_restrictions['allowed'][$tag];
+                // The current intersection does not allow any attributes, never
+                // allow.
+                if (!is_array($current_attributes) && $current_attributes == FALSE) {
+                  continue;
+                }
+                // The new filter allows less attributes (all -> list or none).
+                else if (!is_array($current_attributes) && $current_attributes == TRUE && ($new_attributes == FALSE || is_array($new_attributes))) {
+                  $intersection[$tag] = $new_attributes;
+                }
+                // The new filter allows less attributes (list -> none).
+                else if (is_array($current_attributes) && $new_attributes == FALSE) {
+                  $intersection[$tag] = $new_attributes;
+                }
+                // The new filter allows more attributes; retain current.
+                else if (is_array($current_attributes) && $new_attributes == TRUE) {
+                  continue;
+                }
+                // The new filter allows the same attributes; retain current.
+                else if ($current_attributes == $new_attributes) {
+                  continue;
+                }
+                // Both list an array of attribute values; do an intersection,
+                // where we take into account that a value of:
+                //  - TRUE means the attribute value is allowed;
+                //  - FALSE means the attribute value is forbidden;
+                // hence we keep the ANDed result.
+                else {
+                  $intersection[$tag] = array_intersect_key($intersection[$tag], $new_attributes);
+                  foreach (array_keys($intersection[$tag]) as $attribute_value) {
+                    $intersection[$tag][$attribute_value] = $intersection[$tag][$attribute_value] && $new_attributes[$attribute_value];
+                  }
+                }
+              }
+            }
+            $restrictions['allowed'] = $intersection;
+          }
+
+          return $restrictions;
+        }
+      }, NULL);
+
+      // Simplification: if we have both a (intersected) whitelist and a (unioned)
+      // blacklist, then remove any tags from the whitelist that also exist in the
+      // blacklist. Now the whitelist alone expresses all tag-level restrictions,
+      // and we can delete the blacklist.
+      if (isset($restrictions['allowed']) && isset($restrictions['forbidden_tags'])) {
+        foreach ($restrictions['forbidden_tags'] as $tag) {
+          if (isset($restrictions['allowed'][$tag])) {
+            unset($restrictions['allowed'][$tag]);
+          }
+        }
+        unset($restrictions['forbidden_tags']);
+      }
+
+      // Simplification: if the only remaining allowed tag is the asterisk (which
+      // contains attribute restrictions that apply to all tags), and only
+      // whitelisting filters were used, then effectively nothing is allowed.
+      if (isset($restrictions['allowed'])) {
+        if (count($restrictions['allowed']) === 1 && array_key_exists('*', $restrictions['allowed']) && !isset($restrictions['forbidden_tags'])) {
+          $restrictions['allowed'] = array();
+        }
+      }
+
+      return $restrictions;
+    }
   }
 
 }

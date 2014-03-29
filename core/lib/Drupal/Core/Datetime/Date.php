@@ -8,7 +8,7 @@
 namespace Drupal\Core\Datetime;
 
 use Drupal\Component\Utility\Xss;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Language\Language;
@@ -30,7 +30,7 @@ class Date {
   /**
    * The date format storage.
    *
-   * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+   * @var \Drupal\Core\Entity\EntityStorageInterface
    */
   protected $dateFormatStorage;
 
@@ -44,7 +44,7 @@ class Date {
   /**
    * The configuration factory.
    *
-   * @var \Drupal\Core\Config\ConfigFactory
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
@@ -79,11 +79,11 @@ class Date {
    *   The language manager.
    * @param \Drupal\Core\StringTranslation\TranslationInterface $translation
    *   The string translation.
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
    */
-  public function __construct(EntityManagerInterface $entity_manager, LanguageManagerInterface $language_manager, TranslationInterface $translation, ConfigFactory $config_factory) {
-    $this->dateFormatStorage = $entity_manager->getStorageController('date_format');
+  public function __construct(EntityManagerInterface $entity_manager, LanguageManagerInterface $language_manager, TranslationInterface $translation, ConfigFactoryInterface $config_factory) {
+    $this->dateFormatStorage = $entity_manager->getStorage('date_format');
     $this->languageManager = $language_manager;
     $this->stringTranslation = $translation;
     $this->configFactory = $config_factory;
@@ -215,11 +215,10 @@ class Date {
    */
   protected function dateFormat($format, $langcode) {
     if (!isset($this->dateFormats[$format][$langcode])) {
-      // Enter a language specific context so the right date format is loaded.
-      $original_language = $this->configFactory->getLanguage();
-      $this->configFactory->setLanguage(new Language(array('id' => $langcode)));
+      $original_language = $this->languageManager->getConfigOverrideLanguage();
+      $this->languageManager->setConfigOverrideLanguage(new Language(array('id' => $langcode)));
       $this->dateFormats[$format][$langcode] = $this->dateFormatStorage->load($format);
-      $this->configFactory->setLanguage($original_language);
+      $this->languageManager->setConfigOverrideLanguage($original_language);
     }
     return $this->dateFormats[$format][$langcode];
   }

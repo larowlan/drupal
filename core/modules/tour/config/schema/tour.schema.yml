@@ -22,18 +22,21 @@ tour.tour.*:
     langcode:
       type: string
       label: 'Default language'
-    paths:
+    routes:
       type: sequence
-      label: 'Path settings'
+      label: 'Route settings'
       sequence:
-        - type: path
-          label: 'Path'
+        - type: route
+          label: 'Route'
     tips:
       type: sequence
       label: 'Tips'
       sequence:
         - type: tour.tip.[plugin]
           label: 'Tour tip'
+    dependencies:
+      type: config_dependencies
+      label: 'Dependencies'
 
 tour.tip:
   type: mapping
@@ -68,5 +71,3 @@ tour.tip.text:
     body:
       type: text
       label: 'Body'
-
-

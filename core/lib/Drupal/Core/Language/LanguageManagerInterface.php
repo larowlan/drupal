@@ -62,6 +62,9 @@ interface LanguageManagerInterface {
    *   (optional) The language type to reset as a string, e.g.,
    *   Language::TYPE_INTERFACE, or NULL to reset all language types. Defaults
    *   to NULL.
+   *
+   * @return \Drupal\Core\Language\LanguageManagerInterface
+   *   The language manager that has been reset.
    */
   public function reset($type = NULL);
 
@@ -164,5 +167,23 @@ interface LanguageManagerInterface {
    *   A keyed array of links ready to be themed.
    */
   function getLanguageSwitchLinks($type, $path);
+
+  /**
+   * Sets the configuration override language.
+   *
+   * @param \Drupal\Core\Language\Language $language
+   *   The language to override configuration with.
+   *
+   * @return $this
+   */
+  public function setConfigOverrideLanguage(Language $language = NULL);
+
+  /**
+   * Gets the current configuration override language.
+   *
+   * @return \Drupal\Core\Language\Language $language
+   *   The current configuration override language.
+   */
+  public function getConfigOverrideLanguage();
 
 }

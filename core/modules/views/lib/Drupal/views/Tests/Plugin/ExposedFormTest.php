@@ -28,7 +28,7 @@ class ExposedFormTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = array('views_ui', 'block');
+  public static $modules = array('node', 'views_ui', 'block');
 
   public static function getInfo() {
     return array(
@@ -67,8 +67,6 @@ class ExposedFormTest extends ViewTestBase {
     $view->display_handler->setOption('exposed_form', $exposed_form);
     $view->save();
 
-    views_invalidate_cache();
-
     // Make sure the submit button label changed.
     $this->drupalGet('test_exposed_form_buttons');
     $this->helperButtonHasLabel('edit-submit-test-exposed-form-buttons', $expected_label);
@@ -81,8 +79,6 @@ class ExposedFormTest extends ViewTestBase {
     $exposed_form['options']['submit_button'] = '';
     $view->display_handler->setOption('exposed_form', $exposed_form);
     $view->save();
-
-    views_invalidate_cache();
 
     // Make sure the submit button label shows 'Apply'.
     $this->drupalGet('test_exposed_form_buttons');
@@ -120,8 +116,6 @@ class ExposedFormTest extends ViewTestBase {
     $view->display_handler->setOption('exposed_form', $exposed_form);
     $view->save();
 
-    views_invalidate_cache();
-
     // Look whether the reset button label changed.
     $this->drupalGet('test_exposed_form_buttons', array('query' => array('type' => 'article')));
     $this->assertResponse(200);
@@ -133,7 +127,7 @@ class ExposedFormTest extends ViewTestBase {
    * Tests the exposed form markup.
    */
   public function testExposedFormRender() {
-    $view = views_get_view('test_exposed_form_buttons');
+    $view = Views::getView('test_exposed_form_buttons');
     $this->executeView($view);
     $exposed_form = $view->display_handler->getPlugin('exposed_form');
     $output = $exposed_form->renderExposedForm();

@@ -118,22 +118,18 @@ function hook_user_cancel($edit, $account, $method) {
     case 'user_cancel_block_unpublish':
       // Unpublish nodes (current revisions).
       module_load_include('inc', 'node', 'node.admin');
-      $nodes = db_select('node_field_data', 'n')
-        ->fields('n', array('nid'))
-        ->condition('uid', $account->id())
-        ->execute()
-        ->fetchCol();
+      $nodes = \Drupal::entityQuery('node')
+        ->condition('uid', $user->id())
+        ->execute();
       node_mass_update($nodes, array('status' => 0), NULL, TRUE);
       break;
 
     case 'user_cancel_reassign':
       // Anonymize nodes (current revisions).
       module_load_include('inc', 'node', 'node.admin');
-      $nodes = db_select('node_field_data', 'n')
-        ->fields('n', array('nid'))
-        ->condition('uid', $account->id())
-        ->execute()
-        ->fetchCol();
+      $nodes = \Drupal::entityQuery('node')
+        ->condition('uid', $user->id())
+        ->execute();
       node_mass_update($nodes, array('uid' => 0), NULL, TRUE);
       // Anonymize old revisions.
       db_update('node_field_revision')
@@ -167,8 +163,9 @@ function hook_user_cancel($edit, $account, $method) {
  * @see user_cancel_confirm_form()
  */
 function hook_user_cancel_methods_alter(&$methods) {
+  $account = \Drupal::currentUser();
   // Limit access to disable account and unpublish content method.
-  $methods['user_cancel_block_unpublish']['access'] = user_access('administer site configuration');
+  $methods['user_cancel_block_unpublish']['access'] = $account->hasPermission('administer site configuration');
 
   // Remove the content re-assigning method.
   unset($methods['user_cancel_reassign']);
@@ -178,7 +175,7 @@ function hook_user_cancel_methods_alter(&$methods) {
     'title' => t('Delete the account and remove all content.'),
     'description' => t('All your content will be replaced by empty strings.'),
     // access should be used for administrative methods only.
-    'access' => user_access('access zero-out account cancellation method'),
+    'access' => $account->hasPermission('access zero-out account cancellation method'),
   );
 }
 
@@ -228,10 +225,10 @@ function hook_user_presave($account) {
  * Note that when this hook is invoked, the changes have not yet been written to
  * the database, because a database transaction is still in progress. The
  * transaction is not finalized until the insert operation is entirely completed
- * and \Drupal\user\DataStorageController::save() goes out of scope. You should
+ * and \Drupal\user\DataStorage::save() goes out of scope. You should
  * not rely on data in the database at this time as it is not updated yet. You
  * should also note that any write/update database queries executed from this hook
- * are also not committed immediately. Check \Drupal\user\DataStorageController::save()
+ * are also not committed immediately. Check \Drupal\user\DataStorage::save()
  * and db_transaction() for more info.
  *
  * @param $account
@@ -255,10 +252,10 @@ function hook_user_insert($account) {
  * Note that when this hook is invoked, the changes have not yet been written to
  * the database, because a database transaction is still in progress. The
  * transaction is not finalized until the update operation is entirely completed
- * and \Drupal\user\DataStorageController::save() goes out of scope. You should not
+ * and \Drupal\user\DataStorage::save() goes out of scope. You should not
  * rely on data in the database at this time as it is not updated yet. You should
  * also note that any write/update database queries executed from this hook are
- * also not committed immediately. Check \Drupal\user\DataStorageController::save()
+ * also not committed immediately. Check \Drupal\user\DataStorage::save()
  * and db_transaction() for more info.
  *
  * @param $account
@@ -314,8 +311,8 @@ function hook_user_logout($account) {
  * @param \Drupal\user\UserInterface $account
  *   The user object on which the operation is being performed.
  * @param \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display
- *   The entity_display object holding the display options configured for the
- *   user components.
+ *   The entity view display holding the display options configured for the user
+ *   components.
  * @param $view_mode
  *   View mode, e.g. 'full'.
  * @param $langcode
@@ -327,7 +324,7 @@ function hook_user_logout($account) {
 function hook_user_view(\Drupal\user\UserInterface $account, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display, $view_mode, $langcode) {
   // Only do the extra work if the component is configured to be displayed.
   // This assumes a 'mymodule_addition' extra field has been defined for the
-  // user entity type in hook_field_extra_fields().
+  // user entity type in hook_entity_extra_field_info().
   if ($display->getComponent('mymodule_addition')) {
     $account->content['mymodule_addition'] = array(
       '#markup' => mymodule_addition($account),
@@ -346,7 +343,7 @@ function hook_user_view(\Drupal\user\UserInterface $account, \Drupal\Core\Entity
  * If the module wishes to act on the rendered HTML of the user rather than the
  * structured content array, it may use this hook to add a #post_render callback.
  * Alternatively, it could also implement hook_preprocess_HOOK() for
- * user.html.twig. See drupal_render() and theme() documentation
+ * user.html.twig. See drupal_render() and _theme() documentation
  * respectively for details.
  *
  * @param $build
@@ -354,8 +351,8 @@ function hook_user_view(\Drupal\user\UserInterface $account, \Drupal\Core\Entity
  * @param \Drupal\user\UserInterface $account
  *   The user account being rendered.
  * @param \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display
- *   The entity_display object holding the display options configured for the
- *   user components.
+ *   The entity view display holding the display options configured for the user
+ *   components.
  *
  * @see user_view()
  * @see hook_entity_view_alter()
@@ -425,7 +422,7 @@ function hook_user_role_insert($role) {
 function hook_user_role_update($role) {
   // Save extra fields provided by the module to user roles.
   db_merge('my_module_table')
-    ->key(array('rid' => $role->id()))
+    ->key('rid', $role->id())
     ->fields(array(
       'role_description' => $role->description
     ))

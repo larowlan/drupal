@@ -17,7 +17,7 @@ use Drupal\views\Plugin\views\field\FieldPluginBase;
  *
  * @ingroup views_field_handlers
  *
- * @PluginID("comment")
+ * @ViewsField("comment")
  */
 class Comment extends FieldPluginBase {
 
@@ -93,8 +93,7 @@ class Comment extends FieldPluginBase {
         $entity_id = $this->getValue($values, 'entity_id');
         $entity_type = $this->getValue($values, 'entity_type');
         $entity = entity_load($entity_type, $entity_id);
-        $uri = $entity->uri();
-        $this->options['alter']['path'] = $uri['path'];
+        $this->options['alter']['path'] = $entity->getSystemPath();
       }
     }
 

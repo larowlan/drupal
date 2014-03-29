@@ -7,6 +7,7 @@
 
 namespace Drupal\field\Tests;
 
+use Drupal\Core\Field\FieldDefinition;
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 
@@ -46,13 +47,13 @@ class TestItemTest extends FieldUnitTestBase {
       'entity_type' => 'entity_test',
       'type' => 'test_field',
     );
-    entity_create('field_entity', $field)->save();
+    entity_create('field_config', $field)->save();
     $instance = array(
       'entity_type' => 'entity_test',
       'field_name' => $this->field_name,
       'bundle' => 'entity_test',
     );
-    entity_create('field_instance', $instance)->save();
+    entity_create('field_instance_config', $instance)->save();
   }
 
   /**
@@ -60,7 +61,7 @@ class TestItemTest extends FieldUnitTestBase {
    */
   public function testTestItem() {
     // Verify entity creation.
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $value = rand(1, 10);
     $entity->field_test = $value;
     $entity->name->value = $this->randomName();
@@ -83,6 +84,23 @@ class TestItemTest extends FieldUnitTestBase {
     $entity->save();
     $entity = entity_load('entity_test', $id);
     $this->assertEqual($entity->{$this->field_name}->value, $new_value);
+
+    // Test the schema for this field type.
+    $expected_schema = array(
+      'columns' => array(
+        'value' => array(
+          'type' => 'int',
+          'size' => 'medium',
+          'not null' => FALSE,
+        ),
+      ),
+      'indexes' => array(
+        'value' => array('value'),
+      ),
+      'foreign keys' => array(),
+    );
+    $field_schema = FieldDefinition::create('test_field')->getSchema();
+    $this->assertEqual($field_schema, $expected_schema);
   }
 
 }

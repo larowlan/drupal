@@ -8,6 +8,7 @@
 namespace Drupal\comment\Tests;
 
 use Drupal\comment\CommentInterface;
+use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\simpletest\WebTestBase;
 use Drupal\Core\Entity\EntityInterface;
 
@@ -157,12 +158,12 @@ class CommentNonNodeTest extends WebTestBase {
   function commentExists(CommentInterface $comment = NULL, $reply = FALSE) {
     if ($comment) {
       $regex = '/' . ($reply ? '<div class="indented">(.*?)' : '');
-      $regex .= '<a id="comment-' . $comment->id() . '"(.*?)'; // Comment anchor.
-      $regex .= $comment->subject->value . '(.*?)'; // Match subject.
-      $regex .= $comment->comment_body->value . '(.*?)'; // Match comment.
+      $regex .= '<a id="comment-' . $comment->id() . '"(.*?)';
+      $regex .= $comment->getSubject() . '(.*?)';
+      $regex .= $comment->comment_body->value . '(.*?)';
       $regex .= '/s';
 
-      return (boolean)preg_match($regex, $this->drupalGetContent());
+      return (boolean) preg_match($regex, $this->drupalGetContent());
     }
     else {
       return FALSE;
@@ -328,7 +329,7 @@ class CommentNonNodeTest extends WebTestBase {
 
     $this->drupalGet('comment/reply/entity_test/' . $this->entity->id() . '/comment/' . $comment1->id());
     $this->assertText('You are not authorized to view comments');
-    $this->assertNoText($comment1->subject->value, 'Comment not displayed.');
+    $this->assertNoText($comment1->getSubject(), 'Comment not displayed.');
 
     // Test comment field widget changes.
     $limited_user = $this->drupalCreateUser(array(
@@ -342,7 +343,7 @@ class CommentNonNodeTest extends WebTestBase {
     $this->assertNoFieldChecked('edit-default-value-input-comment-0-status-1');
     $this->assertFieldChecked('edit-default-value-input-comment-0-status-2');
     // Test comment option change in field settings.
-    $edit = array('default_value_input[comment][0][status]' => COMMENT_CLOSED);
+    $edit = array('default_value_input[comment][0][status]' => CommentItemInterface::CLOSED);
     $this->drupalPostForm(NULL, $edit, t('Save settings'));
     $this->drupalGet('entity_test/structure/entity_test/fields/entity_test.entity_test.comment');
     $this->assertNoFieldChecked('edit-default-value-input-comment-0-status-0');

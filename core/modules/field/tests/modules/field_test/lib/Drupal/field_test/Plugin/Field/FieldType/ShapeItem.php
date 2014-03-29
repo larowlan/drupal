@@ -7,9 +7,9 @@
 
 namespace Drupal\field_test\Plugin\Field\FieldType;
 
-use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\Field\FieldDefinitionInterface;
-use Drupal\Core\Field\ConfigFieldItemBase;
+use Drupal\Core\TypedData\DataDefinition;
+use Drupal\Core\Field\FieldItemBase;
 
 /**
  * Defines the 'shape_field' entity field item.
@@ -18,36 +18,32 @@ use Drupal\Core\Field\ConfigFieldItemBase;
  *   id = "shape",
  *   label = @Translation("Shape"),
  *   description = @Translation("Another dummy field type."),
- *   settings = {
- *     "foreign_key_name" = "shape"
- *   },
  *   default_widget = "test_field_widget",
  *   default_formatter = "field_test_default"
  * )
  */
-class ShapeItem extends ConfigFieldItemBase {
-
-  /**
-   * Property definitions of the contained properties.
-   *
-   * @see ShapeItem::getPropertyDefinitions()
-   *
-   * @var array
-   */
-  static $propertyDefinitions;
+class ShapeItem extends FieldItemBase {
 
   /**
    * {@inheritdoc}
    */
-  public function getPropertyDefinitions() {
-    if (!isset(static::$propertyDefinitions)) {
-      static::$propertyDefinitions['shape'] = DataDefinition::create('string')
-        ->setLabel(t('Shape'));
+  public static function defaultSettings() {
+    return array(
+      'foreign_key_name' => 'shape',
+    ) + parent::defaultSettings();
+  }
 
-      static::$propertyDefinitions['color'] = DataDefinition::create('string')
-        ->setLabel(t('Color'));
-    }
-    return static::$propertyDefinitions;
+  /**
+   * {@inheritdoc}
+   */
+  public static function propertyDefinitions(FieldDefinitionInterface $field_definition) {
+    $properties['shape'] = DataDefinition::create('string')
+      ->setLabel(t('Shape'));
+
+    $properties['color'] = DataDefinition::create('string')
+      ->setLabel(t('Color'));
+
+    return $properties;
   }
 
   /**

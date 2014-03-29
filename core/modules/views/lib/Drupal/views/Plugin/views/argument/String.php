@@ -17,7 +17,7 @@ use Drupal\views\ManyToOneHelper;
  *
  * @ingroup views_argument_handlers
  *
- * @PluginID("string")
+ * @ViewsArgument("string")
  */
 class String extends ArgumentPluginBase {
 
@@ -284,7 +284,7 @@ class String extends ArgumentPluginBase {
    * Override for specific title lookups.
    */
   public function titleQuery() {
-    return drupal_map_assoc($this->value, 'check_plain');
+    return array_map('\Drupal\Component\Utility\String::checkPlain', array_combine($this->value, $this->value));
   }
 
   public function summaryName($data) {

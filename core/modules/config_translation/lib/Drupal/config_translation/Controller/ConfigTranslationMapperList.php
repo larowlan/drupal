@@ -10,7 +10,6 @@ namespace Drupal\config_translation\Controller;
 use Drupal\Component\Utility\String;
 use Drupal\config_translation\ConfigMapperInterface;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -18,7 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * Groups all defined configuration mapper instances by weight.
  */
-class ConfigTranslationMapperList extends ControllerBase implements ContainerInjectionInterface {
+class ConfigTranslationMapperList extends ControllerBase {
 
   /**
    * A array of configuration mapper instances.
@@ -54,7 +53,7 @@ class ConfigTranslationMapperList extends ControllerBase implements ContainerInj
    */
   public function render() {
     $build = array(
-      '#theme' => 'table',
+      '#type' => 'table',
       '#header' => $this->buildHeader(),
       '#rows' => array(),
     );
@@ -121,7 +120,7 @@ class ConfigTranslationMapperList extends ControllerBase implements ContainerInj
    * @return array
    *   A renderable array of operation links.
    *
-   * @see \Drupal\Core\Entity\EntityListController::buildOperations()
+   * @see \Drupal\Core\Entity\EntityList::buildOperations()
    */
   protected function buildOperations(ConfigMapperInterface $mapper) {
     // Retrieve and sort operations.

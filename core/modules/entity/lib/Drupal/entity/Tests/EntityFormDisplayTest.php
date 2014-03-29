@@ -10,7 +10,7 @@ namespace Drupal\entity\Tests;
 use Drupal\simpletest\DrupalUnitTestBase;
 
 /**
- * Tests the EntityDisplay configuration entities.
+ * Tests the entity display configuration entities.
  */
 class EntityFormDisplayTest extends DrupalUnitTestBase {
 
@@ -57,13 +57,13 @@ class EntityFormDisplayTest extends DrupalUnitTestBase {
 
     // Create a field and an instance.
     $field_name = 'test_field';
-    $field = entity_create('field_entity', array(
+    $field = entity_create('field_config', array(
       'name' => $field_name,
       'entity_type' => 'entity_test',
       'type' => 'test_field'
     ));
     $field->save();
-    $instance = entity_create('field_instance', array(
+    $instance = entity_create('field_instance_config', array(
       'field_name' => $field_name,
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
@@ -185,13 +185,13 @@ class EntityFormDisplayTest extends DrupalUnitTestBase {
 
     $field_name = 'test_field';
     // Create a field and an instance.
-    $field = entity_create('field_entity', array(
+    $field = entity_create('field_config', array(
       'name' => $field_name,
       'entity_type' => 'entity_test',
       'type' => 'test_field'
     ));
     $field->save();
-    $instance = entity_create('field_instance', array(
+    $instance = entity_create('field_instance_config', array(
       'field_name' => $field_name,
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
@@ -199,6 +199,7 @@ class EntityFormDisplayTest extends DrupalUnitTestBase {
     $instance->save();
 
     // Create default and compact entity display.
+    entity_create('form_mode', array('id' =>  'entity_test.compact', 'targetEntityType' => 'entity_test'))->save();
     entity_create('entity_form_display', array(
       'targetEntityType' => 'entity_test',
       'bundle' => 'entity_test',

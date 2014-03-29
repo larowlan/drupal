@@ -9,8 +9,8 @@ namespace Drupal\aggregator_test\Plugin\aggregator\processor;
 
 use Drupal\aggregator\Plugin\AggregatorPluginSettingsBase;
 use Drupal\aggregator\Plugin\ProcessorInterface;
-use Drupal\aggregator\Entity\Feed;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\aggregator\FeedInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -30,7 +30,7 @@ class TestProcessor extends AggregatorPluginSettingsBase implements ProcessorInt
   /**
    * Contains the configuration object factory.
    *
-   * @var \Drupal\Core\Config\ConfigFactory
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
@@ -55,10 +55,10 @@ class TestProcessor extends AggregatorPluginSettingsBase implements ProcessorInt
    *   The plugin_id for the plugin instance.
    * @param array $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Config\ConfigFactory $config
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   The configuration factory object.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ConfigFactory $config) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ConfigFactoryInterface $config) {
     $this->configFactory = $config;
     parent::__construct($configuration + $this->getConfiguration(), $plugin_id, $plugin_definition);
   }
@@ -74,7 +74,7 @@ class TestProcessor extends AggregatorPluginSettingsBase implements ProcessorInt
       '#type' => 'details',
       '#title' => t('Test processor settings'),
       '#description' => $info['description'],
-      '#collapsed' => !in_array($info['id'], $processors),
+      '#open' => in_array($info['id'], $processors),
     );
     // Add some dummy settings to verify settingsForm is called.
     $form['processors'][$info['id']]['dummy_length'] = array(
@@ -98,7 +98,7 @@ class TestProcessor extends AggregatorPluginSettingsBase implements ProcessorInt
   /**
    * {@inheritdoc}
    */
-  public function process(Feed $feed) {
+  public function process(FeedInterface $feed) {
     foreach ($feed->items as &$item) {
       // Prepend our test string.
       $item['title'] = 'testProcessor' . $item['title'];
@@ -108,7 +108,7 @@ class TestProcessor extends AggregatorPluginSettingsBase implements ProcessorInt
   /**
    * {@inheritdoc}
    */
-  public function remove(Feed $feed) {
+  public function delete(FeedInterface $feed) {
     // Append a random number, just to change the feed description.
     $feed->description->value .= rand(0, 10);
   }
@@ -116,7 +116,7 @@ class TestProcessor extends AggregatorPluginSettingsBase implements ProcessorInt
   /**
    * {@inheritdoc}
    */
-  public function postProcess(Feed $feed) {
+  public function postProcess(FeedInterface $feed) {
     // Double the refresh rate.
     $feed->refresh->value *= 2;
     $feed->save();

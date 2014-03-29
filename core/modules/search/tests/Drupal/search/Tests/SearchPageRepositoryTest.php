@@ -38,14 +38,14 @@ class SearchPageRepositoryTest extends UnitTestCase {
   /**
    * The search page storage.
    *
-   * @var \Drupal\Core\Config\Entity\ConfigStorageController|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Config\Entity\ConfigEntityStorageInterface|\PHPUnit_Framework_MockObject_MockObject
    */
   protected $storage;
 
   /**
    * The config factory.
    *
-   * @var \Drupal\Core\Config\ConfigFactory|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Config\ConfigFactoryInterface|\PHPUnit_Framework_MockObject_MockObject
    */
   protected $configFactory;
 
@@ -66,21 +66,17 @@ class SearchPageRepositoryTest extends UnitTestCase {
   public function setUp() {
     $this->query = $this->getMock('Drupal\Core\Entity\Query\QueryInterface');
 
-    $this->storage = $this->getMockBuilder('Drupal\Core\Config\Entity\ConfigStorageController')
-      ->disableOriginalConstructor()
-      ->getMock();
+    $this->storage = $this->getMock('Drupal\Core\Config\Entity\ConfigEntityStorageInterface');
     $this->storage->expects($this->any())
       ->method('getQuery')
       ->will($this->returnValue($this->query));
 
     $entity_manager = $this->getMock('Drupal\Core\Entity\EntityManagerInterface');
     $entity_manager->expects($this->any())
-      ->method('getStorageController')
+      ->method('getStorage')
       ->will($this->returnValue($this->storage));
 
-    $this->configFactory = $this->getMockBuilder('Drupal\Core\Config\ConfigFactory')
-      ->disableOriginalConstructor()
-      ->getMock();
+    $this->configFactory = $this->getMock('Drupal\Core\Config\ConfigFactoryInterface');
     $this->searchPageRepository = new SearchPageRepository($this->configFactory, $entity_manager);
   }
 
@@ -272,7 +268,7 @@ class SearchPageRepositoryTest extends UnitTestCase {
       ->method('getClass')
       ->will($this->returnValue('Drupal\search\Tests\TestSearchPage'));
     $this->storage->expects($this->once())
-      ->method('entityInfo')
+      ->method('getEntityType')
       ->will($this->returnValue($entity_type));
 
     // Declare entities out of their expected order so we can be sure they were

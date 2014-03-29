@@ -7,6 +7,7 @@
 
 namespace Drupal\comment\Tests;
 
+use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\content_translation\Tests\ContentTranslationUITest;
 
 /**
@@ -35,7 +36,7 @@ class CommentTranslationUITest extends ContentTranslationUITest {
   }
 
   function setUp() {
-    $this->entityType = 'comment';
+    $this->entityTypeId = 'comment';
     $this->nodeBundle = 'article';
     $this->bundle = 'node__comment_article';
     $this->testLanguageSelector = FALSE;
@@ -102,13 +103,13 @@ class CommentTranslationUITest extends ContentTranslationUITest {
     $node = $this->drupalCreateNode(array(
       'type' => $node_type,
       $field_name => array(
-        array('status' => COMMENT_OPEN)
+        array('status' => CommentItemInterface::OPEN)
       ),
     ));
     $values['entity_id'] = $node->id();
     $values['entity_type'] = 'node';
     $values['field_id'] = $node_bundle;
-    $values['uid'] = $node->getAuthorId();
+    $values['uid'] = $node->getOwnerId();
     return parent::createEntity($values, $langcode, $node_bundle);
   }
 
@@ -128,17 +129,17 @@ class CommentTranslationUITest extends ContentTranslationUITest {
    */
   protected function assertPublishedStatus() {
     parent::assertPublishedStatus();
-    $entity = entity_load($this->entityType, $this->entityId);
+    $entity = entity_load($this->entityTypeId, $this->entityId);
     $user = $this->drupalCreateUser(array('access comments'));
     $this->drupalLogin($user);
     $languages = language_list();
 
     // Check that simple users cannot see unpublished field translations.
-    $uri = $entity->uri();
+    $path = $entity->getSystemPath();
     foreach ($this->langcodes as $index => $langcode) {
       $translation = $this->getTranslation($entity, $langcode);
       $value = $this->getValue($translation, 'comment_body', $langcode);
-      $this->drupalGet($uri['path'], array('language' => $languages[$langcode]));
+      $this->drupalGet($path, array('language' => $languages[$langcode]));
       if ($index > 0) {
         $this->assertNoRaw($value, 'Unpublished field translation is not shown.');
       }

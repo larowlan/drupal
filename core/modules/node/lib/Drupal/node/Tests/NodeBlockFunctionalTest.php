@@ -7,6 +7,8 @@
 
 namespace Drupal\node\Tests;
 
+use Drupal\Core\Cache\Cache;
+
 /**
  * Functional tests for the node module blocks.
  */
@@ -113,7 +115,7 @@ class NodeBlockFunctionalTest extends NodeTestBase {
     $node4 = $this->drupalCreateNode($default_settings);
     // drupalCreateNode() does not automatically flush content caches unlike
     // posting a node from a node form.
-    cache_invalidate_tags(array('content' => TRUE));
+    Cache::invalidateTags(array('content' => TRUE));
 
     // Test that all four nodes are shown.
     $this->drupalGet('');
@@ -138,6 +140,9 @@ class NodeBlockFunctionalTest extends NodeTestBase {
     // Create a page node.
     $node5 = $this->drupalCreateNode(array('uid' => $this->adminUser->id(), 'type' => 'page'));
 
+    $this->drupalLogout();
+    $this->drupalLogin($this->webUser);
+
     // Verify visibility rules.
     $this->drupalGet('');
     $label = $block->label();
@@ -148,6 +153,11 @@ class NodeBlockFunctionalTest extends NodeTestBase {
     $this->assertText($label, 'Block was displayed on the node/N when node is of type article.');
     $this->drupalGet('node/' . $node5->id());
     $this->assertNoText($label, 'Block was not displayed on nodes of type page.');
+
+    $this->drupalLogin($this->adminUser);
+    $this->drupalGet('admin/structure/block');
+    $this->assertText($label, 'Block was displayed on the admin/structure/block page.');
+    $this->assertLinkByHref(url('admin/structure/block/manage/' . $block->id()));
   }
 
 }

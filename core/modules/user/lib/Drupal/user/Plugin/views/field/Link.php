@@ -19,7 +19,7 @@ use Drupal\Core\Entity\EntityInterface;
  *
  * @ingroup views_field_handlers
  *
- * @PluginID("user_link")
+ * @ViewsField("user_link")
  */
 class Link extends FieldPluginBase {
 
@@ -89,8 +89,7 @@ class Link extends FieldPluginBase {
     $text = !empty($this->options['text']) ? $this->options['text'] : t('View');
 
     $this->options['alter']['make_link'] = TRUE;
-    $uri = $entity->uri();
-    $this->options['alter']['path'] = $uri['path'];
+    $this->options['alter']['path'] = $entity->getSystemPath();
 
     return $text;
   }

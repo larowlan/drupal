@@ -11,7 +11,8 @@ use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Entity\EntityFormController;
 use Drupal\Core\Entity\Query\QueryFactory;
 use Drupal\Core\Language\Language;
-use Drupal\menu_link\MenuLinkStorageControllerInterface;
+use Drupal\menu_link\MenuLinkStorageInterface;
+use Drupal\menu_link\MenuTreeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -27,11 +28,18 @@ class MenuFormController extends EntityFormController {
   protected $entityQueryFactory;
 
   /**
-   * The menu link storage controller.
+   * The menu link storage.
    *
-   * @var \Drupal\menu_link\MenuLinkStorageControllerInterface
+   * @var \Drupal\menu_link\MenuLinkStorageInterface
    */
   protected $menuLinkStorage;
+
+  /**
+   * The menu tree service.
+   *
+   * @var \Drupal\menu_link\MenuTreeInterface
+   */
+  protected $menuTree;
 
   /**
    * The overview tree form.
@@ -45,12 +53,15 @@ class MenuFormController extends EntityFormController {
    *
    * @param \Drupal\Core\Entity\Query\QueryFactory $entity_query_factory
    *   The factory for entity queries.
-   * @param \Drupal\menu_link\MenuLinkStorageControllerInterface $menu_link_storage
-   *   The menu link storage controller.
+   * @param \Drupal\menu_link\MenuLinkStorageInterface $menu_link_storage
+   *   The menu link storage.
+   * @param \Drupal\menu_link\MenuTreeInterface $menu_tree
+   *   The menu tree service.
    */
-  public function __construct(QueryFactory $entity_query_factory, MenuLinkStorageControllerInterface $menu_link_storage) {
+  public function __construct(QueryFactory $entity_query_factory, MenuLinkStorageInterface $menu_link_storage, MenuTreeInterface $menu_tree) {
     $this->entityQueryFactory = $entity_query_factory;
     $this->menuLinkStorage = $menu_link_storage;
+    $this->menuTree = $menu_tree;
   }
 
   /**
@@ -59,7 +70,8 @@ class MenuFormController extends EntityFormController {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity.query'),
-      $container->get('entity.manager')->getStorageController('menu_link')
+      $container->get('entity.manager')->getStorage('menu_link'),
+      $container->get('menu_link.tree')
     );
   }
 
@@ -113,6 +125,7 @@ class MenuFormController extends EntityFormController {
       $form['default_menu_links_language'] = array(
         '#type' => 'details',
         '#title' => t('Menu links language'),
+        '#open' => TRUE,
       );
       $form['default_menu_links_language']['default_language'] = array(
         '#type' => 'language_configuration',
@@ -205,34 +218,17 @@ class MenuFormController extends EntityFormController {
 
     $status = $menu->save();
 
-    $uri = $menu->uri();
+    $edit_link = \Drupal::linkGenerator()->generateFromUrl($this->t('Edit'), $this->entity->urlInfo());
     if ($status == SAVED_UPDATED) {
       drupal_set_message(t('Menu %label has been updated.', array('%label' => $menu->label())));
-      watchdog('menu', 'Menu %label has been updated.', array('%label' => $menu->label()), WATCHDOG_NOTICE, l(t('Edit'), $uri['path'] . '/edit'));
+      watchdog('menu', 'Menu %label has been updated.', array('%label' => $menu->label()), WATCHDOG_NOTICE, $edit_link);
     }
     else {
       drupal_set_message(t('Menu %label has been added.', array('%label' => $menu->label())));
-      watchdog('menu', 'Menu %label has been added.', array('%label' => $menu->label()), WATCHDOG_NOTICE, l(t('Edit'), $uri['path'] . '/edit'));
+      watchdog('menu', 'Menu %label has been added.', array('%label' => $menu->label()), WATCHDOG_NOTICE, $edit_link);
     }
 
-    $form_state['redirect_route'] = array(
-      'route_name' => 'menu.menu_edit',
-      'route_parameters' => array(
-        'menu' => $this->entity->id(),
-      ),
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function delete(array $form, array &$form_state) {
-    $form_state['redirect_route'] = array(
-      'route_name' => 'menu.delete_menu',
-      'route_parameters' => array(
-        'menu' => $this->entity->id(),
-      ),
-    );
+    $form_state['redirect_route'] = $this->entity->urlInfo('edit-form');
   }
 
   /**
@@ -250,8 +246,6 @@ class MenuFormController extends EntityFormController {
    * their form submit handler.
    */
   protected function buildOverviewForm(array &$form, array &$form_state) {
-    global $menu_admin;
-
     // Ensure that menu_overview_form_submit() knows the parents of this form
     // section.
     $form['#tree'] = TRUE;
@@ -273,13 +267,10 @@ class MenuFormController extends EntityFormController {
     }
 
     $delta = max(count($links), 50);
-    $tree = menu_tree_data($links);
-    $node_links = array();
-    menu_tree_collect_node_links($tree, $node_links);
     // We indicate that a menu administrator is running the menu access check.
-    $menu_admin = TRUE;
-    menu_tree_check_access($tree, $node_links);
-    $menu_admin = FALSE;
+    $this->getRequest()->attributes->set('_menu_admin', TRUE);
+    $tree = $this->menuTree->buildTreeData($links);
+    $this->getRequest()->attributes->set('_menu_admin', FALSE);
 
     $form = array_merge($form, $this->buildOverviewTreeForm($tree, $delta));
     $form['#empty_text'] = t('There are no menu links yet. <a href="@link">Add link</a>.', array('@link' => url('admin/structure/menu/manage/' . $this->entity->id() .'/add')));
@@ -311,7 +302,7 @@ class MenuFormController extends EntityFormController {
         if ($item['hidden']) {
           $form[$mlid]['title']['#markup'] .= ' (' . t('disabled') . ')';
         }
-        elseif ($item['link_path'] == 'user' && $item['module'] == 'system') {
+        elseif ($item['link_path'] == 'user' && $item['module'] == 'user') {
           $form[$mlid]['title']['#markup'] .= ' (' . t('logged in users only') . ')';
         }
 

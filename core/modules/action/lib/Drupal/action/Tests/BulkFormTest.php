@@ -8,6 +8,7 @@
 namespace Drupal\action\Tests;
 
 use Drupal\simpletest\WebTestBase;
+use Drupal\views\Views;
 
 /**
  * Tests the views bulk form test.
@@ -21,7 +22,7 @@ class BulkFormTest extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('action_bulk_test');
+  public static $modules = array('node', 'action_bulk_test');
 
   public static function getInfo() {
     return array(
@@ -35,6 +36,11 @@ class BulkFormTest extends WebTestBase {
    * Tests the bulk form.
    */
   public function testBulkForm() {
+    // First, test an empty bulk form with the default style plugin to make sure
+    // the empty region is rendered correctly.
+    $this->drupalGet('test_bulk_form_empty');
+    $this->assertText(t('This view is empty.'), 'Empty text found on empty bulk form.');
+
     $nodes = array();
     for ($i = 0; $i < 10; $i++) {
       // Ensure nodes are sorted in the same order they are inserted in the
@@ -58,8 +64,8 @@ class BulkFormTest extends WebTestBase {
     // Make sure a checkbox appears on all rows.
     $edit = array();
     for ($i = 0; $i < 10; $i++) {
-      $this->assertFieldById('edit-action-bulk-form-' . $i, NULL, format_string('The checkbox on row @row appears.', array('@row' => $i)));
-      $edit["action_bulk_form[$i]"] = TRUE;
+      $this->assertFieldById('edit-node-bulk-form-' . $i, NULL, format_string('The checkbox on row @row appears.', array('@row' => $i)));
+      $edit["node_bulk_form[$i]"] = TRUE;
     }
 
     // Set all nodes to sticky and check that.
@@ -77,7 +83,7 @@ class BulkFormTest extends WebTestBase {
     $node = node_load($nodes[0]->id());
     $this->assertTrue($node->isPublished(), 'The node is published.');
 
-    $edit = array('action_bulk_form[0]' => TRUE, 'action' => 'node_unpublish_action');
+    $edit = array('node_bulk_form[0]' => TRUE, 'action' => 'node_unpublish_action');
     $this->drupalPostForm(NULL, $edit, t('Apply'));
 
     $this->assertText('Unpublish content was applied to 1 item.');
@@ -91,11 +97,11 @@ class BulkFormTest extends WebTestBase {
     $this->assertTrue($node->isPublished(), 'An unchecked node is still published.');
 
     // Set up to include just the sticky actions.
-    $view = views_get_view('test_bulk_form');
+    $view = Views::getView('test_bulk_form');
     $display = &$view->storage->getDisplay('default');
-    $display['display_options']['fields']['action_bulk_form']['include_exclude'] = 'include';
-    $display['display_options']['fields']['action_bulk_form']['selected_actions']['node_make_sticky_action'] = 'node_make_sticky_action';
-    $display['display_options']['fields']['action_bulk_form']['selected_actions']['node_make_unsticky_action'] = 'node_make_unsticky_action';
+    $display['display_options']['fields']['node_bulk_form']['include_exclude'] = 'include';
+    $display['display_options']['fields']['node_bulk_form']['selected_actions']['node_make_sticky_action'] = 'node_make_sticky_action';
+    $display['display_options']['fields']['node_bulk_form']['selected_actions']['node_make_unsticky_action'] = 'node_make_unsticky_action';
     $view->save();
 
     $this->drupalGet('test_bulk_form');
@@ -105,9 +111,9 @@ class BulkFormTest extends WebTestBase {
     $this->assertOption('edit-action', 'node_make_unsticky_action');
 
     // Set up to exclude the sticky actions.
-    $view = views_get_view('test_bulk_form');
+    $view = Views::getView('test_bulk_form');
     $display = &$view->storage->getDisplay('default');
-    $display['display_options']['fields']['action_bulk_form']['include_exclude'] = 'exclude';
+    $display['display_options']['fields']['node_bulk_form']['include_exclude'] = 'exclude';
     $view->save();
 
     $this->drupalGet('test_bulk_form');
@@ -120,9 +126,9 @@ class BulkFormTest extends WebTestBase {
     $this->assertEqual('With selection', (string) $result[0]);
 
     // Setup up a different bulk form title.
-    $view = views_get_view('test_bulk_form');
+    $view = Views::getView('test_bulk_form');
     $display = &$view->storage->getDisplay('default');
-    $display['display_options']['fields']['action_bulk_form']['action_title'] = 'Test title';
+    $display['display_options']['fields']['node_bulk_form']['action_title'] = 'Test title';
     $view->save();
 
     $this->drupalGet('test_bulk_form');

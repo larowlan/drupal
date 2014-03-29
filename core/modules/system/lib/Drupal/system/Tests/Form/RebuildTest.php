@@ -22,7 +22,7 @@ class RebuildTest extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('form_test');
+  public static $modules = array('node', 'form_test');
 
   public static function getInfo() {
     return array(
@@ -78,15 +78,15 @@ class RebuildTest extends WebTestBase {
       'type' => 'text',
       'cardinality' => FieldDefinitionInterface::CARDINALITY_UNLIMITED,
     );
-    entity_create('field_entity', $field)->save();
+    entity_create('field_config', $field)->save();
     $instance = array(
       'field_name' => $field_name,
       'entity_type' => 'node',
       'bundle' => 'page',
     );
-    entity_create('field_instance', $instance)->save();
+    entity_create('field_instance_config', $instance)->save();
     entity_get_form_display('node', 'page', 'default')
-      ->setComponent($field_name, array('type' => 'text_test'))
+      ->setComponent($field_name, array('type' => 'text_textfield'))
       ->save();
 
     // Log in a user who can create 'page' nodes.

@@ -8,13 +8,14 @@
 namespace Drupal\taxonomy\Plugin\views\argument;
 
 use Drupal\views\Plugin\views\argument\Numeric;
+use Drupal\Component\Utility\String;
 
 /**
  * Argument handler to accept a vocabulary id.
  *
  * @ingroup views_argument_handlers
  *
- * @PluginID("vocabulary_vid")
+ * @ViewsArgument("vocabulary_vid")
  */
 class VocabularyVid extends Numeric {
 
@@ -24,7 +25,7 @@ class VocabularyVid extends Numeric {
   function title() {
     $vocabulary = entity_load('taxonomy_vocabulary', $this->argument);
     if ($vocabulary) {
-      return check_plain($vocabulary->label());
+      return String::checkPlain($vocabulary->label());
     }
 
     return t('No vocabulary');

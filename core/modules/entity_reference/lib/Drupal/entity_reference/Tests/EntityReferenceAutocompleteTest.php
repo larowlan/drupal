@@ -7,10 +7,13 @@
 
 namespace Drupal\entity_reference\Tests;
 
+use Drupal\Component\Utility\Json;
+use Drupal\Component\Utility\String;
+use Drupal\Component\Utility\Tags;
 use Drupal\entity_reference\EntityReferenceController;
 use Drupal\system\Tests\Entity\EntityUnitTestBase;
-
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Tests the autocomplete functionality of Entity Reference.
@@ -22,14 +25,14 @@ class EntityReferenceAutocompleteTest extends EntityUnitTestBase {
    *
    * @var string
    */
-  protected $entityType = 'entity_test_label';
+  protected $entityType = 'entity_test';
 
   /**
    * The bundle used in this test.
    *
    * @var string
    */
-  protected $bundle = 'entity_test_label';
+  protected $bundle = 'entity_test';
 
   /**
    * The name of the field used in this test.
@@ -43,7 +46,7 @@ class EntityReferenceAutocompleteTest extends EntityUnitTestBase {
    *
    * @var array
    */
-  public static $modules = array('entity_reference');
+  public static $modules = array('entity_reference', 'entity_reference_test');
 
   public static function getInfo() {
     return array(
@@ -79,8 +82,8 @@ class EntityReferenceAutocompleteTest extends EntityUnitTestBase {
     // We should get both entities in a JSON encoded string.
     $input = '10/';
     $data = $this->getAutocompleteResult('single', $input);
-    $this->assertIdentical($data[0]['label'], check_plain($entity_1->name->value), 'Autocomplete returned the first matching entity');
-    $this->assertIdentical($data[1]['label'], check_plain($entity_2->name->value), 'Autocomplete returned the second matching entity');
+    $this->assertIdentical($data[0]['label'], String::checkPlain($entity_1->name->value), 'Autocomplete returned the first matching entity');
+    $this->assertIdentical($data[1]['label'], String::checkPlain($entity_2->name->value), 'Autocomplete returned the second matching entity');
 
     // Try to autocomplete a entity label that matches the first entity.
     // We should only get the first entity in a JSON encoded string.
@@ -88,7 +91,7 @@ class EntityReferenceAutocompleteTest extends EntityUnitTestBase {
     $data = $this->getAutocompleteResult('single', $input);
     $target = array(
       'value' => $entity_1->name->value . ' (1)',
-      'label' => check_plain($entity_1->name->value),
+      'label' => String::checkPlain($entity_1->name->value),
     );
     $this->assertIdentical(reset($data), $target, 'Autocomplete returns only the expected matching entity.');
 
@@ -96,19 +99,17 @@ class EntityReferenceAutocompleteTest extends EntityUnitTestBase {
     // the first entity  is already typed in the autocomplete (tags) widget.
     $input = $entity_1->name->value . ' (1), 10/17';
     $data = $this->getAutocompleteResult('tags', $input);
-    $this->assertIdentical($data[0]['label'], check_plain($entity_2->name->value), 'Autocomplete returned the second matching entity');
+    $this->assertIdentical($data[0]['label'], String::checkPlain($entity_2->name->value), 'Autocomplete returned the second matching entity');
 
     // Try to autocomplete a entity label with both a comma and a slash.
     $input = '"label with, and / t';
     $data = $this->getAutocompleteResult('single', $input);
-    $n = $entity_3->name->value;
+    $n = $entity_3->name->value . ' (3)';
     // Entity labels containing commas or quotes must be wrapped in quotes.
-    if (strpos($entity_3->name->value, ',') !== FALSE || strpos($entity_3->name->value, '"') !== FALSE) {
-      $n = '"' . str_replace('"', '""', $entity_3->name->value) .  ' (3)"';
-    }
+    $n = Tags::encode($n);
     $target = array(
       'value' => $n,
-      'label' => check_plain($entity_3->name->value),
+      'label' => String::checkPlain($entity_3->name->value),
     );
     $this->assertIdentical(reset($data), $target, 'Autocomplete returns an entity label containing a comma and a slash.');
   }
@@ -131,6 +132,37 @@ class EntityReferenceAutocompleteTest extends EntityUnitTestBase {
     $entity_reference_controller = EntityReferenceController::create($this->container);
     $result = $entity_reference_controller->handleAutocomplete($request, $type, $this->fieldName, $this->entityType, $this->bundle, 'NULL')->getContent();
 
-    return drupal_json_decode($result);
+    return Json::decode($result);
   }
+
+  /**
+   * Tests autocomplete for entity base fields.
+   */
+  public function testBaseField() {
+    // Add two users.
+    $user_1 = entity_create('user', array('name' => 'auto1'));
+    $user_1->save();
+    $user_2 = entity_create('user', array('name' => 'auto2'));
+    $user_2->save();
+
+    $request = Request::create('entity_reference/autocomplete/single/user_id/entity_test/entity_test/NULL');
+    $request->query->set('q', 'auto');
+
+    $entity_reference_controller = EntityReferenceController::create($this->container);
+    $result = $entity_reference_controller->handleAutocomplete($request, 'single', 'user_id', 'entity_test', 'entity_test', 'NULL')->getContent();
+
+    $data = Json::decode($result);
+    $this->assertIdentical($data[0]['label'], String::checkPlain($user_1->getUsername()), 'Autocomplete returned the first matching entity');
+    $this->assertIdentical($data[1]['label'], String::checkPlain($user_2->getUsername()), 'Autocomplete returned the second matching entity');
+
+    // Checks that exception thrown for unknown field.
+    try {
+      $entity_reference_controller->handleAutocomplete($request, 'single', 'unknown_field', 'entity_test', 'entity_test', 'NULL')->getContent();
+      $this->fail('Autocomplete throws exception for unknown field.');
+    }
+    catch (AccessDeniedHttpException $e) {
+      $this->pass('Autocomplete throws exception for unknown field.');
+    }
+  }
+
 }

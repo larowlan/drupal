@@ -7,6 +7,8 @@
 
 namespace Drupal\views\Tests\Handler;
 
+use Drupal\views\Views;
+
 /**
  * Tests the core Drupal\views\Plugin\views\argument\String handler.
  */
@@ -18,6 +20,13 @@ class ArgumentStringTest extends HandlerTestBase {
    * @var array
    */
   public static $testViews = array('test_glossary');
+
+  /**
+   * Modules to enable.
+   *
+   * @var array
+   */
+  public static $modules = array('node');
 
   public static function getInfo() {
     return array(
@@ -42,7 +51,7 @@ class ArgumentStringTest extends HandlerTestBase {
       }
     }
 
-    $view = views_get_view('test_glossary');
+    $view = Views::getView('test_glossary');
     $this->executeView($view);
 
     $count_field = 'nid';

@@ -23,9 +23,9 @@ class ConfigEntityUnitTest extends DrupalUnitTestBase {
   public static $modules = array('config_test');
 
   /**
-   * The config_test entity storage controller.
+   * The config_test entity storage.
    *
-   * @var \Drupal\config_test\ConfigTestStorageController
+   * @var \Drupal\Core\Config\Entity\ConfigEntityStorageInterface
    */
   protected $storage;
 
@@ -42,23 +42,23 @@ class ConfigEntityUnitTest extends DrupalUnitTestBase {
    */
   protected function setUp() {
     parent::setUp();
-    $this->storage = $this->container->get('entity.manager')->getStorageController('config_test');
+    $this->storage = $this->container->get('entity.manager')->getStorage('config_test');
   }
 
   /**
-   * Tests storage controller methods.
+   * Tests storage methods.
    */
-  public function testStorageControllerMethods() {
-    $info = \Drupal::entityManager()->getDefinition('config_test');
+  public function testStorageMethods() {
+    $entity_type = \Drupal::entityManager()->getDefinition('config_test');
 
-    $expected = $info->getConfigPrefix() . '.';
+    $expected = $entity_type->getConfigPrefix() . '.';
     $this->assertIdentical($this->storage->getConfigPrefix(), $expected);
 
     // Test the static extractID() method.
     $expected_id = 'test_id';
-    $config_name = $info->getConfigPrefix() . '.' . $expected_id;
+    $config_name = $entity_type->getConfigPrefix() . '.' . $expected_id;
     $storage = $this->storage;
-    $this->assertIdentical($storage::getIDFromConfigName($config_name, $info->getConfigPrefix()), $expected_id);
+    $this->assertIdentical($storage::getIDFromConfigName($config_name, $entity_type->getConfigPrefix()), $expected_id);
 
     // Create three entities, two with the same style.
     $style = $this->randomName(8);
@@ -78,6 +78,13 @@ class ConfigEntityUnitTest extends DrupalUnitTestBase {
     ));
     $entity->save();
 
+    // Ensure that the configuration entity can be loaded by UUID.
+    $entity_loaded_by_uuid = entity_load_by_uuid($entity_type->id(), $entity->uuid());
+    // Compare UUIDs as the objects are not identical since
+    // $entity->enforceIsNew is FALSE and $entity_loaded_by_uuid->enforceIsNew
+    // is NULL.
+    $this->assertIdentical($entity->uuid(), $entity_loaded_by_uuid->uuid());
+
     $entities = $this->storage->loadByProperties();
     $this->assertEqual(count($entities), 3, 'Three entities are loaded when no properties are specified.');
 
@@ -88,16 +95,6 @@ class ConfigEntityUnitTest extends DrupalUnitTestBase {
     foreach ($entities as $entity) {
       $this->assertIdentical($entity->get('style'), $style, 'The loaded entity has the correct style value specified.');
     }
-  }
-
-  /**
-   * Tests getOriginalId() and setOriginalId().
-   */
-  protected function testGetOriginalId() {
-    $entity = $this->storage->create(array());
-    $id = $this->randomName();
-    $this->assertIdentical(spl_object_hash($entity->setOriginalId($id)), spl_object_hash($entity));
-    $this->assertIdentical($entity->getOriginalId(), $id);
   }
 
 }

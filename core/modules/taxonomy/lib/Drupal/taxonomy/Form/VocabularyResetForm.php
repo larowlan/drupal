@@ -8,7 +8,7 @@
 namespace Drupal\taxonomy\Form;
 
 use Drupal\Core\Entity\EntityConfirmFormBase;
-use Drupal\taxonomy\TermStorageControllerInterface;
+use Drupal\taxonomy\TermStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -19,17 +19,17 @@ class VocabularyResetForm extends EntityConfirmFormBase {
   /**
    * The term storage.
    *
-   * @var \Drupal\taxonomy\TermStorageControllerInterface
+   * @var \Drupal\taxonomy\TermStorageInterface
    */
   protected $termStorage;
 
   /**
    * Constructs a new VocabularyResetForm object.
    *
-   * @param \Drupal\taxonomy\TermStorageControllerInterface $term_storage
+   * @param \Drupal\taxonomy\TermStorageInterface $term_storage
    *   The term storage.
    */
-  public function __construct(TermStorageControllerInterface $term_storage) {
+  public function __construct(TermStorageInterface $term_storage) {
     $this->termStorage = $term_storage;
   }
 
@@ -38,7 +38,7 @@ class VocabularyResetForm extends EntityConfirmFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorageController('taxonomy_term')
+      $container->get('entity.manager')->getStorage('taxonomy_term')
     );
   }
 
@@ -60,12 +60,7 @@ class VocabularyResetForm extends EntityConfirmFormBase {
    * {@inheritdoc}
    */
   public function getCancelRoute() {
-    return array(
-      'route_name' => 'taxonomy.overview_terms',
-      'route_parameters' => array(
-        'taxonomy_vocabulary' => $this->entity->id(),
-      ),
-    );
+    return $this->entity->urlInfo('overview-form');
   }
 
   /**
@@ -89,10 +84,7 @@ class VocabularyResetForm extends EntityConfirmFormBase {
     $this->termStorage->resetWeights($this->entity->id());
     drupal_set_message($this->t('Reset vocabulary %name to alphabetical order.', array('%name' => $this->entity->label())));
     watchdog('taxonomy', 'Reset vocabulary %name to alphabetical order.', array('%name' => $this->entity->label()), WATCHDOG_NOTICE);
-    $form_state['redirect_route'] = array(
-      'route_name' => 'taxonomy.vocabulary_edit',
-      'route_parameters' => array('taxonomy_vocabulary' => $this->entity->id()),
-    );
+    $form_state['redirect_route'] = $this->entity->urlInfo('edit-form');
   }
 
 }

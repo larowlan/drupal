@@ -10,7 +10,6 @@ namespace Drupal\node\Plugin\Search;
 use Drupal\Core\Config\Config;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Query\SelectExtender;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\KeyValueStore\StateInterface;
@@ -18,6 +17,7 @@ use Drupal\Core\Language\Language;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Access\AccessibleInterface;
 use Drupal\Core\Database\Query\Condition;
+use Drupal\node\NodeInterface;
 use Drupal\search\Plugin\ConfigurableSearchPluginBase;
 use Drupal\search\Plugin\SearchIndexingInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -96,7 +96,7 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
    */
   protected $advanced = array(
     'type' => array('column' => 'n.type'),
-    'langcode' => array('column' => 'i.langcode'),
+    'language' => array('column' => 'i.langcode'),
     'author' => array('column' => 'n.uid'),
     'term' => array('column' => 'ti.tid', 'join' => array('table' => 'taxonomy_index', 'alias' => 'ti', 'condition' => 'n.nid = ti.nid')),
   );
@@ -224,14 +224,19 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
       // Add the language code of the indexed item to the result of the query,
       // since the node will be rendered using the respective language.
       ->fields('i', array('langcode'))
+      // And since SearchQuery makes these into GROUP BY queries, if we add
+      // a field, for PostgreSQL we also need to make it an aggregate or a
+      // GROUP BY. In this case, we want GROUP BY.
+      ->groupBy('i.langcode')
       ->limit(10)
       ->execute();
 
-    $node_storage = $this->entityManager->getStorageController('node');
+    $node_storage = $this->entityManager->getStorage('node');
     $node_render = $this->entityManager->getViewBuilder('node');
 
     foreach ($find as $item) {
       // Render the node.
+      /** @var \Drupal\node\NodeInterface $node */
       $node = $node_storage->load($item->sid)->getTranslation($item->langcode);
       $build = $node_render->view($node, 'search_result', $item->langcode);
       unset($build['#theme']);
@@ -243,14 +248,13 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
       $extra = $this->moduleHandler->invokeAll('node_search_result', array($node, $item->langcode));
 
       $language = language_load($item->langcode);
-      $uri = $node->uri();
       $username = array(
         '#theme' => 'username',
-        '#account' => $node->getAuthor(),
+        '#account' => $node->getOwner(),
       );
       $results[] = array(
-        'link' => url($uri['path'], array_merge($uri['options'], array('absolute' => TRUE, 'language' => $language))),
-        'type' => check_plain($this->entityManager->getStorageController('node_type')->load($node->bundle())->label()),
+        'link' => $node->url('canonical', array('absolute' => TRUE, 'language' => $language)),
+        'type' => check_plain($this->entityManager->getStorage('node_type')->load($node->bundle())->label()),
         'title' => $node->label(),
         'user' => drupal_render($username),
         'date' => $node->getChangedTime(),
@@ -302,7 +306,7 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
     // The indexing throttle should be aware of the number of language variants
     // of a node.
     $counter = 0;
-    $node_storage = $this->entityManager->getStorageController('node');
+    $node_storage = $this->entityManager->getStorage('node');
     foreach ($node_storage->loadMultiple($nids) as $node) {
       // Determine when the maximum number of indexable items is reached.
       $counter += count($node->getTranslationLanguages());
@@ -316,10 +320,10 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
   /**
    * Indexes a single node.
    *
-   * @param \Drupal\Core\Entity\EntityInterface $node
+   * @param \Drupal\node\NodeInterface $node
    *   The node to index.
    */
-  protected function indexNode(EntityInterface $node) {
+  protected function indexNode(NodeInterface $node) {
     // Save the changed time of the most recent indexed node, for the search
     // results half-life calculation.
     $this->state->set('node.cron_last', $node->getChangedTime());
@@ -375,14 +379,12 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
     $form['advanced'] = array(
       '#type' => 'details',
       '#title' => t('Advanced search'),
-      '#collapsed' => TRUE,
       '#attributes' => array('class' => array('search-advanced')),
       '#access' => $this->account && $this->account->hasPermission('use advanced search'),
     );
     $form['advanced']['keywords-fieldset'] = array(
       '#type' => 'fieldset',
       '#title' => t('Keywords'),
-      '#collapsible' => FALSE,
     );
     $form['advanced']['keywords'] = array(
       '#prefix' => '<div class="criterion">',
@@ -412,7 +414,6 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
     $form['advanced']['types-fieldset'] = array(
       '#type' => 'fieldset',
       '#title' => t('Types'),
-      '#collapsible' => FALSE,
     );
     $form['advanced']['types-fieldset']['type'] = array(
       '#type' => 'checkboxes',
@@ -431,7 +432,8 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
 
     // Add languages.
     $language_options = array();
-    foreach (language_list(Language::STATE_ALL) as $langcode => $language) {
+    $language_list = \Drupal::languageManager()->getLanguages(Language::STATE_ALL);
+    foreach ($language_list as $langcode => $language) {
       // Make locked languages appear special in the list.
       $language_options[$langcode] = $language->locked ? t('- @name -', array('@name' => $language->name)) : $language->name;
     }
@@ -439,8 +441,6 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
       $form['advanced']['lang-fieldset'] = array(
         '#type' => 'fieldset',
         '#title' => t('Languages'),
-        '#collapsible' => FALSE,
-        '#collapsed' => FALSE,
       );
       $form['advanced']['lang-fieldset']['language'] = array(
         '#type' => 'checkboxes',
@@ -552,14 +552,16 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
     $form['content_ranking'] = array(
       '#type' => 'details',
       '#title' => t('Content ranking'),
+      '#open' => TRUE,
     );
     $form['content_ranking']['#theme'] = 'node_search_admin';
     $form['content_ranking']['info'] = array(
-      '#value' => '<em>' . $this->t('Influence is a numeric multiplier used in ordering search results. A higher number means the corresponding factor has more influence on search results; zero means the factor is ignored. Changing these numbers does not require the search index to be rebuilt. Changes take effect immediately.') . '</em>'
+      '#markup' => '<p><em>' . $this->t('Influence is a numeric multiplier used in ordering search results. A higher number means the corresponding factor has more influence on search results; zero means the factor is ignored. Changing these numbers does not require the search index to be rebuilt. Changes take effect immediately.') . '</em></p>'
     );
 
     // Note: reversed to reflect that higher number = higher ranking.
-    $options = drupal_map_assoc(range(0, 10));
+    $range = range(0, 10);
+    $options = array_combine($range, $range);
     foreach ($this->getRankings() as $var => $values) {
       $form['content_ranking']['factors']["rankings_$var"] = array(
         '#title' => $values['title'],

@@ -7,8 +7,8 @@
 
 namespace Drupal\text\Plugin\Field\FieldType;
 
-use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\TypedData\DataDefinition;
 
 /**
  * Plugin implementation of the 'text_with_summary' field type.
@@ -17,10 +17,6 @@ use Drupal\Core\Field\FieldDefinitionInterface;
  *   id = "text_with_summary",
  *   label = @Translation("Long text and summary"),
  *   description = @Translation("This field stores long text in the database along with optional summary text."),
- *   instance_settings = {
- *     "text_processing" = "1",
- *     "display_summary" = "0"
- *   },
  *   default_widget = "text_textarea_with_summary",
  *   default_formatter = "text_default"
  * )
@@ -28,30 +24,32 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 class TextWithSummaryItem extends TextItemBase {
 
   /**
-   * Definitions of the contained properties.
-   *
-   * @var array
+   * {@inheritdoc}
    */
-  static $propertyDefinitions;
+  public static function defaultInstanceSettings() {
+    return array(
+      'text_processing' => 1,
+      'display_summary' => 0,
+    ) + parent::defaultInstanceSettings();
+  }
 
   /**
    * {@inheritdoc}
    */
-  public function getPropertyDefinitions() {
-    if (!isset(static::$propertyDefinitions)) {
-      static::$propertyDefinitions = parent::getPropertyDefinitions();
+  public static function propertyDefinitions(FieldDefinitionInterface $field_definition) {
+    $properties = parent::propertyDefinitions($field_definition);
 
-      static::$propertyDefinitions['summary'] = DataDefinition::create('string')
-        ->setLabel(t('Summary text value'));
+    $properties['summary'] = DataDefinition::create('string')
+      ->setLabel(t('Summary text value'));
 
-      static::$propertyDefinitions['summary_processed'] = DataDefinition::create('string')
-        ->setLabel(t('Processed summary text'))
-        ->setDescription(t('The summary text value with the text format applied.'))
-        ->setComputed(TRUE)
-        ->setClass('\Drupal\text\TextProcessed')
-        ->setSetting('text source', 'summary');
-    }
-    return static::$propertyDefinitions;
+    $properties['summary_processed'] = DataDefinition::create('string')
+      ->setLabel(t('Processed summary text'))
+      ->setDescription(t('The summary text value with the text format applied.'))
+      ->setComputed(TRUE)
+      ->setClass('\Drupal\text\TextProcessed')
+      ->setSetting('text source', 'summary');
+
+    return $properties;
   }
 
   /**
@@ -95,7 +93,7 @@ class TextWithSummaryItem extends TextItemBase {
    */
   public function instanceSettingsForm(array $form, array &$form_state) {
     $element = array();
-    $settings = $this->getFieldSettings();
+    $settings = $this->getSettings();
 
     $element['text_processing'] = array(
       '#type' => 'radios',

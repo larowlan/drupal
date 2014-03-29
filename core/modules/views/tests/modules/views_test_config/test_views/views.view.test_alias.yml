@@ -83,9 +83,8 @@ display:
     display_plugin: default
     display_title: Master
     id: default
-    position: '0'
+    position: 0
 label: test_alias
 module: views
 id: test_alias
 tag: default
-uuid: 3bdfd3e6-15aa-4324-9005-5ad8b321d265

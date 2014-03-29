@@ -7,7 +7,6 @@
 
 namespace Drupal\migrate_drupal\Tests\d6;
 
-use Drupal\migrate\MigrateMessage;
 use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate_drupal\Tests\MigrateDrupalTestBase;
 
@@ -15,6 +14,13 @@ use Drupal\migrate_drupal\Tests\MigrateDrupalTestBase;
  * Tests migration of variables from the Taxonomy module.
  */
 class MigrateTaxonomyConfigsTest extends MigrateDrupalTestBase {
+
+  /**
+   * Modules to enable.
+   *
+   * @var array
+   */
+  public static $modules = array('taxonomy');
 
   /**
    * {@inheritdoc}
@@ -28,16 +34,23 @@ class MigrateTaxonomyConfigsTest extends MigrateDrupalTestBase {
   }
 
   /**
-   * Tests migration of taxonomy variables to taxonomy.settings.yml.
+   * {@inheritdoc}
    */
-  public function testTaxonomySettings() {
+  protected function setUp() {
+    parent::setUp();
     $migration = entity_load('migration', 'd6_taxonomy_settings');
     $dumps = array(
       drupal_get_path('module', 'migrate_drupal') . '/lib/Drupal/migrate_drupal/Tests/Dump/Drupal6TaxonomySettings.php',
     );
     $this->prepare($migration, $dumps);
-    $executable = new MigrateExecutable($migration, new MigrateMessage());
+    $executable = new MigrateExecutable($migration, $this);
     $executable->import();
+  }
+
+  /**
+   * Tests migration of taxonomy variables to taxonomy.settings.yml.
+   */
+  public function testTaxonomySettings() {
     $config = \Drupal::config('taxonomy.settings');
     $this->assertIdentical($config->get('terms_per_page_admin'), 100);
     $this->assertIdentical($config->get('override_selector'), FALSE);

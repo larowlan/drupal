@@ -37,7 +37,7 @@ class BreadcrumbTest extends MenuTestBase {
   function setUp() {
     parent::setUp();
 
-    $perms = array_keys(module_invoke_all('permission'));
+    $perms = array_keys(\Drupal::moduleHandler()->invokeAll('permission'));
     $this->admin_user = $this->drupalCreateUser($perms);
     $this->drupalLogin($this->admin_user);
 
@@ -74,8 +74,7 @@ class BreadcrumbTest extends MenuTestBase {
     $trail += array(
       'admin/structure/taxonomy/manage/tags' => t('Tags'),
     );
-    $this->assertBreadcrumb('admin/structure/taxonomy/manage/tags/edit', $trail);
-    $this->assertBreadcrumb('admin/structure/taxonomy/manage/tags/fields', $trail);
+    $this->assertBreadcrumb('admin/structure/taxonomy/manage/tags/overview', $trail);
     $this->assertBreadcrumb('admin/structure/taxonomy/manage/tags/add', $trail);
 
     // Verify Menu administration breadcrumbs.
@@ -89,10 +88,11 @@ class BreadcrumbTest extends MenuTestBase {
     );
     $this->assertBreadcrumb('admin/structure/menu/manage/tools', $trail);
 
-    $mlid_node_add = db_query('SELECT mlid FROM {menu_links} WHERE link_path = :href AND module = :module', array(
-      ':href' => 'node/add',
-      ':module' => 'system',
-    ))->fetchField();
+    $mlid_node_add = \Drupal::entityQuery('menu_link')
+      ->condition('machine_name', 'node.add_page')
+      ->condition('module', 'node')
+      ->execute();
+    $mlid_node_add = reset($mlid_node_add);
     $trail += array(
       'admin/structure/menu/manage/tools' => t('Tools'),
     );
@@ -271,7 +271,7 @@ class BreadcrumbTest extends MenuTestBase {
       $tree += array(
         $link['link_path'] => $link['link_title'],
       );
-      $this->assertBreadcrumb($link['link_path'], $trail, $term->label(), $tree);
+      $this->assertBreadcrumb($link['link_path'], $trail, $term->getName(), $tree);
       $this->assertRaw(check_plain($parent->getTitle()), 'Tagged node found.');
 
       // Additionally make sure that this link appears only once; i.e., the
@@ -287,7 +287,7 @@ class BreadcrumbTest extends MenuTestBase {
       // Next iteration should expect this tag as parent link.
       // Note: Term name, not link name, due to taxonomy_term_page().
       $trail += array(
-        $link['link_path'] => $term->label(),
+        $link['link_path'] => $term->getName(),
       );
     }
 
@@ -338,10 +338,7 @@ class BreadcrumbTest extends MenuTestBase {
     $trail += array(
       'user/' . $this->web_user->id() => $this->web_user->getUsername(),
     );
-    $tree = array(
-      'user' => t('My account'),
-    );
-    $this->assertBreadcrumb('user/' . $this->web_user->id() . '/edit', $trail, $this->web_user->getUsername(), $tree);
+    $this->assertBreadcrumb('user/' . $this->web_user->id() . '/edit', $trail, $this->web_user->getUsername());
 
     // Create an only slightly privileged user being able to access site reports
     // but not administration pages.

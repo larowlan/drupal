@@ -17,6 +17,8 @@ namespace Drupal\Core\Cache;
  * operations would have a negative impact on performance.
  *
  * This also can be used for testing purposes.
+ *
+ * @ingroup cache
  */
 class NullBackend implements CacheBackendInterface {
 
@@ -45,7 +47,7 @@ class NullBackend implements CacheBackendInterface {
   /**
    * Implements Drupal\Core\Cache\CacheBackendInterface::set().
    */
-  public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = array()) {}
+  public function set($cid, $data, $expire = Cache::PERMANENT, array $tags = array()) {}
 
   /**
    * Implements Drupal\Core\Cache\CacheBackendInterface::delete().

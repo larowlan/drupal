@@ -1,5 +1,8 @@
 id: entity_test.full
 label: Full
-status: '0'
-cache: '1'
+status: false
+cache: true
 targetEntityType: entity_test
+dependencies:
+  module:
+    - entity_test

@@ -7,7 +7,7 @@
 
 namespace Drupal\Core\Entity\Query;
 
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Database\Query\AlterableInterface;
 
 /**
@@ -19,11 +19,11 @@ use Drupal\Core\Database\Query\AlterableInterface;
 interface QueryInterface extends AlterableInterface {
 
   /**
-   * Gets the entity type for this query.
+   * Gets the ID of the entity type for this query.
    *
    * @return string
    */
-  public function getEntityType();
+  public function getEntityTypeId();
 
   /**
    * Add a condition to the query or a condition group.
@@ -68,7 +68,7 @@ interface QueryInterface extends AlterableInterface {
   public function condition($field, $value = NULL, $operator = NULL, $langcode = NULL);
 
   /**
-   * Queries for the existence of a field.
+   * Queries for a non-empty value on a field.
    *
    * @param $field
    *   Name of a field.
@@ -79,7 +79,7 @@ interface QueryInterface extends AlterableInterface {
   public function exists($field, $langcode = NULL);
 
   /**
-   * Queries for the nonexistence of a field.
+   * Queries for an empty field.
    *
    * @param $field.
    *   Name of a field.
@@ -159,15 +159,15 @@ interface QueryInterface extends AlterableInterface {
    * @TODO: Once revision tables have been cleaned up, revisit this.
    *
    * @param $age
-   *   - EntityStorageControllerInterface::FIELD_LOAD_CURRENT (default): Query
+   *   - EntityStorageInterface::FIELD_LOAD_CURRENT (default): Query
    *     the most recent revisions only,
-   *   - EntityStorageControllerInterface::FIELD_LOAD_REVISION: Query all
+   *   - EntityStorageInterface::FIELD_LOAD_REVISION: Query all
    *     revisions.
    *
    * @return \Drupal\Core\Entity\Query\QueryInterface
    *   The called object.
    */
-  public function age($age = EntityStorageControllerInterface::FIELD_LOAD_CURRENT);
+  public function age($age = EntityStorageInterface::FIELD_LOAD_CURRENT);
 
   /**
    * Execute the query.

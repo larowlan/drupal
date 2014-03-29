@@ -7,7 +7,7 @@
 
 namespace Drupal\Tests\Core\Menu;
 
-use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Language\Language;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,6 +47,13 @@ class LocalTaskManagerTest extends UnitTestCase {
    * @var \PHPUnit_Framework_MockObject_MockObject
    */
   protected $routeProvider;
+
+  /**
+   * The mocked route builder.
+   *
+   * @var \Drupal\Core\Routing\RouteBuilderInterface|\PHPUnit_Framework_MockObject_MockObject
+   */
+  protected $routeBuilder;
 
   /**
    * The mocked plugin discovery.
@@ -93,6 +100,7 @@ class LocalTaskManagerTest extends UnitTestCase {
     $this->controllerResolver = $this->getMock('Symfony\Component\HttpKernel\Controller\ControllerResolverInterface');
     $this->request = new Request();
     $this->routeProvider = $this->getMock('Drupal\Core\Routing\RouteProviderInterface');
+    $this->routeBuilder = $this->getMock('Drupal\Core\Routing\RouteBuilderInterface');
     $this->pluginDiscovery = $this->getMock('Drupal\Component\Plugin\Discovery\DiscoveryInterface');
     $this->factory = $this->getMock('Drupal\Component\Plugin\Factory\FactoryInterface');
     $this->cacheBackend = $this->getMock('Drupal\Core\Cache\CacheBackendInterface');
@@ -178,13 +186,16 @@ class LocalTaskManagerTest extends UnitTestCase {
 
     $this->cacheBackend->expects($this->at(2))
       ->method('set')
-      ->with('local_task:en', $definitions, CacheBackendInterface::CACHE_PERMANENT);
+      ->with('local_task:en', $definitions, Cache::PERMANENT);
+
+    $this->routeBuilder->expects($this->once())
+      ->method('rebuildIfNeeded');
 
     $expected_set = $this->getLocalTasksCache();
 
     $this->cacheBackend->expects($this->at(3))
       ->method('set')
-      ->with('local_task:en:menu_local_task_test_tasks_view', $expected_set, CacheBackendInterface::CACHE_PERMANENT, array('local_task' => 1));
+      ->with('local_task:en:menu_local_task_test_tasks_view', $expected_set, Cache::PERMANENT, array('local_task' => 1));
 
     $local_tasks = $this->manager->getLocalTasksForRoute('menu_local_task_test_tasks_view');
     $this->assertEquals($result, $local_tasks);
@@ -211,6 +222,9 @@ class LocalTaskManagerTest extends UnitTestCase {
 
     $this->cacheBackend->expects($this->never())
       ->method('set');
+
+    $this->routeBuilder->expects($this->never())
+      ->method('rebuildIfNeeded');
 
     $result = $this->getLocalTasksForRouteResult($mock_plugin);
     $local_tasks = $this->manager->getLocalTasksForRoute('menu_local_task_test_tasks_view');
@@ -256,6 +270,10 @@ class LocalTaskManagerTest extends UnitTestCase {
     $property = new \ReflectionProperty('Drupal\Core\Menu\LocalTaskManager', 'accessManager');
     $property->setAccessible(TRUE);
     $property->setValue($this->manager, $this->accessManager);
+
+    $property = new \ReflectionProperty('Drupal\Core\Menu\LocalTaskManager', 'routeBuilder');
+    $property->setAccessible(TRUE);
+    $property->setValue($this->manager, $this->routeBuilder);
 
     $property = new \ReflectionProperty('Drupal\Core\Menu\LocalTaskManager', 'discovery');
     $property->setAccessible(TRUE);

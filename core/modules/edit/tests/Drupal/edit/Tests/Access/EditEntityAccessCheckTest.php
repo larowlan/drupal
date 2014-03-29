@@ -39,11 +39,11 @@ class EditEntityAccessCheckTest extends UnitTestCase {
   protected $entityManager;
 
   /**
-   * The mocked entity storage controller.
+   * The mocked entity storage.
    *
-   * @var \Drupal\Core\Entity\EntityStorageControllerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityStorageInterface|\PHPUnit_Framework_MockObject_MockObject
    */
-  protected $entityStorageController;
+  protected $entityStorage;
 
   public static function getInfo() {
     return array(
@@ -56,11 +56,11 @@ class EditEntityAccessCheckTest extends UnitTestCase {
   protected function setUp() {
     $this->entityManager = $this->getMock('Drupal\Core\Entity\EntityManagerInterface');
 
-    $this->entityStorageController = $this->getMock('Drupal\Core\Entity\EntityStorageControllerInterface');
+    $this->entityStorage = $this->getMock('Drupal\Core\Entity\EntityStorageInterface');
 
     $this->entityManager->expects($this->any())
-      ->method('getStorageController')
-      ->will($this->returnValue($this->entityStorageController));
+      ->method('getStorage')
+      ->will($this->returnValue($this->entityStorage));
 
     $this->editAccessCheck = new EditEntityAccessCheck($this->entityManager);
   }
@@ -117,8 +117,6 @@ class EditEntityAccessCheckTest extends UnitTestCase {
 
   /**
    * Tests the access method with an undefined entity type.
-   *
-   * @expectedException \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
    */
   public function testAccessWithUndefinedEntityType() {
     $route = new Route('/edit/form/test_entity/1/body/und/full', array(), array('_access_edit_entity' => 'TRUE'));
@@ -131,13 +129,11 @@ class EditEntityAccessCheckTest extends UnitTestCase {
       ->will($this->returnValue(NULL));
 
     $account = $this->getMock('Drupal\Core\Session\AccountInterface');
-    $this->editAccessCheck->access($route, $request, $account);
+    $this->assertSame(AccessCheckInterface::KILL, $this->editAccessCheck->access($route, $request, $account));
   }
 
   /**
    * Tests the access method with a non existing entity.
-   *
-   * @expectedException \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
    */
   public function testAccessWithNotExistingEntity() {
     $route = new Route('/edit/form/test_entity/1/body/und/full', array(), array('_access_edit_entity_field' => 'TRUE'));
@@ -150,13 +146,13 @@ class EditEntityAccessCheckTest extends UnitTestCase {
       ->with('entity_test')
       ->will($this->returnValue(array('id' => 'entity_test')));
 
-    $this->entityStorageController->expects($this->once())
+    $this->entityStorage->expects($this->once())
       ->method('load')
       ->with(1)
       ->will($this->returnValue(NULL));
 
     $account = $this->getMock('Drupal\Core\Session\AccountInterface');
-    $this->editAccessCheck->access($route, $request, $account);
+    $this->assertSame(AccessCheckInterface::KILL, $this->editAccessCheck->access($route, $request, $account));
   }
 
 }

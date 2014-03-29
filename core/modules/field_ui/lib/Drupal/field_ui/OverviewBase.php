@@ -9,6 +9,7 @@ namespace Drupal\field_ui;
 
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Form\FormBase;
+use Drupal\Core\Render\Element;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -73,9 +74,9 @@ abstract class OverviewBase extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, array &$form_state, $entity_type = NULL, $bundle = NULL) {
-    $entity_info = $this->entityManager->getDefinition($entity_type);
-    $this->bundleEntityType = $entity_info->getBundleEntityType();
+  public function buildForm(array $form, array &$form_state, $entity_type_id = NULL, $bundle = NULL) {
+    $entity_type = $this->entityManager->getDefinition($entity_type_id);
+    $this->bundleEntityType = $entity_type->getBundleEntityType();
     if (!isset($form_state['bundle'])) {
       if (!$bundle) {
         $bundle = $this->getRequest()->attributes->get('_raw_variables')->get($this->bundleEntityType);
@@ -83,7 +84,7 @@ abstract class OverviewBase extends FormBase {
       $form_state['bundle'] = $bundle;
     }
 
-    $this->entity_type = $entity_type;
+    $this->entity_type = $entity_type_id;
     $this->bundle = $form_state['bundle'];
 
     // When displaying the form, make sure the list of fields is up-to-date.
@@ -157,7 +158,8 @@ abstract class OverviewBase extends FormBase {
     $trees = array_fill_keys(array_keys($regions), $tree);
 
     $parents = array();
-    $list = drupal_map_assoc(element_children($elements));
+    $children = Element::children($elements);
+    $list = array_combine($children, $children);
 
     // Iterate on rows until we can build a known tree path for all of them.
     while ($list) {
@@ -240,7 +242,7 @@ abstract class OverviewBase extends FormBase {
       $array[] = $a['name'];
     }
     if (!empty($a['children'])) {
-      uasort($a['children'], 'drupal_sort_weight');
+      uasort($a['children'], array('Drupal\Component\Utility\SortArray', 'sortByWeightElement'));
       $array = array_merge($array, array_reduce($a['children'], array($this, 'reduceOrder')));
     }
     return $array;

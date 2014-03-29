@@ -12,12 +12,12 @@ use Drupal\Core\Language\Language;
 /**
  * Tests saving files.
  */
-class SaveTest extends FileManagedTestBase {
+class SaveTest extends FileManagedUnitTestBase {
   public static function getInfo() {
     return array(
       'name' => 'File saving',
       'description' => 'File saving tests',
-      'group' => 'File API',
+      'group' => 'File Managed API',
     );
   }
 

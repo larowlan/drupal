@@ -7,6 +7,7 @@
 
 namespace Drupal\edit\Tests;
 
+use Drupal\Component\Utility\Json;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Language\Language;
 use Drupal\simpletest\WebTestBase;
@@ -79,7 +80,7 @@ class EditAutocompleteTermTest extends WebTestBase {
     ));
     $this->vocabulary->save();
     $this->field_name = 'field_' . $this->vocabulary->id();
-    entity_create('field_entity', array(
+    entity_create('field_config', array(
       'name' => $this->field_name,
       'entity_type' => 'node',
       'type' => 'taxonomy_term_reference',
@@ -94,7 +95,7 @@ class EditAutocompleteTermTest extends WebTestBase {
         ),
       ),
     ))->save();
-    $instance = entity_create('field_instance', array(
+    $instance = entity_create('field_instance_config', array(
       'field_name' => $this->field_name,
       'entity_type' => 'node',
       'label' => 'Tags',
@@ -142,7 +143,7 @@ class EditAutocompleteTermTest extends WebTestBase {
     $edit_uri = 'edit/form/node/'. $this->node->id() . '/' . $this->field_name . '/und/full';
     $post = array('nocssjs' => 'true') + $this->getAjaxPageStatePostData();
     $response = $this->drupalPost($edit_uri, 'application/vnd.drupal-ajax', $post);
-    $ajax_commands = drupal_json_decode($response);
+    $ajax_commands = Json::decode($response);
 
     // Prepare form values for submission. drupalPostAJAX() is not suitable for
     // handling pages with JSON responses, so we need our own solution here.
@@ -154,17 +155,17 @@ class EditAutocompleteTermTest extends WebTestBase {
         'form_id' => 'edit_field_form',
         'form_token' => $token_match[1],
         'form_build_id' => $build_id_match[1],
-        $this->field_name => implode(', ', array($this->term1->label(), 'new term', $this->term2->label())),
+        $this->field_name => implode(', ', array($this->term1->getName(), 'new term', $this->term2->getName())),
         'op' => t('Save'),
       );
 
       // Submit field form and check response. Should render back all the terms.
       $response = $this->drupalPost($edit_uri, 'application/vnd.drupal-ajax', $post);
       $this->assertResponse(200);
-      $ajax_commands = drupal_json_decode($response);
+      $ajax_commands = Json::decode($response);
       $this->drupalSetContent($ajax_commands[0]['data']);
-      $this->assertLink($this->term1->label());
-      $this->assertLink($this->term2->label());
+      $this->assertLink($this->term1->getName());
+      $this->assertLink($this->term2->getName());
       $this->assertText('new term');
       $this->assertNoLink('new term');
 
@@ -172,14 +173,14 @@ class EditAutocompleteTermTest extends WebTestBase {
       $edit_uri = 'edit/form/node/'. $this->node->id() . '/' . $this->field_name . '/und/full';
       $post = array('nocssjs' => 'true') + $this->getAjaxPageStatePostData();
       $response = $this->drupalPost($edit_uri, 'application/vnd.drupal-ajax', $post);
-      $ajax_commands = drupal_json_decode($response);
+      $ajax_commands = Json::decode($response);
 
       // The AjaxResponse's first command is an InsertCommand which contains
       // the form to edit the taxonomy term field, it should contain all three
       // taxonomy terms, including the one that has just been newly created and
       // which is not yet stored.
       $this->drupalSetContent($ajax_commands[0]['data']);
-      $this->assertFieldByName($this->field_name, implode(', ', array($this->term1->label(), 'new term', $this->term2->label())));
+      $this->assertFieldByName($this->field_name, implode(', ', array($this->term1->getName(), 'new term', $this->term2->label())));
 
       // Save the entity.
       $post = array('nocssjs' => 'true');
@@ -189,8 +190,8 @@ class EditAutocompleteTermTest extends WebTestBase {
       // The full node display should now link to all entities, with the new
       // one created in the database as well.
       $this->drupalGet('node/' . $this->node->id());
-      $this->assertLink($this->term1->label());
-      $this->assertLink($this->term2->label());
+      $this->assertLink($this->term1->getName());
+      $this->assertLink($this->term2->getName());
       $this->assertLink('new term');
     }
   }

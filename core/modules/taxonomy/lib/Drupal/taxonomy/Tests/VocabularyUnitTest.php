@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Definition of Drupal\taxonomy\Tests\VocabularyUnitTest.
+ * Contains \Drupal\taxonomy\Tests\VocabularyUnitTest.
  */
 
 namespace Drupal\taxonomy\Tests;
@@ -119,23 +119,15 @@ class VocabularyUnitTest extends TaxonomyTestBase {
     $names = taxonomy_vocabulary_get_names();
     $this->assertEqual($names[$vocabulary1->id()], $vocabulary1->id(), 'Vocabulary 1 name found.');
 
-    // Fetch all of the vocabularies using entity_load_multiple().
-    // Confirm that the vocabularies are ordered by weight.
-    $vocabularies = entity_load_multiple('taxonomy_vocabulary');
-    taxonomy_vocabulary_sort($vocabularies);
-    $this->assertEqual(array_shift($vocabularies)->id(), $vocabulary1->id(), 'Vocabulary was found in the vocabularies array.');
-    $this->assertEqual(array_shift($vocabularies)->id(), $vocabulary2->id(), 'Vocabulary was found in the vocabularies array.');
-    $this->assertEqual(array_shift($vocabularies)->id(), $vocabulary3->id(), 'Vocabulary was found in the vocabularies array.');
-
     // Fetch the vocabularies with entity_load_multiple(), specifying IDs.
     // Ensure they are returned in the same order as the original array.
     $vocabularies = entity_load_multiple('taxonomy_vocabulary', array($vocabulary3->id(), $vocabulary2->id(), $vocabulary1->id()));
-    $this->assertEqual(array_shift($vocabularies)->id(), $vocabulary3->id(), 'Vocabulary loaded successfully by ID.');
-    $this->assertEqual(array_shift($vocabularies)->id(), $vocabulary2->id(), 'Vocabulary loaded successfully by ID.');
-    $this->assertEqual(array_shift($vocabularies)->id(), $vocabulary1->id(), 'Vocabulary loaded successfully by ID.');
+    $loaded_order = array_keys($vocabularies);
+    $expected_order = array($vocabulary3->id(), $vocabulary2->id(), $vocabulary1->id());
+    $this->assertIdentical($loaded_order, $expected_order);
 
     // Test loading vocabularies by their properties.
-    $controller = $this->container->get('entity.manager')->getStorageController('taxonomy_vocabulary');
+    $controller = $this->container->get('entity.manager')->getStorage('taxonomy_vocabulary');
     // Fetch vocabulary 1 by name.
     $vocabulary = current($controller->loadByProperties(array('name' => $vocabulary1->name)));
     $this->assertEqual($vocabulary->id(), $vocabulary1->id(), 'Vocabulary loaded successfully by name.');
@@ -153,12 +145,12 @@ class VocabularyUnitTest extends TaxonomyTestBase {
    */
   function testTaxonomyVocabularyChangeMachineName() {
     // Add a field instance to the vocabulary.
-    entity_create('field_entity', array(
+    entity_create('field_config', array(
       'name' => 'field_test',
       'entity_type' => 'taxonomy_term',
       'type' => 'test_field',
     ))->save();
-    entity_create('field_instance', array(
+    entity_create('field_instance_config', array(
       'field_name' => 'field_test',
       'entity_type' => 'taxonomy_term',
       'bundle' => $this->vocabulary->id(),
@@ -192,14 +184,14 @@ class VocabularyUnitTest extends TaxonomyTestBase {
       'type' => 'text',
       'cardinality' => 4
     );
-    entity_create('field_entity', $this->field_definition)->save();
+    entity_create('field_config', $this->field_definition)->save();
     $this->instance_definition = array(
       'field_name' => $this->field_name,
       'entity_type' => 'taxonomy_term',
       'bundle' => $this->vocabulary->id(),
       'label' => $this->randomName() . '_label',
     );
-    entity_create('field_instance', $this->instance_definition)->save();
+    entity_create('field_instance_config', $this->instance_definition)->save();
 
     require_once DRUPAL_ROOT . '/core/includes/install.inc';
     module_uninstall(array('taxonomy'));
@@ -211,7 +203,7 @@ class VocabularyUnitTest extends TaxonomyTestBase {
     // an instance of this field on the same bundle name should be successful.
     $this->vocabulary->enforceIsNew();
     $this->vocabulary->save();
-    entity_create('field_entity', $this->field_definition)->save();
-    entity_create('field_instance', $this->instance_definition)->save();
+    entity_create('field_config', $this->field_definition)->save();
+    entity_create('field_instance_config', $this->instance_definition)->save();
   }
 }

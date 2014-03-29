@@ -9,12 +9,11 @@ namespace Drupal\system\Form;
 
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
-use Drupal\Core\Config\Entity\ConfigStorageController;
+use Drupal\Core\Config\Entity\ConfigEntityStorageInterface;
 use Drupal\Core\Datetime\Date;
 use Drupal\Core\Language\Language;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Datetime\DrupalDateTime;
-use Drupal\Core\Entity\Query\QueryFactory;
 use Drupal\Core\Entity\EntityFormController;
 
 /**
@@ -30,13 +29,6 @@ abstract class DateFormatFormBase extends EntityFormController {
   protected $patternType;
 
   /**
-   * The entity query factory.
-   *
-   * @var \Drupal\Core\Entity\Query\QueryFactory
-   */
-  protected $queryFactory;
-
-  /**
    * The date service.
    *
    * @var \Drupal\Core\Datetime\Date
@@ -44,27 +36,24 @@ abstract class DateFormatFormBase extends EntityFormController {
   protected $dateService;
 
   /**
-   * The date format storage controller.
+   * The date format storage.
    *
-   * @var \Drupal\Core\Config\Entity\ConfigStorageController
+   * @var \Drupal\Core\Config\Entity\ConfigEntityStorageInterface
    */
   protected $dateFormatStorage;
 
   /**
    * Constructs a new date format form.
    *
-   * @param \Drupal\Core\Entity\Query\QueryFactory $query_factory
-   *   The entity query factory.
    * @param \Drupal\Core\Datetime\Date $date_service
    *   The date service.
-   * @param \Drupal\Core\Config\Entity\ConfigStorageController $date_format_storage
-   *   The date format storage controller.
+   * @param \Drupal\Core\Config\Entity\ConfigEntityStorageInterface $date_format_storage
+   *   The date format storage.
    */
-  public function __construct(QueryFactory $query_factory, Date $date_service, ConfigStorageController $date_format_storage) {
+  public function __construct(Date $date_service, ConfigEntityStorageInterface $date_format_storage) {
     $date = new DrupalDateTime();
     $this->patternType = $date->canUseIntl() ? DrupalDateTime::INTL : DrupalDateTime::PHP;
 
-    $this->queryFactory = $query_factory;
     $this->dateService = $date_service;
     $this->dateFormatStorage = $date_format_storage;
   }
@@ -74,9 +63,8 @@ abstract class DateFormatFormBase extends EntityFormController {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.query'),
       $container->get('date'),
-      $container->get('entity.manager')->getStorageController('date_format')
+      $container->get('entity.manager')->getStorage('date_format')
     );
   }
 
@@ -94,8 +82,8 @@ abstract class DateFormatFormBase extends EntityFormController {
    *   TRUE if this format already exists, FALSE otherwise.
    */
   public function exists($entity_id, array $element,  array $form_state) {
-    return (bool) $this->queryFactory
-      ->get($this->entity->entityType())
+    return (bool) $this->dateFormatStorage
+      ->getQuery()
       ->condition('id', $element['#field_prefix'] . $entity_id)
       ->execute();
   }

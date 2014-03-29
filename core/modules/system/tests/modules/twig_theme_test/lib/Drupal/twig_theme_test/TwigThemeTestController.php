@@ -7,26 +7,16 @@
 
 namespace Drupal\twig_theme_test;
 
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-
 /**
  * Controller routines for Twig theme test routes.
  */
-class TwigThemeTestController implements ContainerInjectionInterface {
-
-  /**
-   * Creates the controller.
-   */
-  public static function create(ContainerInterface $container) {
-    return new static();
-  }
+class TwigThemeTestController {
 
   /**
    * Menu callback for testing PHP variables in a Twig template.
    */
   public function phpVariablesRender() {
-    return theme('twig_theme_test_php_variables');
+    return _theme('twig_theme_test_php_variables');
   }
 
   /**
@@ -38,4 +28,19 @@ class TwigThemeTestController implements ContainerInjectionInterface {
     );
   }
 
+  /**
+   * Menu callback for filters in a Twig template.
+   */
+  public function testFilterRender() {
+    return array(
+      '#theme' => 'twig_theme_test_filter',
+      '#quote' => array(
+        'content' => array('#markup' => 'You can only find truth with logic if you have already found truth without it.'),
+        'author' => array('#markup' => 'Gilbert Keith Chesterton'),
+        'date' => array('#markup' => '1874-1936'),
+      ),
+    );
+  }
+
 }
+

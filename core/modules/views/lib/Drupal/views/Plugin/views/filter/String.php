@@ -7,6 +7,7 @@
 
 namespace Drupal\views\Plugin\views\filter;
 
+use Drupal\Component\Utility\String as UtilityString;
 use Drupal\Core\Database\Database;
 
 /**
@@ -15,7 +16,7 @@ use Drupal\Core\Database\Database;
  *
  * @ingroup views_filter_handlers
  *
- * @PluginID("string")
+ * @ViewsFilter("string")
  */
 class String extends FilterPluginBase {
 
@@ -160,10 +161,10 @@ class String extends FilterPluginBase {
     $options = $this->operatorOptions('short');
     $output = '';
     if (!empty($options[$this->operator])) {
-      $output = check_plain($options[$this->operator]);
+      $output = UtilityString::checkPlain($options[$this->operator]);
     }
     if (in_array($this->operator, $this->operatorValues(1))) {
-      $output .= ' ' . check_plain($this->value);
+      $output .= ' ' . UtilityString::checkPlain($this->value);
     }
     return $output;
   }

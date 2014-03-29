@@ -21,7 +21,7 @@ use Drupal\views\ManyToOneHelper;
  *
  * @ingroup views_filter_handlers
  *
- * @PluginID("many_to_one")
+ * @ViewsFilter("many_to_one")
  */
 class ManyToOne extends InOperator {
 
@@ -106,7 +106,7 @@ class ManyToOne extends InOperator {
     return $operators;
   }
 
-  var $value_form_type = 'select';
+  protected $valueFormType = 'select';
   protected function valueForm(&$form, &$form_state) {
     parent::valueForm($form, $form_state);
 

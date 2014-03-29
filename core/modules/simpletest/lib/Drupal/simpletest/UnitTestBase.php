@@ -15,14 +15,10 @@ use Drupal\Core\Database\ConnectionNotDefinedException;
  *
  * These tests can not access the database nor files. Calling any Drupal
  * function that needs the database will throw exceptions. These include
- * watchdog(), \Drupal::moduleHandler()->getImplementations(), module_invoke_all() etc.
+ * watchdog(), \Drupal::moduleHandler()->getImplementations(),
+ * \Drupal::moduleHandler()->invokeAll() etc.
  */
 abstract class UnitTestBase extends TestBase {
-
-  /**
-   * @var array
-   */
- protected $configDirectories;
 
   /**
    * Constructor for UnitTestBase.
@@ -41,32 +37,7 @@ abstract class UnitTestBase extends TestBase {
    * setUp() method.
    */
   protected function setUp() {
-    global $conf;
-
-    // Create the database prefix for this test.
-    $this->prepareDatabasePrefix();
-
-    // Prepare the environment for running tests.
-    $this->prepareEnvironment();
-    if (!$this->setupEnvironment) {
-      return FALSE;
-    }
-
-    // Reset all statics and variables to perform tests in a clean environment.
-    $conf = array();
-    drupal_static_reset();
-
+    file_prepare_directory($this->public_files_directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
     $this->settingsSet('file_public_path', $this->public_files_directory);
-
-    // Change the database prefix.
-    // All static variables need to be reset before the database prefix is
-    // changed, since \Drupal\Core\Utility\CacheArray implementations attempt to
-    // write back to persistent caches when they are destructed.
-    $this->changeDatabasePrefix();
-    if (!$this->setupDatabasePrefix) {
-      return FALSE;
-    }
-
-    $this->setup = TRUE;
   }
 }

@@ -7,6 +7,8 @@
 
 namespace Drupal\views\Tests\Handler;
 
+use Drupal\views\Views;
+
 /**
  * Tests the http_status_code area handler.
  *
@@ -20,6 +22,13 @@ class AreaHTTPStatusCodeTest extends HandlerTestBase {
    * @var array
    */
   public static $testViews = array('test_http_status_code');
+
+  /**
+   * Modules to enable.
+   *
+   * @var array
+   */
+  public static $modules = array('node');
 
   public static function getInfo() {
     return array(
@@ -37,7 +46,7 @@ class AreaHTTPStatusCodeTest extends HandlerTestBase {
     $this->assertResponse(200);
 
     // Change the HTTP status code to 418.
-    $view = views_get_view('test_http_status_code');
+    $view = Views::getView('test_http_status_code');
     $display = &$view->storage->getDisplay('default');
     $display['display_options']['empty']['http_status_code']['status_code'] = 418;
     $view->save();

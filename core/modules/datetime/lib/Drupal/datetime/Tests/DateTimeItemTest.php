@@ -35,14 +35,14 @@ class DateTimeItemTest extends FieldUnitTestBase {
     parent::setUp();
 
     // Create a field with settings to validate.
-    $this->field = entity_create('field_entity', array(
+    $this->field = entity_create('field_config', array(
       'name' => 'field_datetime',
       'type' => 'datetime',
       'entity_type' => 'entity_test',
       'settings' => array('datetime_type' => 'date'),
     ));
     $this->field->save();
-    $this->instance = entity_create('field_instance', array(
+    $this->instance = entity_create('field_instance_config', array(
       'field_name' => $this->field->getName(),
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
@@ -58,7 +58,7 @@ class DateTimeItemTest extends FieldUnitTestBase {
    */
   public function testDateTimeItem() {
     // Verify entity creation.
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $value = '2014-01-01T20:00:00Z';
     $entity->field_datetime = $value;
     $entity->name->value = $this->randomName();
@@ -88,9 +88,9 @@ class DateTimeItemTest extends FieldUnitTestBase {
    */
   public function testSetValue() {
     // Test DateTimeItem::setValue() using string.
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $value = '2014-01-01T20:00:00Z';
-    $entity->get('field_datetime')->offsetGet(0)->setValue($value);
+    $entity->get('field_datetime')->set(0, $value);
     $entity->save();
     // Load the entity and ensure the field was saved correctly.
     $id = $entity->id();
@@ -98,9 +98,9 @@ class DateTimeItemTest extends FieldUnitTestBase {
     $this->assertEqual($entity->field_datetime[0]->value, $value, 'DateTimeItem::setValue() works with string value.');
 
     // Test DateTimeItem::setValue() using property array.
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $value = '2014-01-01T20:00:00Z';
-    $entity->get('field_datetime')->offsetGet(0)->setValue(array('value' => $value));
+    $entity->set('field_datetime', $value);
     $entity->save();
     // Load the entity and ensure the field was saved correctly.
     $id = $entity->id();
@@ -113,10 +113,10 @@ class DateTimeItemTest extends FieldUnitTestBase {
    */
   public function testSetValueProperty() {
     // Test Date::setValue().
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $value = '2014-01-01T20:00:00Z';
 
-    $entity->get('field_datetime')->offsetGet(0)->get('value')->setValue($value);
+    $entity->set('field_datetime', $value);
     $entity->save();
     // Load the entity and ensure the field was saved correctly.
     $id = $entity->id();

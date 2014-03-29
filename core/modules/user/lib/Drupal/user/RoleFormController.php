@@ -66,26 +66,18 @@ class RoleFormController extends EntityFormController {
 
     // Prevent leading and trailing spaces in role names.
     $entity->set('label', trim($entity->label()));
-    $uri = $entity->uri();
-    if ($entity->save() == SAVED_UPDATED) {
+    $status = $entity->save();
+
+    $edit_link = \Drupal::linkGenerator()->generateFromUrl($this->t('Edit'), $this->entity->urlInfo());
+    if ($status == SAVED_UPDATED) {
       drupal_set_message($this->t('Role %label has been updated.', array('%label' => $entity->label())));
-      watchdog('user', 'Role %label has been updated.', array('%label' => $entity->label()), WATCHDOG_NOTICE, l($this->t('Edit'), $uri['path']));
+      watchdog('user', 'Role %label has been updated.', array('%label' => $entity->label()), WATCHDOG_NOTICE, $edit_link);
     }
     else {
       drupal_set_message($this->t('Role %label has been added.', array('%label' => $entity->label())));
-      watchdog('user', 'Role %label has been added.', array('%label' => $entity->label()), WATCHDOG_NOTICE, l($this->t('Edit'), $uri['path']));
+      watchdog('user', 'Role %label has been added.', array('%label' => $entity->label()), WATCHDOG_NOTICE, $edit_link);
     }
     $form_state['redirect_route']['route_name'] = 'user.role_list';
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function delete(array $form, array &$form_state) {
-    $form_state['redirect_route'] = array(
-      'route_name' => 'user.role_delete',
-      'route_parameters' => array('user_role' => $this->entity->id()),
-    );
   }
 
 }

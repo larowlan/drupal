@@ -7,7 +7,8 @@
 
 namespace Drupal\views\Plugin\views\area;
 
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\views\Views;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -15,7 +16,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @ingroup views_area_handlers
  *
- * @PluginID("view")
+ * @ViewsArea("view")
  */
 class View extends AreaPluginBase {
 
@@ -27,9 +28,9 @@ class View extends AreaPluginBase {
   protected $isEmpty;
 
   /**
-    * The view storage controller.
+    * The view storage.
     *
-    * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+    * @var \Drupal\Core\Entity\EntityStorageInterface
     */
    protected $viewStorage;
 
@@ -42,10 +43,10 @@ class View extends AreaPluginBase {
     *   The plugin_id for the plugin instance.
     * @param array $plugin_definition
     *   The plugin implementation definition.
-    * @param \Drupal\Core\Entity\EntityStorageControllerInterface $view_storage
-    *   The view storage controller.
+    * @param \Drupal\Core\Entity\EntityStorageInterface $view_storage
+    *   The view storage.
     */
-   public function __construct(array $configuration, $plugin_id, array $plugin_definition, EntityStorageControllerInterface $view_storage) {
+   public function __construct(array $configuration, $plugin_id, array $plugin_definition, EntityStorageInterface $view_storage) {
      parent::__construct($configuration, $plugin_id, $plugin_definition);
 
      $this->viewStorage = $view_storage;
@@ -59,7 +60,7 @@ class View extends AreaPluginBase {
            $configuration,
            $plugin_id,
            $plugin_definition,
-       $container->get('entity.manager')->getStorageController('view')
+       $container->get('entity.manager')->getStorage('view')
        );
    }
 
@@ -83,7 +84,7 @@ class View extends AreaPluginBase {
     $view_display = $this->view->storage->id() . ':' . $this->view->current_display;
 
     $options = array('' => t('-Select-'));
-    $options += views_get_views_as_options(FALSE, 'all', $view_display, FALSE, TRUE);
+    $options += Views::getViewsAsOptions(FALSE, 'all', $view_display, FALSE, TRUE);
     $form['view_to_insert'] = array(
       '#type' => 'select',
       '#title' => t('View to insert'),

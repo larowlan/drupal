@@ -31,9 +31,6 @@ class BlockFormControllerTest extends UnitTestCase {
    * @see \Drupal\block\BlockFormController::getUniqueMachineName()
    */
   public function testGetUniqueMachineName() {
-    $block_storage = $this->getMockBuilder('Drupal\Core\Config\Entity\ConfigStorageController')
-      ->disableOriginalConstructor()
-      ->getMock();
     $blocks = array();
 
     $blocks['test'] = $this->getBlockMockWithMachineName('test');
@@ -41,9 +38,7 @@ class BlockFormControllerTest extends UnitTestCase {
     $blocks['other_test_1'] = $this->getBlockMockWithMachineName('other_test');
     $blocks['other_test_2'] = $this->getBlockMockWithMachineName('other_test');
 
-    $query = $this->getMockBuilder('Drupal\Core\Entity\Query\QueryInterface')
-      ->disableOriginalConstructor()
-      ->getMock();
+    $query = $this->getMock('Drupal\Core\Entity\Query\QueryInterface');
     $query->expects($this->exactly(5))
       ->method('condition')
       ->will($this->returnValue($query));
@@ -52,27 +47,22 @@ class BlockFormControllerTest extends UnitTestCase {
       ->method('execute')
       ->will($this->returnValue(array('test', 'other_test', 'other_test_1', 'other_test_2')));
 
-    $query_factory = $this->getMockBuilder('Drupal\Core\Entity\Query\QueryFactory')
-      ->disableOriginalConstructor()
-      ->getMock();
-    $query_factory->expects($this->exactly(5))
-      ->method('get')
-      ->with('block', 'AND')
+    $block_storage = $this->getMock('Drupal\Core\Config\Entity\ConfigEntityStorageInterface');
+    $block_storage->expects($this->exactly(5))
+      ->method('getQuery')
       ->will($this->returnValue($query));
 
     $entity_manager = $this->getMock('Drupal\Core\Entity\EntityManagerInterface');
 
     $entity_manager->expects($this->any())
-      ->method('getStorageController')
+      ->method('getStorage')
       ->will($this->returnValue($block_storage));
 
     $language_manager = $this->getMock('Drupal\Core\Language\LanguageManagerInterface');
 
-    $config_factory = $this->getMockBuilder('Drupal\Core\Config\ConfigFactory')
-      ->disableOriginalConstructor()
-      ->getMock();
+    $config_factory = $this->getMock('Drupal\Core\Config\ConfigFactoryInterface');
 
-    $block_form_controller = new BlockFormController($entity_manager, $query_factory, $language_manager, $config_factory);
+    $block_form_controller = new BlockFormController($entity_manager, $language_manager, $config_factory);
 
     // Ensure that the block with just one other instance gets the next available
     // name suggestion.

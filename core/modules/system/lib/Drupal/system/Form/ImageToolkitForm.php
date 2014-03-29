@@ -7,7 +7,7 @@
 
 namespace Drupal\system\Form;
 
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\ImageToolkit\ImageToolkitManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -27,12 +27,12 @@ class ImageToolkitForm extends ConfigFormBase {
   /**
    * Constructs a ImageToolkitForm object.
    *
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
    * @param \Drupal\Core\ImageToolkit\ImageToolkitManager $manager
    *   The image toolkit plugin manager.
    */
-  public function __construct(ConfigFactory $config_factory, ImageToolkitManager $manager) {
+  public function __construct(ConfigFactoryInterface $config_factory, ImageToolkitManager $manager) {
     parent::__construct($config_factory);
 
     foreach ($manager->getAvailableToolkits() as $id => $definition) {
@@ -78,7 +78,7 @@ class ImageToolkitForm extends ConfigFormBase {
       $form['image_toolkit_settings'][$id] = array(
         '#type' => 'details',
         '#title' => $this->t('@toolkit settings', array('@toolkit' => $definition['title'])),
-        '#collapsed' => FALSE,
+        '#open' => TRUE,
         '#tree' => TRUE,
         '#states' => array(
           'visible' => array(

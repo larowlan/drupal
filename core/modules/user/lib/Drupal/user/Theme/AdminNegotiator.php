@@ -7,10 +7,12 @@
 
 namespace Drupal\user\Theme;
 
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Routing\AdminContext;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Theme\ThemeNegotiatorInterface;
+use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -28,7 +30,7 @@ class AdminNegotiator implements ThemeNegotiatorInterface {
   /**
    * The config factory.
    *
-   * @var \Drupal\Core\Config\ConfigFactory
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
@@ -40,27 +42,34 @@ class AdminNegotiator implements ThemeNegotiatorInterface {
   protected $entityManager;
 
   /**
+   * The route admin context to determine whether a route is an admin one.
+   *
+   * @var \Drupal\Core\Routing\AdminContext
+   */
+  protected $adminContext;
+
+  /**
    * Creates a new AdminNegotiator instance.
    *
    * @param \Drupal\Core\Session\AccountInterface $user
    *   The current user.
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager.
    */
-  public function __construct(AccountInterface $user, ConfigFactory $config_factory, EntityManagerInterface $entity_manager) {
+  public function __construct(AccountInterface $user, ConfigFactoryInterface $config_factory, EntityManagerInterface $entity_manager, AdminContext $admin_context) {
     $this->user = $user;
     $this->configFactory = $config_factory;
     $this->entityManager = $entity_manager;
+    $this->adminContext = $admin_context;
   }
 
   /**
    * {@inheritdoc}
    */
   public function applies(Request $request) {
-    $path = $request->attributes->get('_system_path');
-    return ($this->entityManager->hasController('user_role', 'storage') && $this->user->hasPermission('view the administration theme') && path_is_admin($path));
+    return ($this->entityManager->hasController('user_role', 'storage') && $this->user->hasPermission('view the administration theme') && $this->adminContext->isAdminRoute($request->attributes->get(RouteObjectInterface::ROUTE_OBJECT)));
   }
 
   /**

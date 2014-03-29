@@ -57,7 +57,7 @@ class TextFieldRdfaTest extends FieldRdfaTestBase {
     ))->save();
 
     // Set up test entity.
-    $this->entity = entity_create('entity_test', array());
+    $this->entity = entity_create('entity_test');
     $this->entity->{$this->fieldName}->value = $this->testValue;
     $this->entity->{$this->fieldName}->summary = $this->testSummary;
   }
@@ -73,7 +73,7 @@ class TextFieldRdfaTest extends FieldRdfaTestBase {
    * Tests the plain formatter.
    */
   public function testPlainFormatter() {
-    $this->assertFormatterRdfa('text_plain', 'http://schema.org/text', $this->testValue);
+    $this->assertFormatterRdfa('string', 'http://schema.org/text', $this->testValue);
   }
 
   /**

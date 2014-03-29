@@ -15,7 +15,7 @@ use Drupal\views\ResultRow;
  *
  * @ingroup views_field_handlers
  *
- * @PluginID("comment_ces_last_comment_name")
+ * @ViewsField("comment_ces_last_comment_name")
  */
 class StatisticsLastCommentName extends FieldPluginBase {
 
@@ -61,7 +61,7 @@ class StatisticsLastCommentName extends FieldPluginBase {
    */
   public function render(ResultRow $values) {
     if (!empty($this->options['link_to_user'])) {
-      $account = entity_create('user', array());
+      $account = entity_create('user');
       $account->name = $this->getValue($values);
       $account->uid = $values->{$this->uid};
       $username = array(

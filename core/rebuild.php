@@ -11,19 +11,21 @@
  */
 
 use Drupal\Component\Utility\Crypt;
+use Drupal\Component\Utility\Settings;
 
 // Change the directory to the Drupal root.
 chdir('..');
 
-require_once dirname(__DIR__) . '/core/includes/bootstrap.inc';
-require_once dirname(__DIR__) . '/core/includes/utility.inc';
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/includes/bootstrap.inc';
+require_once __DIR__ . '/includes/utility.inc';
 
 drupal_bootstrap(DRUPAL_BOOTSTRAP_CONFIGURATION);
 
-if (settings()->get('rebuild_access', FALSE) ||
+if (Settings::get('rebuild_access', FALSE) ||
   (isset($_GET['token'], $_GET['timestamp']) &&
     ((REQUEST_TIME - $_GET['timestamp']) < 300) &&
-    ($_GET['token'] === Crypt::hmacBase64($_GET['timestamp'], $GLOBALS['drupal_hash_salt']))
+    ($_GET['token'] === Crypt::hmacBase64($_GET['timestamp'], Settings::get('hash_salt')))
   )) {
 
   drupal_rebuild();

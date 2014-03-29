@@ -7,8 +7,8 @@
 
 namespace Drupal\Tests\Core\Menu;
 
-use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Menu\LocalTaskDefault;
+use Drupal\Core\Routing\RouteProviderInterface;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 use Symfony\Component\HttpFoundation\Request;
@@ -84,11 +84,11 @@ class LocalTaskDefaultTest extends UnitTestCase {
    * Setups the local task default.
    */
   protected function setupLocalTaskDefault() {
-    $container = new ContainerBuilder();
-    $container->set('string_translation', $this->stringTranslation);
-    $container->set('router.route_provider', $this->routeProvider);
-    \Drupal::setContainer($container);
-    $this->localTaskBase = new LocalTaskDefault($this->config, $this->pluginId, $this->pluginDefinition);
+    $this->localTaskBase = new TestLocalTaskDefault($this->config, $this->pluginId, $this->pluginDefinition);
+    $this->localTaskBase
+      ->setRouteProvider($this->routeProvider)
+      ->setTranslationManager($this->stringTranslation);
+
   }
 
   /**
@@ -289,6 +289,22 @@ class LocalTaskDefaultTest extends UnitTestCase {
   }
 
   /**
+   * Tests the getTitle method with title arguments.
+   */
+  public function testGetTitleWithTitleArguments() {
+    $this->pluginDefinition['title'] = 'Example @test';
+    $this->pluginDefinition['title_arguments'] = array('@test' => 'value');
+    $this->stringTranslation->expects($this->once())
+      ->method('translate')
+      ->with($this->pluginDefinition['title'], $this->arrayHasKey('@test'), array())
+      ->will($this->returnValue('Example value'));
+
+    $this->setupLocalTaskDefault();
+    $request = new Request();
+    $this->assertEquals('Example value', $this->localTaskBase->getTitle($request));
+  }
+
+  /**
    * Tests the getOption method.
    *
    * @see \Drupal\Core\Menu\LocalTaskDefault::getOption()
@@ -315,4 +331,11 @@ class LocalTaskDefaultTest extends UnitTestCase {
     ), $this->localTaskBase->getOptions($request));
   }
 
+}
+
+class TestLocalTaskDefault extends LocalTaskDefault {
+  public function setRouteProvider(RouteProviderInterface $route_provider) {
+    $this->routeProvider = $route_provider;
+    return $this;
+  }
 }

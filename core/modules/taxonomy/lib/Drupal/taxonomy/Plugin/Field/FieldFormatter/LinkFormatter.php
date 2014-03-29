@@ -8,6 +8,7 @@
 namespace Drupal\taxonomy\Plugin\Field\FieldFormatter;
 
 use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Component\Utility\String;
 
 /**
  * Plugin implementation of the 'taxonomy_term_reference_link' formatter.
@@ -27,24 +28,21 @@ class LinkFormatter extends TaxonomyFormatterBase {
    */
   public function viewElements(FieldItemListInterface $items) {
     $elements = array();
-
     // Terms without target_id do not exist yet, theme such terms as just their
     // name.
     foreach ($items as $delta => $item) {
       if (!$item->target_id) {
         $elements[$delta] = array(
-          '#markup' => check_plain($item->entity->label()),
+          '#markup' => String::checkPlain($item->entity->label()),
         );
       }
       else {
+        /** @var $term \Drupal\taxonomy\TermInterface */
         $term = $item->entity;
-        $uri = $term->uri();
         $elements[$delta] = array(
           '#type' => 'link',
-          '#title' => $term->label(),
-          '#href' => $uri['path'],
-          '#options' => $uri['options'],
-        );
+          '#title' => $term->getName(),
+        ) + $term->urlInfo()->toRenderArray();
 
         if (!empty($item->_attributes)) {
           $elements[$delta]['#options'] += array('attributes' => array());

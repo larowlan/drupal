@@ -7,7 +7,6 @@
 
 namespace Drupal\views\EventSubscriber;
 
-use Drupal\Component\Utility\MapArray;
 use Drupal\Core\Page\HtmlPage;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\KeyValueStore\StateInterface;
@@ -15,6 +14,7 @@ use Drupal\Core\Routing\RouteSubscriberBase;
 use Drupal\Core\Routing\RoutingEvents;
 use Drupal\views\Plugin\views\display\DisplayRouterInterface;
 use Drupal\views\ViewExecutable;
+use Drupal\views\Views;
 use Symfony\Component\Routing\RouteCollection;
 use Symfony\Component\HttpKernel\Event\GetResponseForControllerResultEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -40,11 +40,11 @@ class RouteSubscriber extends RouteSubscriberBase {
   protected $viewsDisplayPairs;
 
   /**
-   * The view storage controller.
+   * The view storage.
    *
-   * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+   * @var \Drupal\Core\Entity\EntityStorageInterface
    */
-  protected $viewStorageController;
+  protected $viewStorage;
 
   /**
    * The state key value store.
@@ -69,7 +69,7 @@ class RouteSubscriber extends RouteSubscriberBase {
    *   The state key value store.
    */
   public function __construct(EntityManagerInterface $entity_manager, StateInterface $state) {
-    $this->viewStorageController = $entity_manager->getStorageController('view');
+    $this->viewStorage = $entity_manager->getStorage('view');
     $this->state = $state;
   }
 
@@ -104,7 +104,7 @@ class RouteSubscriber extends RouteSubscriberBase {
         $id = $view->storage->id();
         $this->viewsDisplayPairs[] = $id . '.' . $display_id;
       }
-      $this->viewsDisplayPairs = MapArray::copyValuesToKeys($this->viewsDisplayPairs);
+      $this->viewsDisplayPairs = array_combine($this->viewsDisplayPairs, $this->viewsDisplayPairs);
     }
     return $this->viewsDisplayPairs;
   }
@@ -136,7 +136,7 @@ class RouteSubscriber extends RouteSubscriberBase {
     $collection = new RouteCollection();
     foreach ($this->getViewsDisplayIDsWithRoute() as $pair) {
       list($view_id, $display_id) = explode('.', $pair);
-      $view = $this->viewStorageController->load($view_id);
+      $view = $this->viewStorage->load($view_id);
       // @todo This should have an executable factory injected.
       if (($view = $view->getExecutable()) && $view instanceof ViewExecutable) {
         if ($view->setDisplay($display_id) && $display = $view->displayHandlers->get($display_id)) {
@@ -158,7 +158,7 @@ class RouteSubscriber extends RouteSubscriberBase {
   protected function alterRoutes(RouteCollection $collection, $provider) {
     foreach ($this->getViewsDisplayIDsWithRoute() as $pair) {
       list($view_id, $display_id) = explode('.', $pair);
-      $view = $this->viewStorageController->load($view_id);
+      $view = $this->viewStorage->load($view_id);
       // @todo This should have an executable factory injected.
       if (($view = $view->getExecutable()) && $view instanceof ViewExecutable) {
         if ($view->setDisplay($display_id) && $display = $view->displayHandlers->get($display_id)) {
@@ -181,16 +181,17 @@ class RouteSubscriber extends RouteSubscriberBase {
    * {@inheritdoc}
    */
   public function routeRebuildFinished() {
+    $this->reset();
     $this->state->set('views.view_route_names', $this->viewRouteNames);
   }
 
   /**
    * Returns all views/display combinations with routes.
    *
-   * @see views_get_applicable_views()
+   * @see \Drupal\views\Views::getApplicableViews()
    */
   protected function getApplicableViews() {
-    return views_get_applicable_views('uses_route');
+    return Views::getApplicableViews('uses_route');
   }
 
 }

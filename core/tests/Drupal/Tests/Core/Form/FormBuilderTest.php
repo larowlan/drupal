@@ -7,8 +7,10 @@
 
 namespace Drupal\Tests\Core\Form {
 
+use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Form\FormInterface;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -29,6 +31,17 @@ class FormBuilderTest extends FormTestBase {
       'description' => 'Tests the form builder.',
       'group' => 'Form API',
     );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp() {
+    parent::setUp();
+
+    $container = new ContainerBuilder();
+    $container->set('url_generator', $this->urlGenerator);
+    \Drupal::setContainer($container);
   }
 
   /**
@@ -109,6 +122,100 @@ class FormBuilderTest extends FormTestBase {
     $this->assertSame($expected_form_id, $form_id);
     $this->assertSame($form_arg, $form_state['build_info']['callback_object']);
     $this->assertSame($base_form_id, $form_state['build_info']['base_form_id']);
+  }
+
+  /**
+   * Tests the handling of $form_state['response'].
+   *
+   * @dataProvider formStateResponseProvider
+   */
+  public function testHandleFormStateResponse($class, $form_state_key) {
+    $form_id = 'test_form_id';
+    $expected_form = $form_id();
+
+    $response = $this->getMockBuilder($class)
+      ->disableOriginalConstructor()
+      ->getMock();
+    $response->expects($this->any())
+      ->method('prepare')
+      ->will($this->returnValue($response));
+
+    $form_arg = $this->getMockForm($form_id, $expected_form);
+    $form_arg->expects($this->any())
+      ->method('submitForm')
+      ->will($this->returnCallback(function ($form, &$form_state) use ($response, $form_state_key) {
+        $form_state[$form_state_key] = $response;
+      }));
+
+    $form_state = array();
+    $this->formBuilder->getFormId($form_arg, $form_state);
+
+    try {
+      $form_state['values'] = array();
+      $form_state['input']['form_id'] = $form_id;
+      $this->simulateFormSubmission($form_id, $form_arg, $form_state, FALSE);
+      $this->fail('TestFormBuilder::sendResponse() was not triggered.');
+    }
+    catch (\Exception $e) {
+      $this->assertSame('exit', $e->getMessage());
+    }
+    $this->assertInstanceOf('Symfony\Component\HttpFoundation\Response', $form_state['response']);
+  }
+
+  /**
+   * Provides test data for testHandleFormStateResponse().
+   */
+  public function formStateResponseProvider() {
+    return array(
+      array('Symfony\Component\HttpFoundation\Response', 'response'),
+      array('Symfony\Component\HttpFoundation\RedirectResponse', 'redirect'),
+    );
+  }
+
+  /**
+   * Tests the handling of a redirect when $form_state['response'] exists.
+   */
+  public function testHandleRedirectWithResponse() {
+    $form_id = 'test_form_id';
+    $expected_form = $form_id();
+
+    // Set up a response that will be used.
+    $response = $this->getMockBuilder('Symfony\Component\HttpFoundation\Response')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $response->expects($this->once())
+      ->method('prepare')
+      ->will($this->returnValue($response));
+
+    // Set up a redirect that will not be called.
+    $redirect = $this->getMockBuilder('Symfony\Component\HttpFoundation\RedirectResponse')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $redirect->expects($this->never())
+      ->method('prepare');
+
+    $form_arg = $this->getMockForm($form_id, $expected_form);
+    $form_arg->expects($this->any())
+      ->method('submitForm')
+      ->will($this->returnCallback(function ($form, &$form_state) use ($response, $redirect) {
+        // Set both the response and the redirect.
+        $form_state['response'] = $response;
+        $form_state['redirect'] = $redirect;
+      }));
+
+    $form_state = array();
+    $this->formBuilder->getFormId($form_arg, $form_state);
+
+    try {
+      $form_state['values'] = array();
+      $form_state['input']['form_id'] = $form_id;
+      $this->simulateFormSubmission($form_id, $form_arg, $form_state, FALSE);
+      $this->fail('TestFormBuilder::sendResponse() was not triggered.');
+    }
+    catch (\Exception $e) {
+      $this->assertSame('exit', $e->getMessage());
+    }
+    $this->assertSame($response, $form_state['response']);
   }
 
   /**
@@ -225,6 +332,7 @@ class FormBuilderTest extends FormTestBase {
     return array(
       array(array('redirect_route' => array('route_name' => 'test_route_a')), 'test-route'),
       array(array('redirect_route' => array('route_name' => 'test_route_b', 'route_parameters' => array('key' => 'value'))), 'test-route/value'),
+      array(array('redirect_route' => new Url('test_route_b', array('key' => 'value'))), 'test-route/value'),
     );
   }
 
@@ -325,31 +433,6 @@ class FormBuilderTest extends FormTestBase {
     $this->assertFormElement($expected_form, $form, 'test');
     $this->assertSame($form_id, $form_state['build_info']['form_id']);
     $this->assertSame($form_id, $form['#id']);
-  }
-
-  /**
-   * Tests the buildForm() method with a hook_forms() based form ID.
-   */
-  public function testBuildFormWithHookForms() {
-    $form_id = 'test_form_id_specific';
-    $base_form_id = 'test_form_id';
-    $expected_form = $base_form_id();
-    // Set the module handler to return information from hook_forms().
-    $this->moduleHandler->expects($this->once())
-      ->method('invokeAll')
-      ->with('forms', array($form_id, array()))
-      ->will($this->returnValue(array(
-        'test_form_id_specific' => array(
-          'callback' => $base_form_id,
-        ),
-      )));
-
-    $form_state = array();
-    $form = $this->formBuilder->buildForm($form_id, $form_state);
-    $this->assertFormElement($expected_form, $form, 'test');
-    $this->assertSame($form_id, $form_state['build_info']['form_id']);
-    $this->assertSame($form_id, $form['#id']);
-    $this->assertSame($base_form_id, $form_state['build_info']['base_form_id']);
   }
 
   /**

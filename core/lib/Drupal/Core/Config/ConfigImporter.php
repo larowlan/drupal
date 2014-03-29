@@ -7,10 +7,11 @@
 
 namespace Drupal\Core\Config;
 
-use Drupal\Core\Config\TypedConfigManager;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Component\Utility\String;
+use Drupal\Core\Config\Entity\ImportableEntityStorageInterface;
+use Drupal\Core\DependencyInjection\DependencySerialization;
+use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Lock\LockBackendInterface;
-use Drupal\Component\Uuid\UuidInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -23,21 +24,21 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  *
  * The ConfigImporter has a identifier which is used to construct event names.
  * The events fired during an import are:
- * - 'config.importer.validate': Events listening can throw a
+ * - ConfigEvents::IMPORT_VALIDATE: Events listening can throw a
  *   \Drupal\Core\Config\ConfigImporterException to prevent an import from
  *   occurring.
  *   @see \Drupal\Core\EventSubscriber\ConfigImportSubscriber
- * - 'config.importer.import': Events listening can react to a successful import.
+ * - ConfigEvents::IMPORT: Events listening can react to a successful import.
  *   @see \Drupal\Core\EventSubscriber\ConfigSnapshotSubscriber
  *
  * @see \Drupal\Core\Config\ConfigImporterEvent
  */
-class ConfigImporter {
+class ConfigImporter extends DependencySerialization {
 
   /**
-   * The name used to identify events and the lock.
+   * The name used to identify the lock.
    */
-  const ID = 'config.importer';
+  const LOCK_ID = 'config_importer';
 
   /**
    * The storage comparer used to discover configuration changes.
@@ -49,23 +50,16 @@ class ConfigImporter {
   /**
    * The event dispatcher used to notify subscribers.
    *
-   * @var \Symfony\Component\EventDispatcher\EventDispatcher
+   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
 
   /**
-   * The configuration factory.
+   * The configuration manager.
    *
-   * @var \Drupal\Core\Config\ConfigFactory
+   * @var \Drupal\Core\Config\ConfigManagerInterface
    */
-  protected $configFactory;
-
-  /**
-   * The plugin manager for entities.
-   *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
-   */
-  protected $entityManager;
+  protected $configManager;
 
   /**
    * The used lock backend instance.
@@ -73,6 +67,13 @@ class ConfigImporter {
    * @var \Drupal\Core\Lock\LockBackendInterface
    */
   protected $lock;
+
+  /**
+   * The typed config manager.
+   *
+   * @var \Drupal\Core\Config\TypedConfigManager
+   */
+  protected $typedConfigManager;
 
   /**
    * List of changes processed by the import().
@@ -89,20 +90,6 @@ class ConfigImporter {
   protected $validated;
 
   /**
-   * The UUID service.
-   *
-   * @var \Drupal\Component\Uuid\UuidInterface
-   */
-  protected $uuidService;
-
-  /**
-   * The typed config manager.
-   *
-   * @var \Drupal\Core\Config\TypedConfigManager
-   */
-  protected $typedConfigManager;
-
-  /**
    * Constructs a configuration import object.
    *
    * @param \Drupal\Core\Config\StorageComparerInterface $storage_comparer
@@ -110,24 +97,18 @@ class ConfigImporter {
    *   access the source and target storage objects.
    * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   The event dispatcher used to notify subscribers of config import events.
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
-   *   The config factory that statically caches config objects.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager used to import config entities.
+   * @param \Drupal\Core\Config\ConfigManagerInterface $config_manager
+   *   The configuration manager.
    * @param \Drupal\Core\Lock\LockBackendInterface
    *   The lock backend to ensure multiple imports do not occur at the same time.
-   * @param \Drupal\Component\Uuid\UuidInterface $uuid_service
-   *   The UUID service.
    * @param \Drupal\Core\Config\TypedConfigManager $typed_config
    *   The typed configuration manager.
    */
-  public function __construct(StorageComparerInterface $storage_comparer, EventDispatcherInterface $event_dispatcher, ConfigFactory $config_factory, EntityManagerInterface $entity_manager, LockBackendInterface $lock, UuidInterface $uuid_service, TypedConfigManager $typed_config) {
+  public function __construct(StorageComparerInterface $storage_comparer, EventDispatcherInterface $event_dispatcher, ConfigManagerInterface $config_manager, LockBackendInterface $lock, TypedConfigManager $typed_config) {
     $this->storageComparer = $storage_comparer;
     $this->eventDispatcher = $event_dispatcher;
-    $this->configFactory = $config_factory;
-    $this->entityManager = $entity_manager;
+    $this->configManager = $config_manager;
     $this->lock = $lock;
-    $this->uuidService = $uuid_service;
     $this->typedConfigManager = $typed_config;
     $this->processed = $this->storageComparer->getEmptyChangelist();
   }
@@ -223,17 +204,25 @@ class ConfigImporter {
       // Ensure that the changes have been validated.
       $this->validate();
 
-      if (!$this->lock->acquire(static::ID)) {
+      if (!$this->lock->acquire(static::LOCK_ID)) {
         // Another process is synchronizing configuration.
-        throw new ConfigImporterException(sprintf('%s is already importing', static::ID));
+        throw new ConfigImporterException(sprintf('%s is already importing', static::LOCK_ID));
       }
-      $this->importInvokeOwner();
-      $this->importConfig();
+      // First pass deleted, then new, and lastly changed configuration, in order
+      // to handle dependencies correctly.
+      // @todo Implement proper dependency ordering using
+      //   https://drupal.org/node/2080823
+      foreach (array('delete', 'create', 'update') as $op) {
+        foreach ($this->getUnprocessed($op) as $name) {
+          $this->process($op, $name);
+        }
+      }
       // Allow modules to react to a import.
-      $this->notify('import');
+      $this->eventDispatcher->dispatch(ConfigEvents::IMPORT, new ConfigImporterEvent($this));
+
 
       // The import is now complete.
-      $this->lock->release(static::ID);
+      $this->lock->release(static::LOCK_ID);
       $this->reset();
     }
     return $this;
@@ -250,78 +239,96 @@ class ConfigImporter {
       if (!$this->storageComparer->validateSiteUuid()) {
         throw new ConfigImporterException('Site UUID in source storage does not match the target storage.');
       }
-      $this->notify('validate');
+      $this->eventDispatcher->dispatch(ConfigEvents::IMPORT_VALIDATE, new ConfigImporterEvent($this));
       $this->validated = TRUE;
     }
     return $this;
   }
 
   /**
-   * Writes an array of config changes from the source to the target storage.
+   * Processes a configuration change.
+   *
+   * @param string $op
+   *   The change operation.
+   * @param string $name
+   *   The name of the configuration to process.
    */
-  protected function importConfig() {
-    foreach (array('delete', 'create', 'update') as $op) {
-      foreach ($this->getUnprocessed($op) as $name) {
-        $config = new Config($name, $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
-        if ($op == 'delete') {
-          $config->delete();
-        }
-        else {
-          $data = $this->storageComparer->getSourceStorage()->read($name);
-          $config->setData($data ? $data : array());
-          $config->save();
-        }
-        $this->setProcessed($op, $name);
-      }
+  protected function process($op, $name) {
+    if (!$this->importInvokeOwner($op, $name)) {
+      $this->importConfig($op, $name);
     }
   }
 
   /**
-   * Invokes import* methods on configuration entity storage controllers.
+   * Writes a configuration change from the source to the target storage.
+   *
+   * @param string $op
+   *   The change operation.
+   * @param string $name
+   *   The name of the configuration to process.
+   */
+  protected function importConfig($op, $name) {
+    $config = new Config($name, $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
+    if ($op == 'delete') {
+      $config->delete();
+    }
+    else {
+      $data = $this->storageComparer->getSourceStorage()->read($name);
+      $config->setData($data ? $data : array());
+      $config->save();
+    }
+    $this->setProcessed($op, $name);
+  }
+
+  /**
+   * Invokes import* methods on configuration entity storage.
    *
    * Allow modules to take over configuration change operations for higher-level
    * configuration data.
    *
    * @todo Add support for other extension types; e.g., themes etc.
-   */
-  protected function importInvokeOwner() {
-    // First pass deleted, then new, and lastly changed configuration, in order
-    // to handle dependencies correctly.
-    foreach (array('delete', 'create', 'update') as $op) {
-      foreach ($this->getUnprocessed($op) as $name) {
-        // Call to the configuration entity's storage controller to handle the
-        // configuration change.
-        $handled_by_module = FALSE;
-        // Validate the configuration object name before importing it.
-        // Config::validateName($name);
-        if ($entity_type = config_get_entity_type_by_name($name)) {
-          $old_config = new Config($name, $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
-          $old_config->load();
-
-          $data = $this->storageComparer->getSourceStorage()->read($name);
-          $new_config = new Config($name, $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
-          if ($data !== FALSE) {
-            $new_config->setData($data);
-          }
-
-          $method = 'import' . ucfirst($op);
-          $handled_by_module = $this->entityManager->getStorageController($entity_type)->$method($name, $new_config, $old_config);
-        }
-        if (!empty($handled_by_module)) {
-          $this->setProcessed($op, $name);
-        }
-      }
-    }
-  }
-
-  /**
-   * Dispatches a config importer event.
    *
-   * @param string $event_name
-   *   The name of the config importer event to dispatch.
+   * @param string $op
+   *   The change operation to get the unprocessed list for, either delete,
+   *   create or update.
+   * @param string $name
+   *   The name of the configuration to process.
+   *
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *   Thrown if the data is owned by an entity type, but the entity storage
+   *   does not support imports.
+   *
+   * @return bool
+   *   TRUE if the configuration was imported as a configuration entity. FALSE
+   *   otherwise.
    */
-  protected function notify($event_name) {
-    $this->eventDispatcher->dispatch(static::ID . '.' . $event_name, new ConfigImporterEvent($this));
+  protected function importInvokeOwner($op, $name) {
+    // Validate the configuration object name before importing it.
+    // Config::validateName($name);
+    if ($entity_type = $this->configManager->getEntityTypeIdByName($name)) {
+      $old_config = new Config($name, $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
+      if ($old_data = $this->storageComparer->getTargetStorage()->read($name)) {
+        $old_config->initWithData($old_data);
+      }
+
+      $data = $this->storageComparer->getSourceStorage()->read($name);
+      $new_config = new Config($name, $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
+      if ($data !== FALSE) {
+        $new_config->setData($data);
+      }
+
+      $method = 'import' . ucfirst($op);
+      $entity_storage = $this->configManager->getEntityManager()->getStorage($entity_type);
+      // Call to the configuration entity's storage to handle the configuration
+      // change.
+      if (!($entity_storage instanceof ImportableEntityStorageInterface)) {
+        throw new EntityStorageException(String::format('The entity storage "@storage" for the "@entity_type" entity type does not support imports', array('@storage' => get_class($entity_storage), '@entity_type' => $entity_type)));
+      }
+      $entity_storage->$method($name, $new_config, $old_config);
+      $this->setProcessed($op, $name);
+      return TRUE;
+    }
+    return FALSE;
   }
 
   /**
@@ -331,17 +338,7 @@ class ConfigImporter {
    *   TRUE if an import is already running, FALSE if not.
    */
   public function alreadyImporting() {
-    return !$this->lock->lockMayBeAvailable(static::ID);
-  }
-
-  /**
-   * Returns the identifier for events and locks.
-   *
-   * @return string
-   *   The identifier for events and locks.
-   */
-  public function getId() {
-    return static::ID;
+    return !$this->lock->lockMayBeAvailable(static::LOCK_ID);
   }
 
 }

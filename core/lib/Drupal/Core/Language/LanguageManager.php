@@ -8,12 +8,13 @@
 namespace Drupal\Core\Language;
 
 use Drupal\Component\Utility\String;
+use Drupal\Core\DependencyInjection\DependencySerialization;
 use Drupal\Core\StringTranslation\TranslationInterface;
 
 /**
  * Class responsible for providing language support on language-unaware sites.
  */
-class LanguageManager implements LanguageManagerInterface {
+class LanguageManager extends DependencySerialization implements LanguageManagerInterface {
 
   /**
    * The string translation service.
@@ -32,9 +33,19 @@ class LanguageManager implements LanguageManagerInterface {
   /**
    * The default language object.
    *
-   * @var \Drupal\Core\Language\Language
+   * @var \Drupal\Core\Language\LanguageDefault
    */
   protected $defaultLanguage;
+
+  /**
+   * Constructs the language manager.
+   *
+   * @param \Drupal\Core\Language\Language $default_language
+   *   The default language.
+   */
+  public function __construct(LanguageDefault $default_language) {
+    $this->defaultLanguage = $default_language;
+  }
 
   /**
    * {@inheritdoc}
@@ -83,16 +94,14 @@ class LanguageManager implements LanguageManagerInterface {
    * {@inheritdoc}
    */
   public function reset($type = NULL) {
+    return $this;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getDefaultLanguage() {
-    if (!isset($this->defaultLanguage)) {
-      $this->defaultLanguage = new Language(Language::$defaultValues);
-    }
-    return $this->defaultLanguage;
+    return $this->defaultLanguage->get();
   }
 
   /**
@@ -318,6 +327,26 @@ class LanguageManager implements LanguageManagerInterface {
       'zh-hans' => array('Chinese, Simplified', '简体中文'),
       'zh-hant' => array('Chinese, Traditional', '繁體中文'),
     );
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * This function is a noop since the configuration can not be overridden by
+   * language unless the Language module is enabled. That replaces the default
+   * language manger with a configurable language manager.
+   *
+   * @see \Drupal\language\ConfigurableLanguageManager::setConfigOverrideLanguage()
+   */
+  public function setConfigOverrideLanguage(Language $language = NULL) {
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfigOverrideLanguage() {
+    return $this->getCurrentLanguage();
   }
 
 }

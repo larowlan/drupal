@@ -5,6 +5,7 @@
  * Enables users to create menu links.
  */
 
+use Drupal\Core\Url;
 use Drupal\menu_link\Entity\MenuLink;
 use Drupal\menu_link\MenuLinkInterface;
 use Symfony\Cmf\Component\Routing\RouteObjectInterface;
@@ -26,9 +27,7 @@ function menu_link_help($path, $arg) {
  *   A menu link entity.
  */
 function menu_link_uri(MenuLink $menu_link) {
-  return array(
-    'path' => $menu_link->link_path,
-  );
+  return new Url($menu_link->route_name, $menu_link->route_parameters);
 }
 
 /**
@@ -99,7 +98,7 @@ function menu_link_delete_multiple(array $mlids, $force = FALSE, $prevent_repare
   }
 
   $controller = \Drupal::entityManager()
-    ->getStorageController('menu_link');
+    ->getStorage('menu_link');
   if (!$force) {
     $entity_query = \Drupal::entityQuery('menu_link');
     $group = $entity_query->orConditionGroup()
@@ -154,7 +153,7 @@ function menu_link_save(MenuLink $menu_link) {
  */
 function menu_link_maintain($module, $op, $link_path, $link_title = NULL) {
   $menu_link_controller = \Drupal::entityManager()
-    ->getStorageController('menu_link');
+    ->getStorage('menu_link');
   switch ($op) {
     case 'insert':
       $menu_link = entity_create('menu_link', array(
@@ -202,7 +201,7 @@ function menu_link_maintain($module, $op, $link_path, $link_title = NULL) {
  * Implements hook_system_breadcrumb_alter().
  */
 function menu_link_system_breadcrumb_alter(array &$breadcrumb, array $attributes, array $context) {
-  // Custom breadcrumb behaviour for editing menu links, we append a link to
+  // Custom breadcrumb behavior for editing menu links, we append a link to
   // the menu in which the link is found.
   if (!empty($attributes[RouteObjectInterface::ROUTE_NAME]) && $attributes[RouteObjectInterface::ROUTE_NAME] == 'menu.link_edit' && !empty($attributes['menu_link'])) {
     $menu_link = $attributes['menu_link'];

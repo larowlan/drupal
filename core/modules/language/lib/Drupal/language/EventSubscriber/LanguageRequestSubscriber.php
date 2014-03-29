@@ -7,7 +7,6 @@
 
 namespace Drupal\language\EventSubscriber;
 
-use Drupal\Core\Language\Language;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\Translator\TranslatorInterface;
 use Drupal\language\ConfigurableLanguageManagerInterface;
@@ -83,7 +82,7 @@ class LanguageRequestSubscriber implements EventSubscriberInterface {
       if ($this->languageManager instanceof ConfigurableLanguageManagerInterface) {
         $this->languageManager->setNegotiator($this->negotiator);
         $this->languageManager->setRequest($request);
-        $this->languageManager->initConfigOverrides();
+        $this->languageManager->setConfigOverrideLanguage($this->languageManager->getCurrentLanguage());
       }
       // After the language manager has initialized, set the default langcode
       // for the string translations.

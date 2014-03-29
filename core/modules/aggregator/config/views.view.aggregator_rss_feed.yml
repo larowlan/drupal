@@ -8,14 +8,16 @@ display:
     display_plugin: default
     id: default
     display_title: Master
-    position: 1
+    position: 0
     display_options:
       access:
         type: none
         options: {  }
+        provider: views
       cache:
         type: none
         options: {  }
+        provider: views
       query:
         type: views_query
         options:
@@ -24,6 +26,7 @@ display:
           slave: false
           query_comment: false
           query_tags: {  }
+        provider: views
       exposed_form:
         type: basic
         options:
@@ -34,6 +37,7 @@ display:
           expose_sort_order: true
           sort_asc_label: Asc
           sort_desc_label: Desc
+        provider: views
       pager:
         type: full
         options:
@@ -42,7 +46,7 @@ display:
           id: 0
           total_pages: 0
           expose:
-            items_per_page: '0'
+            items_per_page: false
             items_per_page_label: 'Items per page'
             items_per_page_options: '5, 10, 20, 40, 60'
             items_per_page_options_all: false
@@ -54,11 +58,14 @@ display:
             next: 'next ›'
             first: '« first'
             last: 'last »'
-          quantity: '9'
+          quantity: 9
+        provider: views
       style:
         type: default
+        provider: views
       row:
         type: 'entity:aggregator_item'
+        provider: views
       fields:
         iid:
           table: aggregator_item
@@ -69,6 +76,7 @@ display:
           admin_label: ''
           label: 'Item ID'
           exclude: false
+          plugin_id: numeric
           alter:
             alter_text: false
             text: ''
@@ -108,11 +116,11 @@ display:
           hide_empty: false
           empty_zero: false
           hide_alter_empty: true
-          set_precision: '0'
-          precision: '0'
+          set_precision: false
+          precision: 0
           decimal: .
           separator: ','
-          format_plural: '0'
+          format_plural: false
           format_plural_singular: '1'
           format_plural_plural: '@count'
           prefix: ''
@@ -129,15 +137,17 @@ display:
     display_plugin: feed
     id: feed_items
     display_title: Feed
-    position: 2
+    position: 1
     display_options:
       path: aggregator/rss
       display_description: ''
       defaults:
         arguments: true
 label: 'Aggregator RSS feed'
-module: views
+module: aggregator
 id: aggregator_rss_feed
 tag: aggregator
-uuid: 7dfa5cb7-2248-4d52-8c00-cd8e02d1e78e
 langcode: en
+dependencies:
+  module:
+    - aggregator

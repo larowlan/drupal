@@ -62,7 +62,7 @@ class Rss extends RowPluginBase {
    * Return the main options, which are shown in the summary title.
    */
   public function buildOptionsForm_summary_options() {
-    $view_modes = entity_get_view_modes('node');
+    $view_modes = \Drupal::entityManager()->getViewModes('node');
     $options = array();
     foreach ($view_modes as $mode => $settings) {
       $options[$mode] = $settings['label'];
@@ -102,6 +102,7 @@ class Rss extends RowPluginBase {
     }
 
     // Load the specified node:
+    /** @var \Drupal\node\NodeInterface $node */
     $node = $this->nodes[$nid];
     if (empty($node)) {
       return;
@@ -109,8 +110,7 @@ class Rss extends RowPluginBase {
 
     $item_text = '';
 
-    $uri = $node->uri();
-    $node->link = url($uri['path'], $uri['options'] + array('absolute' => TRUE));
+    $node->link = $node->url('canonical', array('absolute' => TRUE));
     $node->rss_namespaces = array();
     $node->rss_elements = array(
       array(
@@ -119,7 +119,7 @@ class Rss extends RowPluginBase {
       ),
       array(
         'key' => 'dc:creator',
-        'value' => $node->getAuthor()->getUsername(),
+        'value' => $node->getOwner()->getUsername(),
       ),
       array(
         'key' => 'guid',

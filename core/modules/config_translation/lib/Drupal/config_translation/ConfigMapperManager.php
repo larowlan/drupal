@@ -13,6 +13,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\Schema\ArrayElement;
 use Drupal\Core\Config\TypedConfigManager;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Extension\ThemeHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\Plugin\Discovery\InfoHookDecorator;
@@ -32,6 +33,13 @@ class ConfigMapperManager extends DefaultPluginManager implements ConfigMapperMa
    * @var \Drupal\Core\Config\TypedConfigManager
    */
   protected $typedConfigManager;
+
+  /**
+   * The theme handler.
+   *
+   * @var \Drupal\Core\Extension\ThemeHandlerInterface
+   */
+  protected $themeHandler;
 
   /**
    * {@inheritdoc}
@@ -55,16 +63,16 @@ class ConfigMapperManager extends DefaultPluginManager implements ConfigMapperMa
    * @param \Drupal\Core\Config\TypedConfigManager $typed_config_manager
    *   The typed config manager.
    */
-  public function __construct(CacheBackendInterface $cache_backend, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, TypedConfigManager $typed_config_manager) {
+  public function __construct(CacheBackendInterface $cache_backend, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, TypedConfigManager $typed_config_manager, ThemeHandlerInterface $theme_handler) {
     $this->typedConfigManager = $typed_config_manager;
 
     // Look at all themes and modules.
     $directories = array();
-    foreach ($module_handler->getModuleList() as $module => $filename) {
-      $directories[$module] = dirname($filename);
+    foreach ($module_handler->getModuleList() as $name => $module) {
+      $directories[$name] = $module->getPath();
     }
-    foreach ($this->getThemeList() as $theme) {
-      $directories[$theme->name] = drupal_get_path('theme', $theme->name);
+    foreach ($theme_handler->listInfo() as $theme) {
+      $directories[$theme->getName()] = $theme->getPath();
     }
 
     // Check for files named MODULE.config_translation.yml and
@@ -76,25 +84,11 @@ class ConfigMapperManager extends DefaultPluginManager implements ConfigMapperMa
     $this->factory = new ContainerFactory($this);
 
     // Let others alter definitions with hook_config_translation_info_alter().
-    $this->alterInfo($module_handler, 'config_translation_info');
-    $this->setCacheBackend($cache_backend, $language_manager, 'config_translation_info_plugins');
-  }
+    $this->moduleHandler = $module_handler;
+    $this->themeHandler = $theme_handler;
 
-  /**
-   * Returns the list of themes on the site.
-   *
-   * @param bool $refresh
-   *   Whether to refresh the cached theme list.
-   *
-   * @return array
-   *   An associative array of the currently available themes. The keys are the
-   *   themes' machine names and the values are objects. See list_themes() for
-   *   documentation on those objects.
-   *
-   * @todo Remove this once https://drupal.org/node/2109287 is fixed in core.
-   */
-  protected function getThemeList($refresh = FALSE) {
-    return list_themes($refresh);
+    $this->alterInfo('config_translation_info');
+    $this->setCacheBackend($cache_backend, $language_manager, 'config_translation_info_plugins');
   }
 
   /**
@@ -118,6 +112,28 @@ class ConfigMapperManager extends DefaultPluginManager implements ConfigMapperMa
     if (!isset($definition['base_route_name'])) {
       throw new InvalidPluginDefinitionException($plugin_id, String::format("The plugin definition of the mapper '%plugin_id' does not contain a base_route_name.", array('%plugin_id' => $plugin_id)));
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function findDefinitions() {
+    $definitions = $this->discovery->getDefinitions();
+    foreach ($definitions as $plugin_id => &$definition) {
+      $this->processDefinition($definition, $plugin_id);
+    }
+    if ($this->alterHook) {
+      $this->moduleHandler->alter($this->alterHook, $definitions);
+    }
+
+    // If this plugin was provided by a module that does not exist, remove the
+    // plugin definition.
+    foreach ($definitions as $plugin_id => $plugin_definition) {
+      if (isset($plugin_definition['provider']) && !in_array($plugin_definition['provider'], array('Core', 'Component')) && (!$this->moduleHandler->moduleExists($plugin_definition['provider']) && !in_array($plugin_definition['provider'], array_keys($this->themeHandler->listInfo())))) {
+        unset($definitions[$plugin_id]);
+      }
+    }
+    return $definitions;
   }
 
   /**
@@ -149,7 +165,7 @@ class ConfigMapperManager extends DefaultPluginManager implements ConfigMapperMa
       return FALSE;
     }
     else {
-      $definition = $element->getDefinition();
+      $definition = $element->getDataDefinition();
       return isset($definition['translatable']) && $definition['translatable'];
     }
   }

@@ -8,7 +8,7 @@
 namespace Drupal\system\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -18,23 +18,23 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class PerformanceForm extends ConfigFormBase {
 
   /**
-   * The page cache object.
+   * The render cache object.
    *
    * @var \Drupal\Core\Cache\CacheBackendInterface
    */
-  protected $pageCache;
+  protected $renderCache;
 
   /**
    * Constructs a PerformanceForm object.
    *
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
-   * @param \Drupal\Core\Cache\CacheBackendInterface $page_cache
+   * @param \Drupal\Core\Cache\CacheBackendInterface $render_cache
    */
-  public function __construct(ConfigFactory $config_factory, CacheBackendInterface $page_cache) {
+  public function __construct(ConfigFactoryInterface $config_factory, CacheBackendInterface $render_cache) {
     parent::__construct($config_factory);
 
-    $this->pageCache = $page_cache;
+    $this->renderCache = $render_cache;
   }
 
   /**
@@ -43,7 +43,7 @@ class PerformanceForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('cache.page')
+      $container->get('cache.render')
     );
   }
 
@@ -58,13 +58,14 @@ class PerformanceForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, array &$form_state) {
-    $form['#attached']['library'][] = array('system', 'drupal.system');
+    $form['#attached']['library'][] = 'system/drupal.system';
 
     $config = $this->configFactory->get('system.performance');
 
     $form['clear_cache'] = array(
       '#type' => 'details',
       '#title' => t('Clear cache'),
+      '#open' => TRUE,
     );
 
     $form['clear_cache']['clear'] = array(
@@ -76,10 +77,14 @@ class PerformanceForm extends ConfigFormBase {
     $form['caching'] = array(
       '#type' => 'details',
       '#title' => t('Caching'),
+      '#open' => TRUE,
     );
-
-    $period = drupal_map_assoc(array(0, 60, 180, 300, 600, 900, 1800, 2700, 3600, 10800, 21600, 32400, 43200, 86400), 'format_interval');
-    $period[0] = '<' . t('none') . '>';
+    // Identical options to the ones for block caching.
+    // @see \Drupal\block\BlockBase::buildConfigurationForm()
+    $period = array(0, 60, 180, 300, 600, 900, 1800, 2700, 3600, 10800, 21600, 32400, 43200, 86400);
+    $period = array_map('format_interval', array_combine($period, $period));
+    $period[0] = '<' . t('no caching') . '>';
+    $period[\Drupal\Core\Cache\Cache::PERMANENT] = t('Forever');
     $form['caching']['page_cache_maximum_age'] = array(
       '#type' => 'select',
       '#title' => t('Page cache maximum age'),
@@ -106,6 +111,7 @@ class PerformanceForm extends ConfigFormBase {
     $form['bandwidth_optimization'] = array(
       '#type' => 'details',
       '#title' => t('Bandwidth optimization'),
+      '#open' => TRUE,
       '#description' => t('External resources can be optimized automatically, which can reduce both the size and number of requests made to your website.') . $disabled_message,
     );
 
@@ -142,8 +148,9 @@ class PerformanceForm extends ConfigFormBase {
     drupal_clear_css_cache();
     drupal_clear_js_cache();
     // This form allows page compression settings to be changed, which can
-    // invalidate the page cache, so it needs to be cleared on form submit.
-    $this->pageCache->deleteAll();
+    // invalidate cached pages in the render cache, so it needs to be cleared on
+    // form submit.
+    $this->renderCache->deleteAll();
 
     $this->configFactory->get('system.performance')
       ->set('cache.page.use_internal', $form_state['values']['cache'])

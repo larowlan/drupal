@@ -11,6 +11,10 @@ use Drupal\views\Plugin\views\row\EntityRow;
 
 /**
  * Plugin which performs a comment_view on the resulting object.
+ *
+ * @ViewsRow(
+ *   id = "entity:comment",
+ * )
  */
 class CommentRow extends EntityRow {
 
@@ -41,8 +45,7 @@ class CommentRow extends EntityRow {
    * {@inheritdoc}
    */
   public function render($row) {
-    $entity_id = $row->{$this->field_alias};
-    $build = $this->build[$entity_id];
+    $build = parent::render($row);
     if (!$this->options['links']) {
       unset($build['links']);
     }

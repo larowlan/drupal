@@ -2,6 +2,11 @@ services:
   serializer:
     class: Symfony\Component\Serializer\Serializer
     arguments: [{  }, {  }]
+  serializer.normalizer.config_entity:
+    class: Drupal\serialization\Normalizer\ConfigEntityNormalizer
+    tags:
+      - { name: normalizer }
+    arguments: ['@entity.manager']
   serializer.normalizer.entity:
     class: Drupal\serialization\Normalizer\EntityNormalizer
     tags:
@@ -32,5 +37,9 @@ services:
     arguments: [{  }]
   serializer.entity_resolver.uuid:
     class: Drupal\serialization\EntityResolver\UuidResolver
+    tags:
+      - { name: entity_resolver}
+  serialization.entity_resolver.target_id:
+    class: Drupal\serialization\EntityResolver\TargetIdResolver
     tags:
       - { name: entity_resolver}

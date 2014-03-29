@@ -9,7 +9,7 @@ namespace Drupal\datetime\Plugin\Field\FieldFormatter;
 
 use Drupal\Core\Datetime\Date;
 use Drupal\Core\Datetime\DrupalDateTime;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
@@ -24,13 +24,19 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   label = @Translation("Default"),
  *   field_types = {
  *     "datetime"
- *   },
- *   settings = {
- *     "format_type" = "medium",
  *   }
  * )
  */
 class DateTimeDefaultFormatter extends FormatterBase implements ContainerFactoryPluginInterface {
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function defaultSettings() {
+    return array(
+      'format_type' => 'medium',
+    ) + parent::defaultSettings();
+  }
 
   /**
    * The date service.
@@ -40,9 +46,9 @@ class DateTimeDefaultFormatter extends FormatterBase implements ContainerFactory
   protected $dateService;
 
   /**
-   * The date storage controller.
+   * The date storage.
    *
-   * @var \Drupal\Core\Entity\EntityStorageControllerInterface
+   * @var \Drupal\Core\Entity\EntityStorageInterface
    */
   protected $dateStorage;
 
@@ -63,10 +69,10 @@ class DateTimeDefaultFormatter extends FormatterBase implements ContainerFactory
    *   The view mode.
    * @param \Drupal\Core\Datetime\Date $date_service
    *   The date service.
-   * @param \Drupal\Core\Entity\EntityStorageControllerInterface $date_storage
-   *   The date storage controller.
+   * @param \Drupal\Core\Entity\EntityStorageInterface $date_storage
+   *   The date storage.
    */
-  public function __construct($plugin_id, array $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, Date $date_service, EntityStorageControllerInterface $date_storage) {
+  public function __construct($plugin_id, array $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, Date $date_service, EntityStorageInterface $date_storage) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode);
 
     $this->dateService = $date_service;
@@ -85,7 +91,7 @@ class DateTimeDefaultFormatter extends FormatterBase implements ContainerFactory
       $configuration['label'],
       $configuration['view_mode'],
       $container->get('date'),
-      $container->get('entity.manager')->getStorageController('date_format')
+      $container->get('entity.manager')->getStorage('date_format')
     );
   }
 
@@ -116,17 +122,20 @@ class DateTimeDefaultFormatter extends FormatterBase implements ContainerFactory
       }
 
       // Display the date using theme datetime.
-      // @todo How should RDFa attributes be added to this?
       $elements[$delta] = array(
         '#theme' => 'datetime',
         '#text' => $formatted_date,
         '#html' => FALSE,
         '#attributes' => array(
           'datetime' => $iso_date,
-          'property' => array('dc:date'),
-          'datatype' => 'xsd:dateTime',
         ),
       );
+      if (!empty($item->_attributes)) {
+        $elements[$delta]['#attributes'] += $item->_attributes;
+        // Unset field item attributes since they have been included in the
+        // formatter output and should not be rendered in the field template.
+        unset($item->_attributes);
+      }
     }
 
     return $elements;

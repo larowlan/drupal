@@ -58,8 +58,16 @@ class PageCacheTest extends WebTestBase {
     $tags = array('system_test_cache_tags_page' => TRUE);
     $this->drupalGet($path);
     $this->assertEqual($this->drupalGetHeader('X-Drupal-Cache'), 'MISS');
+
+    // Verify a cache hit, but also the presence of the correct cache tags.
     $this->drupalGet($path);
     $this->assertEqual($this->drupalGetHeader('X-Drupal-Cache'), 'HIT');
+    $cid_parts = array(url($path, array('absolute' => TRUE)), 'html');
+    $cid = sha1(implode(':', $cid_parts));
+    $cache_entry = \Drupal::cache('render')->get($cid);
+    sort($cache_entry->tags);
+    $this->assertIdentical($cache_entry->tags, array('content:1', 'pre_render:1', 'system_test_cache_tags_page:1'));
+
     Cache::invalidateTags($tags);
     $this->drupalGet($path);
     $this->assertEqual($this->drupalGetHeader('X-Drupal-Cache'), 'MISS');

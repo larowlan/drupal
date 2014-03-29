@@ -11,7 +11,7 @@ use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\TypedData\TypedDataManager;
 use Drupal\field\FieldInfo;
-use Drupal\field\FieldInstanceInterface;
+use Drupal\field\FieldInstanceConfigInterface;
 use Drupal\field_ui\FieldUI;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -23,7 +23,7 @@ class FieldEditForm extends FormBase {
   /**
    * The field instance being edited.
    *
-   * @var \Drupal\field\FieldInstanceInterface
+   * @var \Drupal\field\FieldInstanceConfigInterface
    */
   protected $instance;
 
@@ -85,12 +85,13 @@ class FieldEditForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, array &$form_state, FieldInstanceInterface $field_instance = NULL) {
-    $this->instance = $form_state['instance'] = $field_instance;
+  public function buildForm(array $form, array &$form_state, FieldInstanceConfigInterface $field_instance_config = NULL) {
+    $this->instance = $form_state['instance'] = $field_instance_config;
     $form['#title'] = $this->instance->label();
 
     $field = $this->instance->getField();
     $form['#field'] = $field;
+    $form['#bundle'] = $this->instance->bundle;
 
     $description = '<p>' . $this->t('These settings apply to the %field field everywhere it is used. These settings impact the way that data is stored in the database and cannot be changed once data has been created.', array('%field' => $this->instance->label())) . '</p>';
 
@@ -124,13 +125,13 @@ class FieldEditForm extends FormBase {
       '#title_display' => 'invisible',
       '#options' => array(
         'number' => $this->t('Limited'),
-        FieldInstanceInterface::CARDINALITY_UNLIMITED => $this->t('Unlimited'),
+        FieldInstanceConfigInterface::CARDINALITY_UNLIMITED => $this->t('Unlimited'),
       ),
-      '#default_value' => ($cardinality == FieldInstanceInterface::CARDINALITY_UNLIMITED) ? FieldInstanceInterface::CARDINALITY_UNLIMITED : 'number',
+      '#default_value' => ($cardinality == FieldInstanceConfigInterface::CARDINALITY_UNLIMITED) ? FieldInstanceConfigInterface::CARDINALITY_UNLIMITED : 'number',
     );
     $form['field']['cardinality_container']['cardinality_number'] = array(
       '#type' => 'number',
-      '#default_value' => $cardinality != FieldInstanceInterface::CARDINALITY_UNLIMITED ? $cardinality : 1,
+      '#default_value' => $cardinality != FieldInstanceConfigInterface::CARDINALITY_UNLIMITED ? $cardinality : 1,
       '#min' => 1,
       '#title' => $this->t('Limit'),
       '#title_display' => 'invisible',
@@ -157,7 +158,7 @@ class FieldEditForm extends FormBase {
     // FieldItem.
     $ids = (object) array('entity_type' => $this->instance->entity_type, 'bundle' => $this->instance->bundle, 'entity_id' => NULL);
     $entity = _field_create_entity_from_ids($ids);
-    $form['field']['settings'] += $entity->get($field->getName())->offsetGet(0)->settingsForm($form, $form_state, $field->hasData());
+    $form['field']['settings'] += $entity->get($field->getName())->first()->settingsForm($form, $form_state, $field->hasData());
 
     $form['actions'] = array('#type' => 'actions');
     $form['actions']['submit'] = array('#type' => 'submit', '#value' => $this->t('Save field settings'));

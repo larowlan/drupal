@@ -9,6 +9,7 @@ namespace Drupal\Core\EventSubscriber;
 
 use Drupal\Core\Page\HtmlFragment;
 use Drupal\Core\Page\HtmlPage;
+use Drupal\Core\Page\HtmlFragmentRendererInterface;
 use Drupal\Core\Page\HtmlPageRendererInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,20 +22,30 @@ use Symfony\Component\HttpKernel\Event\GetResponseForControllerResultEvent;
 class HtmlViewSubscriber implements EventSubscriberInterface {
 
   /**
+   * The fragment rendering service.
+   *
+   * @var \Drupal\Core\Page\HtmlFragmentRendererInterface
+   */
+  protected $fragmentRenderer;
+
+  /**
    * The page rendering service.
    *
    * @var \Drupal\Core\Page\HtmlPageRendererInterface
    */
-  protected $renderer;
+  protected $pageRenderer;
 
   /**
    * Constructs a new HtmlViewSubscriber.
    *
-   * @param \Drupal\Core\Page\HtmlPageRendererInterface $renderer
+   * @param \Drupal\Core\Page\HtmlFragmentRendererInterface $fragment_renderer
+   *   The fragment rendering service.
+   * @param \Drupal\Core\Page\HtmlPageRendererInterface $page_renderer
    *   The page rendering service.
    */
-  public function __construct(HtmlPageRendererInterface $renderer) {
-    $this->renderer = $renderer;
+  public function __construct(HtmlFragmentRendererInterface $fragment_renderer, HtmlPageRendererInterface $page_renderer) {
+    $this->fragmentRenderer = $fragment_renderer;
+    $this->pageRenderer = $page_renderer;
   }
 
   /**
@@ -46,7 +57,7 @@ class HtmlViewSubscriber implements EventSubscriberInterface {
   public function onHtmlFragment(GetResponseForControllerResultEvent $event) {
     $fragment = $event->getControllerResult();
     if ($fragment instanceof HtmlFragment && !$fragment instanceof HtmlPage) {
-      $page = $this->renderer->render($fragment);
+      $page = $this->fragmentRenderer->render($fragment);
       $event->setControllerResult($page);
     }
   }
@@ -64,7 +75,19 @@ class HtmlViewSubscriber implements EventSubscriberInterface {
       // so as to not cause issues with Response. This also allows renderPage
       // to return an object implementing __toString(), but that is not
       // recommended.
-      $response = new Response((string) $this->renderer->renderPage($page), $page->getStatusCode());
+      $response = new Response((string) $this->pageRenderer->render($page), $page->getStatusCode());
+      if ($tags = $page->getCacheTags()) {
+        $response->headers->set('X-Drupal-Cache-Tags', static::convertCacheTagsToHeader($tags));
+      }
+      if ($keys = $page->getCacheKeys()) {
+        $response->headers->set('cache_keys', serialize($keys));
+      }
+      if ($bin = $page->getCacheBin()) {
+        $response->headers->set('cache_bin', $bin);
+      }
+      if ($max_age = $page->getCacheMaxAge()) {
+        $response->headers->set('cache_max_age', $max_age);
+      }
       $event->setResponse($response);
     }
   }
@@ -80,6 +103,62 @@ class HtmlViewSubscriber implements EventSubscriberInterface {
     $events[KernelEvents::VIEW][] = array('onHtmlPage', 50);
 
     return $events;
+  }
+
+  /**
+   * Converts a cache tags array into a X-Drupal-Cache-Tags header value.
+   *
+   * @param array $tags
+   *   Associative array of cache tags to flatten.
+   *
+   * @return string
+   *   A space-separated list of flattened cache tag identifiers.
+   */
+  public static function convertCacheTagsToHeader(array $tags) {
+    $flat_tags = array();
+    foreach ($tags as $namespace => $values) {
+      if (is_array($values)) {
+        foreach ($values as $value) {
+          $flat_tags[] = "$namespace:$value";
+        }
+      }
+      else {
+        $flat_tags[] = "$namespace:$values";
+      }
+    }
+    return implode(' ', $flat_tags);
+  }
+
+  /**
+   * Converts a X-Drupal-Cache-Tags header value into a cache tags array.
+   *
+   * @param string $tags_header
+   *   A space-separated list of flattened cache tag identifiers.
+   *
+   * @return array
+   *   Associative array of cache tags to flatten.
+   */
+  public static function convertHeaderToCacheTags($tags_header) {
+    if (!is_string($tags_header) || strlen(trim($tags_header)) == 0) {
+      return array();
+    }
+
+    $flat_tags = explode(' ', trim($tags_header));
+    $tags = array();
+    foreach ($flat_tags as $flat_tag) {
+      list($namespace, $value) = explode(':', $flat_tag);
+      if (!isset($tags[$namespace])) {
+        $tags[$namespace] = $value;
+      }
+      // Multiple values in this namespace.
+      else {
+        if (!is_array($tags[$namespace])) {
+          $tags[$namespace] = array($tags[$namespace]);
+        }
+        $tags[$namespace][] = $value;
+      }
+    }
+    return $tags;
   }
 
 }

@@ -1,15 +1,14 @@
 id: test_block
 theme: stark
-weight: ''
+weight: 0
 status: true
 langcode: en
-region: -1
-plugin: test_html_id
+region: '-1'
+plugin: test_html
 settings:
-  label: 'Test block html id'
+  label: 'Test HTML block'
   module: block_test
-  label_display: false
-  cache: true
+  label_display: 'hidden'
 visibility:
   path:
     visibility: 0
@@ -18,4 +17,8 @@ visibility:
     roles: {  }
   node_type:
     types: {  }
-  visibility__active_tab: edit-visibility-path
+dependencies:
+  module:
+    - block_test
+  theme:
+    - stark

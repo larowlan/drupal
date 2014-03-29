@@ -9,19 +9,40 @@ use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Database\Query\AlterableInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
-use Drupal\field\FieldInterface;
+use Drupal\field\FieldConfigInterface;
+
+/**
+ * Implements hook_help().
+ */
+function entity_reference_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#entity_reference':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('The Entity Reference module allows you to create fields that contain links to other entities (such as content items, taxonomy terms, etc.) within the site. This allows you, for example, to include a link to a user within a content item. For more information, see <a href="!er_do">the online documentation for the Entity Reference module</a>, the <a href="!entity_help">Entity module help page</a>, and the <a href="!field_help">Field module help page</a>.', array('!field_help' => \Drupal::url('help.page', array('name' => 'field')),'!entity_help' => \Drupal::url('help.page', array('name' => 'entity')), '!er_do' => 'https://drupal.org/documentation/modules/entityreference')) . '</p>';
+      $output .= '<h3>' . t('Uses') . '</h3>';
+      $output .= '<dl>';
+      $output .= '<dt>' . t('Managing and displaying entity reference fields') . '</dt>';
+      $output .= '<dd>' . t('The <em>settings</em> and the <em>display</em> of the entity reference field can be configured separately. See the <a href="!field_ui">Field UI help</a> for more information on how to manage fields and their display.', array('!field_ui' => \Drupal::url('help.page', array('name' => 'field_ui')))) . '</dd>';
+      $output .= '<dt>' . t('Selecting reference type') . '</dt>';
+      $output .= '<dd>' . t('In the field settings you can select which entity type you want to create a reference to.') . '</dd>';
+      $output .= '<dt>' . t('Filtering and sorting reference fields') . '</dt>';
+      $output .= '<dd>' . t('Depending on the chosen entity type, additional filtering and sorting options are available for the list of entities that can be referred to, in the field settings. For example, the list of users can be filtered by role and sorted by name or ID.') . '</dd>';
+      $output .= '<dt>' . t('Displaying a reference') . '</dt>';
+      $output .= '<dd>' . t('An entity reference can be displayed as a simple label with or without a link to the entity. Alternatively, the referenced entity can be displayed as a teaser (or any other available view mode) inside the referencing entity.') . '</dd>';
+      $output .= '</dl>';
+      return $output;
+  }
+}
 
 /**
  * Implements hook_field_info_alter().
  */
 function entity_reference_field_info_alter(&$info) {
   // Make the entity reference field configurable.
-  $info['entity_reference']['configurable'] = TRUE;
+  $info['entity_reference']['no_ui'] = FALSE;
   $info['entity_reference']['class'] = '\Drupal\entity_reference\ConfigurableEntityReferenceItem';
   $info['entity_reference']['list_class'] = '\Drupal\entity_reference\Plugin\Field\FieldType\ConfigurableEntityReferenceFieldItemList';
-  $info['entity_reference']['settings']['target_type'] = \Drupal::moduleHandler()->moduleExists('node') ? 'node' : 'user';
-  $info['entity_reference']['instance_settings']['handler'] = 'default';
-  $info['entity_reference']['instance_settings']['handler_settings'] = array();
   $info['entity_reference']['default_widget'] = 'entity_reference_autocomplete';
   $info['entity_reference']['default_formatter'] = 'entity_reference_label';
   $info['entity_reference']['provider'] = 'entity_reference';
@@ -40,11 +61,11 @@ function entity_reference_field_widget_info_alter(&$info) {
 }
 
 /**
- * Implements hook_ENTITY_TYPE_update() for 'field_entity'.
+ * Implements hook_ENTITY_TYPE_update() for 'field_config'.
  *
  * Reset the instance handler settings, when the target type is changed.
  */
-function entity_reference_field_entity_update(FieldInterface $field) {
+function entity_reference_field_config_update(FieldConfigInterface $field) {
   if ($field->type != 'entity_reference') {
     // Only act on entity reference fields.
     return;
@@ -144,27 +165,6 @@ function entity_reference_settings_ajax_submit($form, &$form_state) {
 }
 
 /**
- * Implements hook_options_list().
- */
-function entity_reference_options_list(FieldDefinitionInterface $field_definition, EntityInterface $entity) {
-  if (!$options = \Drupal::service('plugin.manager.entity_reference.selection')->getSelectionHandler($field_definition, $entity)->getReferenceableEntities()) {
-    return array();
-  }
-
-  // Rebuild the array by changing the bundle key into the bundle label.
-  $target_type = $field_definition->getSetting('target_type');
-  $bundles = entity_get_bundles($target_type);
-
-  $return = array();
-  foreach ($options as $bundle => $entity_ids) {
-    $bundle_label = check_plain($bundles[$bundle]['label']);
-    $return[$bundle_label] = $entity_ids;
-  }
-
-  return count($return) == 1 ? reset($return) : $return;
-}
-
-/**
  * Implements hook_query_TAG_alter().
  */
 function entity_reference_query_entity_reference_alter(AlterableInterface $query) {
@@ -191,10 +191,12 @@ function entity_reference_query_entity_reference_alter(AlterableInterface $query
  * @param array $selection_handler_settings
  *   An array of settings supported by the selection handler specified above.
  *   (e.g. 'target_bundles', 'sort', 'auto_create', etc).
+ * @param int $cardinality
+ *   The cardinality of the field.
  *
  * @see \Drupal\entity_reference\Plugin\entity_reference\selection\SelectionBase::settingsForm()
  */
-function entity_reference_create_instance($entity_type, $bundle, $field_name, $field_label, $target_entity_type, $selection_handler = 'default', $selection_handler_settings = array()) {
+function entity_reference_create_instance($entity_type, $bundle, $field_name, $field_label, $target_entity_type, $selection_handler = 'default', $selection_handler_settings = array(), $cardinality = 1) {
   // If a field type we know should exist isn't found, clear the field cache.
   if (!\Drupal::service('plugin.manager.field.field_type')->getDefinition('entity_reference')) {
     field_cache_clear();
@@ -209,11 +211,12 @@ function entity_reference_create_instance($entity_type, $bundle, $field_name, $f
       'name' => $field_name,
       'type' => 'entity_reference',
       'entity_type' => $entity_type,
+      'cardinality' => $cardinality,
       'settings' => array(
         'target_type' => $target_entity_type,
       ),
     );
-    entity_create('field_entity', $field)->save();
+    entity_create('field_config', $field)->save();
   }
 
   if (empty($instance)) {
@@ -227,7 +230,7 @@ function entity_reference_create_instance($entity_type, $bundle, $field_name, $f
         'handler_settings' => $selection_handler_settings,
       ),
     );
-    entity_create('field_instance', $instance)->save();
+    entity_create('field_instance_config', $instance)->save();
   }
 }
 

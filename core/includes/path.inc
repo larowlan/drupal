@@ -5,7 +5,10 @@
  * Functions to handle paths in Drupal.
  */
 
-use Symfony\Component\HttpFoundation\Request;
+use Drupal\Component\Utility\UrlHelper;
+use Drupal\Core\ParamConverter\ParamNotConvertedException;
+use Drupal\Core\Routing\RequestHelper;
+use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 
 /**
  * Check if the current page is the front page.
@@ -100,7 +103,7 @@ function current_path() {
  *   A string representing the source, a number representing the pid, or an
  *   array of query conditions.
  *
- * @see \Drupal\Core\Path\Path::load()
+ * @see \Drupal\Core\Path\PathInterface::load()
  */
 function path_load($conditions) {
   if (is_numeric($conditions)) {
@@ -129,94 +132,59 @@ function path_load($conditions) {
  * @return
  *   TRUE if the path is administrative, FALSE otherwise.
  *
- * @see path_get_admin_paths()
- * @see hook_admin_paths()
- * @see hook_admin_paths_alter()
+ * @deprecated Use \Drupal::service('router.admin_context')->isAdminRoute()
+ *   service instead.
  */
 function path_is_admin($path) {
-  $path_map = &drupal_static(__FUNCTION__);
-  if (!isset($path_map['admin'][$path])) {
-    $patterns = path_get_admin_paths();
-    $path_map['admin'][$path] = drupal_match_path($path, $patterns['admin']);
-    $path_map['non_admin'][$path] = drupal_match_path($path, $patterns['non_admin']);
+  try {
+    $parameters = \Drupal::service('router')->match('/' . $path);
+    $route = $parameters[RouteObjectInterface::ROUTE_OBJECT];
+    return \Drupal::service('router.admin_context')->isAdminRoute($route);
   }
-  return $path_map['admin'][$path] && !$path_map['non_admin'][$path];
-}
-
-/**
- * Gets a list of administrative and non-administrative paths.
- *
- * @return array
- *   An associative array containing the following keys:
- *   'admin': An array of administrative paths and regular expressions
- *            in a format suitable for drupal_match_path().
- *   'non_admin': An array of non-administrative paths and regular expressions.
- *
- * @see hook_admin_paths()
- * @see hook_admin_paths_alter()
- */
-function path_get_admin_paths() {
-  $patterns = &drupal_static(__FUNCTION__);
-  if (!isset($patterns)) {
-    $paths = \Drupal::moduleHandler()->invokeAll('admin_paths');
-    drupal_alter('admin_paths', $paths);
-    // Combine all admin paths into one array, and likewise for non-admin paths,
-    // for easier handling.
-    $patterns = array();
-    $patterns['admin'] = array();
-    $patterns['non_admin'] = array();
-    foreach ($paths as $path => $enabled) {
-      if ($enabled) {
-        $patterns['admin'][] = $path;
-      }
-      else {
-        $patterns['non_admin'][] = $path;
-      }
-    }
-    $patterns['admin'] = implode("\n", $patterns['admin']);
-    $patterns['non_admin'] = implode("\n", $patterns['non_admin']);
+  catch (ParamNotConvertedException $e) {
+    return FALSE;
   }
-  return $patterns;
 }
 
 /**
  * Checks a path exists and the current user has access to it.
  *
- * @param $path
+ * @param string $path
  *   The path to check.
- * @param $dynamic_allowed
- *   Whether paths with menu wildcards (like user/%) should be allowed.
  *
- * @return
+ * @return bool
  *   TRUE if it is a valid path AND the current user has access permission,
  *   FALSE otherwise.
  */
-function drupal_valid_path($path, $dynamic_allowed = FALSE) {
-  global $menu_admin;
+function drupal_valid_path($path) {
+  // External URLs and the front page are always valid.
+  if ($path == '<front>' || UrlHelper::isExternal($path)) {
+    return TRUE;
+  }
+
+  // Check the routing system.
+  $collection = \Drupal::service('router.route_provider')->getRoutesByPattern('/' . $path);
+  if ($collection->count() == 0) {
+    return FALSE;
+  }
+
+  $request = RequestHelper::duplicate(\Drupal::request(), '/' . $path);
+  $request->attributes->set('_system_path', $path);
+
   // We indicate that a menu administrator is running the menu access check.
-  $menu_admin = TRUE;
-  if ($path == '<front>' || url_is_external($path)) {
-    $item = array('access' => TRUE);
+  $request->attributes->set('_menu_admin', TRUE);
+
+  // Attempt to match this path to provide a fully built request to the
+  // access checker.
+  try {
+    $request->attributes->add(\Drupal::service('router')->matchRequest($request));
   }
-  elseif ($dynamic_allowed && preg_match('/\/\%/', $path)) {
-    // Path is dynamic (ie 'user/%'), so check directly against menu_router table.
-    if ($item = db_query("SELECT * FROM {menu_router} where path = :path", array(':path' => $path))->fetchAssoc()) {
-      $item['link_path']  = $item['path'];
-      $item['link_title'] = $item['title'];
-      $item['external']   = FALSE;
-      $item['options'] = '';
-      _menu_link_translate($item);
-    }
+  catch (ParamNotConvertedException $e) {
+    return FALSE;
   }
-  else {
-    $item = menu_get_item($path);
-  }
-  // Check the new routing system.
-  if (!empty($item['route_name'])) {
-    $map = array();
-    $route = \Drupal::service('router.route_provider')->getRouteByName($item['route_name']);
-    $item['access'] = menu_item_route_access($route, $path, $map);
-  }
-  $menu_admin = FALSE;
-  return $item && $item['access'];
+
+  // Consult the accsss manager.
+  $routes = $collection->all();
+  $route = reset($routes);
+  return \Drupal::service('access_manager')->check($route, $request, \Drupal::currentUser());
 }

@@ -9,7 +9,7 @@ namespace Drupal\views\Plugin\views;
 
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Unicode;
-use Drupal\Component\Utility\Url;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
@@ -169,7 +169,7 @@ abstract class HandlerBase extends PluginBase {
    */
   public function adminLabel($short = FALSE) {
     if (!empty($this->options['admin_label'])) {
-      $title = check_plain($this->options['admin_label']);
+      $title = String::checkPlain($this->options['admin_label']);
       return $title;
     }
     $title = ($short && isset($this->definition['title short'])) ? $this->definition['title short'] : $this->definition['title'];
@@ -216,7 +216,7 @@ abstract class HandlerBase extends PluginBase {
    * @param $value
    *   The value being rendered.
    * @param $type
-   *   The type of sanitization needed. If not provided, check_plain() is used.
+   *   The type of sanitization needed. If not provided, String::checkPlain() is used.
    *
    * @return string
    *   Returns the safe value.
@@ -230,7 +230,7 @@ abstract class HandlerBase extends PluginBase {
         $value = Xss::filterAdmin($value);
         break;
       case 'url':
-        $value = String::checkPlain(Url::stripDangerousProtocols($value));
+        $value = String::checkPlain(UrlHelper::stripDangerousProtocols($value));
         break;
       default:
         $value = String::checkPlain($value);
@@ -294,7 +294,6 @@ abstract class HandlerBase extends PluginBase {
     $form['admin_label'] = array(
       '#type' => 'details',
       '#title' => t('Administrative title'),
-      '#collapsed' => TRUE,
       '#weight' => 150,
     );
     $form['admin_label']['admin_label'] = array(
@@ -310,7 +309,6 @@ abstract class HandlerBase extends PluginBase {
     $form['more'] = array(
       '#type' => 'details',
       '#title' => t('More'),
-      '#collapsed' => TRUE,
       '#weight' => 200,
     );
     // Allow to alter the default values brought into the form.
@@ -721,7 +719,7 @@ abstract class HandlerBase extends PluginBase {
       return $views_data['table']['entity type'];
     }
     else {
-      throw new \Exception(format_string('No entity type for field @field on view @view', array('@field' => $this->options['id'], '@view' => $this->view->storage->id())));
+      throw new \Exception(String::format('No entity type for field @field on view @view', array('@field' => $this->options['id'], '@view' => $this->view->storage->id())));
     }
   }
 
@@ -870,7 +868,7 @@ abstract class HandlerBase extends PluginBase {
     // Run it through the handler's submit function.
     $this->submitOptionsForm($form['options'], $form_state);
     $item = $this->options;
-    $types = ViewExecutable::viewsHandlerTypes();
+    $types = ViewExecutable::getHandlerTypes();
 
     // For footer/header $handler_type is area but $type is footer/header.
     // For all other handle types it's the same.

@@ -9,6 +9,8 @@ namespace Drupal\Component\Utility;
 
 /**
  * Provides helpers for dealing with json.
+ *
+ * @ingroup utility
  */
 class Json {
 
@@ -40,7 +42,6 @@ class Json {
    * @return mixed
    *   Returns the decoded string.
    *
-   * @see drupal_json_encode()
    * @ingroup php_wrappers
    */
   public static function decode($string) {

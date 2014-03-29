@@ -7,8 +7,8 @@
 
 namespace Drupal\Tests\Core\Cache;
 
+use Drupal\Core\Cache\Cache;
 use Drupal\Tests\UnitTestCase;
-use Drupal\Core\Cache\CacheBackendInterface;
 
 /**
  * Tests the cache CacheCollector.
@@ -64,16 +64,7 @@ class CacheCollectorTest extends UnitTestCase {
     $this->cid = $this->randomName();
     $this->collector = new CacheCollectorHelper($this->cid, $this->cache, $this->lock);
 
-    $container = $this->getMock('Symfony\Component\DependencyInjection\ContainerInterface');
-    $container->expects($this->any())
-      ->method('getParameter')
-      ->with('cache_bins')
-      ->will($this->returnValue(array('cache.test' => 'test')));
-    $container->expects($this->any())
-      ->method('get')
-      ->with('cache.test')
-      ->will($this->returnValue($this->cache));
-    \Drupal::setContainer($container);
+    $this->getContainerWithCacheBins($this->cache);
   }
 
 
@@ -200,7 +191,7 @@ class CacheCollectorTest extends UnitTestCase {
       ->with($this->cid, FALSE);
     $this->cache->expects($this->once())
       ->method('set')
-      ->with($this->cid, array($key => $value), CacheBackendInterface::CACHE_PERMANENT, array());
+      ->with($this->cid, array($key => $value), Cache::PERMANENT, array());
     $this->lock->expects($this->once())
       ->method('release')
       ->with($this->cid . ':Drupal\Core\Cache\CacheCollector');
@@ -306,7 +297,7 @@ class CacheCollectorTest extends UnitTestCase {
       ->will($this->returnValue($cache));
     $this->cache->expects($this->once())
       ->method('set')
-      ->with($this->cid, array('other key' => 'other value', $key => $value), CacheBackendInterface::CACHE_PERMANENT, array());
+      ->with($this->cid, array('other key' => 'other value', $key => $value), Cache::PERMANENT, array());
     $this->lock->expects($this->once())
       ->method('release')
       ->with($this->cid . ':Drupal\Core\Cache\CacheCollector');
@@ -347,7 +338,7 @@ class CacheCollectorTest extends UnitTestCase {
       ->with($this->cid, TRUE);
     $this->cache->expects($this->once())
       ->method('set')
-      ->with($this->cid, array(), CacheBackendInterface::CACHE_PERMANENT, array());
+      ->with($this->cid, array(), Cache::PERMANENT, array());
     $this->lock->expects($this->once())
       ->method('release')
       ->with($this->cid . ':Drupal\Core\Cache\CacheCollector');

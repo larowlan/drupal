@@ -34,7 +34,7 @@ class NodeController extends ControllerBase {
     $content = array();
 
     // Only use node types the user has access to.
-    foreach ($this->entityManager()->getStorageController('node_type')->loadMultiple() as $type) {
+    foreach ($this->entityManager()->getStorage('node_type')->loadMultiple() as $type) {
       if ($this->entityManager()->getAccessController('node')->createAccess($type->type)) {
         $content[$type->type] = $type;
       }
@@ -65,14 +65,14 @@ class NodeController extends ControllerBase {
     $account = $this->currentUser();
     $langcode = $this->moduleHandler()->invoke('language', 'get_default_langcode', array('node', $node_type->type));
 
-    $node = $this->entityManager()->getStorageController('node')->create(array(
+    $node = $this->entityManager()->getStorage('node')->create(array(
       'uid' => $account->id(),
       'name' => $account->getUsername() ?: '',
       'type' => $node_type->type,
       'langcode' => $langcode ? $langcode : $this->languageManager()->getCurrentLanguage()->id,
     ));
 
-    $form = $this->entityManager()->getForm($node);
+    $form = $this->entityFormBuilder()->getForm($node);
 
     return $form;
   }
@@ -87,7 +87,7 @@ class NodeController extends ControllerBase {
    *   An array suitable for drupal_render().
    */
   public function revisionShow($node_revision) {
-    $node = $this->entityManager()->getStorageController('node')->loadRevision($node_revision);
+    $node = $this->entityManager()->getStorage('node')->loadRevision($node_revision);
     $page = $this->buildPage($node);
     unset($page['nodes'][$node->id()]['#cache']);
 
@@ -104,7 +104,7 @@ class NodeController extends ControllerBase {
    *   The page title.
    */
   public function revisionPageTitle($node_revision) {
-    $node = $this->entityManager()->getStorageController('node')->loadRevision($node_revision);
+    $node = $this->entityManager()->getStorage('node')->loadRevision($node_revision);
     return $this->t('Revision of %title from %date', array('%title' => $node->label(), '%date' => format_date($node->getRevisionCreationTime())));
   }
 
@@ -129,12 +129,11 @@ class NodeController extends ControllerBase {
     $build = $this->buildPage($node);
 
     foreach ($node->uriRelationships() as $rel) {
-      $uri = $node->uri($rel);
       // Set the node path as the canonical URL to prevent duplicate content.
       $build['#attached']['drupal_add_html_head_link'][] = array(
         array(
         'rel' => $rel,
-        'href' => $this->urlGenerator()->generateFromPath($uri['path'], $uri['options']),
+        'href' => $node->url($rel),
         )
         , TRUE);
 
@@ -143,7 +142,7 @@ class NodeController extends ControllerBase {
         $build['#attached']['drupal_add_html_head_link'][] = array(
           array(
             'rel' => 'shortlink',
-            'href' => $this->urlGenerator()->generateFromPath($uri['path'], array_merge($uri['options'], array('alias' => TRUE))),
+            'href' => $node->url($rel, array('alias' => TRUE)),
           )
         , TRUE);
       }

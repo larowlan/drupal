@@ -8,17 +8,18 @@
 namespace Drupal\views\Tests;
 
 use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\views\ViewStorageController;
+use Drupal\Core\Config\Entity\ConfigEntityStorage;
 use Drupal\views\Entity\View;
 use Drupal\views\Plugin\views\display\Page;
 use Drupal\views\Plugin\views\display\DefaultDisplay;
 use Drupal\views\Plugin\views\display\Feed;
+use Drupal\views\Views;
 
 /**
- * Tests the functionality of View and ViewStorageController.
+ * Tests the functionality of View and ConfigEntityStorage.
  *
  * @see \Drupal\views\Entity\View
- * @see \Drupal\views\ViewStorageController
+ * @see \Drupal\Core\Config\Entity\ConfigEntityStorage
  */
 class ViewStorageTest extends ViewUnitTestBase {
 
@@ -40,16 +41,16 @@ class ViewStorageTest extends ViewUnitTestBase {
   );
 
   /**
-   * The configuration entity information from entity_get_info().
+   * The entity type definition.
    *
-   * @var array
+   * @var \Drupal\Core\Entity\EntityTypeInterface
    */
-  protected $info;
+  protected $entityType;
 
   /**
-   * The configuration entity storage controller.
+   * The configuration entity storage.
    *
-   * @var \Drupal\views\ViewStorageController
+   * @var \Drupal\Core\Config\Entity\ConfigEntityStorage
    */
   protected $controller;
 
@@ -72,15 +73,12 @@ class ViewStorageTest extends ViewUnitTestBase {
    * Tests CRUD operations.
    */
   function testConfigurationEntityCRUD() {
-    // Get the configuration entity information and controller.
-    $this->info = \Drupal::entityManager()->getDefinition('view');
-    $this->controller = $this->container->get('entity.manager')->getStorageController('view');
+    // Get the configuration entity type and controller.
+    $this->entityType = \Drupal::entityManager()->getDefinition('view');
+    $this->controller = $this->container->get('entity.manager')->getStorage('view');
 
     // Confirm that an info array has been returned.
-    $this->assertTrue($this->info instanceof EntityTypeInterface, 'The View info array is loaded.');
-
-    // Confirm we have the correct controller class.
-    $this->assertTrue($this->controller instanceof ViewStorageController, 'The correct controller is loaded.');
+    $this->assertTrue($this->entityType instanceof EntityTypeInterface, 'The View info array is loaded.');
 
     // CRUD tests.
     $this->loadTests();
@@ -123,7 +121,7 @@ class ViewStorageTest extends ViewUnitTestBase {
     }
 
     // Make sure that loaded default views get a UUID.
-    $view = views_get_view('test_view_storage');
+    $view = Views::getView('test_view_storage');
     $this->assertTrue($view->storage->uuid());
   }
 
@@ -242,6 +240,17 @@ class ViewStorageTest extends ViewUnitTestBase {
     $display = $view->get('display');
     $this->assertEqual($display[$id]['display_title'], 'Page 3');
 
+    // Ensure the 'default' display always has position zero, regardless of when
+    // it was created relative to other displays.
+    $displays = $view->get('display');
+    $displays['default']['deleted'] = TRUE;
+    $view->set('display', $displays);
+    $view->set('id', $this->randomName());
+    $view->save();
+    $view->addDisplay('default', $random_title);
+    $displays = $view->get('display');
+    $this->assertEqual($displays['default']['position'], 0, 'Default displays are always in position zero');
+
     // Tests Drupal\views\Entity\View::generateDisplayId().
     // @todo Sadly this method is not public so it cannot be tested.
     // $view = $this->controller->create(array());
@@ -312,7 +321,7 @@ class ViewStorageTest extends ViewUnitTestBase {
    * Tests the createDuplicate() View method.
    */
   public function testCreateDuplicate() {
-    $view = views_get_view('test_view_storage');
+    $view = Views::getView('test_view_storage');
     $copy = $view->storage->createDuplicate();
 
     $this->assertTrue($copy instanceof View, 'The copied object is a View.');

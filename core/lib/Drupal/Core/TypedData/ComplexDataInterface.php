@@ -18,6 +18,8 @@ namespace Drupal\Core\TypedData;
  *
  * When implementing this interface which extends Traversable, make sure to list
  * IteratorAggregate or Iterator before this interface in the implements clause.
+ *
+ * @see \Drupal\Core\TypedData\ComplexDataDefinitionInterface
  */
 interface ComplexDataInterface extends \Traversable, TypedDataInterface  {
 
@@ -61,55 +63,22 @@ interface ComplexDataInterface extends \Traversable, TypedDataInterface  {
    * @param bool $include_computed
    *   If set to TRUE, computed properties are included. Defaults to FALSE.
    *
-   * @return array
+   * @return \Drupal\Core\TypedData\TypedDataInterface[]
    *   An array of property objects implementing the TypedDataInterface, keyed
    *   by property name.
    */
   public function getProperties($include_computed = FALSE);
 
   /**
-   * Gets an array of property values.
+   * Returns an array of all property values.
    *
    * Gets an array of plain property values including all not-computed
    * properties.
    *
    * @return array
-   *   An array keyed by property name containing the property value.
+   *   An array of property values, keyed by property name.
    */
-  public function getPropertyValues();
-
-  /**
-   * Sets multiple property values.
-   *
-   * @param array
-   *   The array of property values to set, keyed by property name.
-   *
-   * @throws \InvalidArgumentException
-   *   If the value of a not existing property is to be set.
-   * @throws \Drupal\Core\TypedData\ReadOnlyException
-   *   If a read-only property is set.
-   */
-  public function setPropertyValues($values);
-
-  /**
-   * Gets the definition of a contained property.
-   *
-   * @param string $name
-   *   The name of property.
-   *
-   * @return array|FALSE
-   *   The definition of the property or FALSE if the property does not exist.
-   */
-  public function getPropertyDefinition($name);
-
-  /**
-   * Gets an array of property definitions of contained properties.
-   *
-   * @return \Drupal\Core\TypedData\DataDefinitionInterface[]
-   *   An array of property definitions of contained properties, keyed by
-   *   property name.
-   */
-  public function getPropertyDefinitions();
+  public function toArray();
 
   /**
    * Determines whether the data structure is empty.

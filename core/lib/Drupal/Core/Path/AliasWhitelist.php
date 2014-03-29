@@ -10,15 +10,13 @@ namespace Drupal\Core\Path;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheCollector;
 use Drupal\Core\Database\Connection;
-use Drupal\Core\DestructableInterface;
 use Drupal\Core\KeyValueStore\StateInterface;
 use Drupal\Core\Lock\LockBackendInterface;
-use Drupal\Core\Utility\CacheArray;
 
 /**
- * Extends CacheArray to build the path alias whitelist over time.
+ * Extends CacheCollector to build the path alias whitelist over time.
  */
-class AliasWhitelist extends CacheCollector {
+class AliasWhitelist extends CacheCollector implements AliasWhitelistInterface {
 
   /**
    * The Key/Value Store to use for state.
@@ -62,7 +60,7 @@ class AliasWhitelist extends CacheCollector {
 
     // On a cold start $this->storage will be empty and the whitelist will
     // need to be rebuilt from scratch. The whitelist is initialized from the
-    // list of all valid path roots stored in the 'menu_path_roots' state,
+    // list of all valid path roots stored in the 'router.path_roots' state,
     // with values initialized to NULL. During the request, each path requested
     // that matches one of these keys will be looked up and the array value set
     // to either TRUE or FALSE. This ensures that paths which do not exist in
@@ -77,7 +75,7 @@ class AliasWhitelist extends CacheCollector {
    * Loads menu path roots to prepopulate cache.
    */
   protected function loadMenuPathRoots() {
-    if ($roots = $this->state->get('menu_path_roots')) {
+    if ($roots = $this->state->get('router.path_roots')) {
       foreach ($roots as $root) {
         $this->storage[$root] = NULL;
         $this->persist($root);

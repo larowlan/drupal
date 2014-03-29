@@ -7,6 +7,8 @@
 
 namespace Drupal\tracker\Tests\Views;
 
+use Drupal\views\Views;
+
 /**
  * Tests the tracker user uid handlers.
  */
@@ -43,7 +45,7 @@ class TrackerUserUidTest extends TrackerTestBase {
       )
     );
 
-    $view = views_get_view('test_tracker_user_uid');
+    $view = Views::getView('test_tracker_user_uid');
     $this->executeView($view);
 
     // We should have no results as the filter is set for uid 0.
@@ -52,7 +54,7 @@ class TrackerUserUidTest extends TrackerTestBase {
 
     // Change the filter value to our user.
     $view->initHandlers();
-    $view->filter['uid_touch_tracker']->value = $this->node->getAuthorId();
+    $view->filter['uid_touch_tracker']->value = $this->node->getOwnerId();
     $this->executeView($view);
 
     // We should have one result as the filter is set for the created user.
@@ -70,7 +72,7 @@ class TrackerUserUidTest extends TrackerTestBase {
 
     // Test the correct argument UID.
     $view->initHandlers();
-    $this->executeView($view, array($this->node->getAuthorId()));
+    $this->executeView($view, array($this->node->getOwnerId()));
     $this->assertIdenticalResultSet($view, $expected, $map);
   }
 

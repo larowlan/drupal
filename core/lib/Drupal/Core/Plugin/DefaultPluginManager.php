@@ -8,11 +8,11 @@
 namespace Drupal\Core\Plugin;
 
 use Drupal\Component\Plugin\Discovery\CachedDiscoveryInterface;
-use Drupal\Core\Cache\Cache;
 use Drupal\Core\Plugin\Discovery\ContainerDerivativeDiscoveryDecorator;
 use Drupal\Component\Plugin\PluginManagerBase;
 use Drupal\Component\Plugin\PluginManagerInterface;
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
@@ -90,6 +90,15 @@ class DefaultPluginManager extends PluginManagerBase implements PluginManagerInt
   protected $languageManager;
 
   /**
+   * A set of defaults to be referenced by $this->processDefinition() if
+   * additional processing of plugins is necessary or helpful for development
+   * purposes.
+   *
+   * @var array
+   */
+  protected $defaults = array();
+
+  /**
    * Creates the discovery object.
    *
    * @param string|bool $subdir
@@ -97,15 +106,18 @@ class DefaultPluginManager extends PluginManagerBase implements PluginManagerInt
    * @param \Traversable $namespaces
    *   An object that implements \Traversable which contains the root paths
    *   keyed by the corresponding namespace to look for plugin implementations.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler.
    * @param string $plugin_definition_annotation_name
    *   (optional) The name of the annotation that contains the plugin definition.
    *   Defaults to 'Drupal\Component\Annotation\Plugin'.
    */
-  public function __construct($subdir, \Traversable $namespaces, $plugin_definition_annotation_name = 'Drupal\Component\Annotation\Plugin') {
+  public function __construct($subdir, \Traversable $namespaces, ModuleHandlerInterface $module_handler, $plugin_definition_annotation_name = 'Drupal\Component\Annotation\Plugin') {
     $this->subdir = $subdir;
     $this->discovery = new AnnotatedClassDiscovery($subdir, $namespaces, $plugin_definition_annotation_name);
     $this->discovery = new ContainerDerivativeDiscoveryDecorator($this->discovery);
     $this->factory = new ContainerFactory($this);
+    $this->moduleHandler = $module_handler;
   }
 
   /**
@@ -141,13 +153,11 @@ class DefaultPluginManager extends PluginManagerBase implements PluginManagerInt
   /**
    * Initializes the alter hook.
    *
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
-   *   The module handler to invoke the alter hook with.
    * @param string $alter_hook
-   *   Name of the alter hook.
+   *   Name of the alter hook; for example, to invoke
+   *   hook_mymodule_data_alter() pass in "mymodule_data".
    */
-  protected function alterInfo(ModuleHandlerInterface $module_handler, $alter_hook) {
-    $this->moduleHandler = $module_handler;
+  protected function alterInfo($alter_hook) {
     $this->alterHook = $alter_hook;
   }
 
@@ -225,9 +235,23 @@ class DefaultPluginManager extends PluginManagerBase implements PluginManagerInt
    */
   protected function setCachedDefinitions($definitions) {
     if ($this->cacheBackend) {
-      $this->cacheBackend->set($this->cacheKey, $definitions, CacheBackendInterface::CACHE_PERMANENT, $this->cacheTags);
+      $this->cacheBackend->set($this->cacheKey, $definitions, Cache::PERMANENT, $this->cacheTags);
     }
     $this->definitions = $definitions;
+  }
+
+
+  /**
+   * Performs extra processing on plugin definitions.
+   *
+   * By default we add defaults for the type to the definition. If a type has
+   * additional processing logic they can do that by replacing or extending the
+   * method.
+   */
+  public function processDefinition(&$definition, $plugin_id) {
+    if (!empty($this->defaults) && is_array($this->defaults)) {
+      $definition = NestedArray::mergeDeep($this->defaults, $definition);
+    }
   }
 
   /**
@@ -243,6 +267,13 @@ class DefaultPluginManager extends PluginManagerBase implements PluginManagerInt
     }
     if ($this->alterHook) {
       $this->moduleHandler->alter($this->alterHook, $definitions);
+    }
+    // If this plugin was provided by a module that does not exist, remove the
+    // plugin definition.
+    foreach ($definitions as $plugin_id => $plugin_definition) {
+      if (isset($plugin_definition['provider']) && !in_array($plugin_definition['provider'], array('Core', 'Component')) && !$this->moduleHandler->moduleExists($plugin_definition['provider'])) {
+        unset($definitions[$plugin_id]);
+      }
     }
     return $definitions;
   }

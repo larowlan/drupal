@@ -2,26 +2,25 @@
 
 /**
  * @file
- * Contains \Drupal\shortcut\Plugin\Core\Entity\Shortcut.
+ * Contains \Drupal\shortcut\Entity\Shortcut.
  */
 
 namespace Drupal\shortcut\Entity;
 
 use Drupal\Core\Entity\ContentEntityBase;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\FieldDefinition;
-use Drupal\Core\Routing\UrlMatcher;
+use Drupal\Core\Url;
 use Drupal\shortcut\ShortcutInterface;
 
 /**
  * Defines the shortcut entity class.
  *
- * @EntityType(
+ * @ContentEntityType(
  *   id = "shortcut",
  *   label = @Translation("Shortcut link"),
- *   module = "shortcut",
  *   controllers = {
- *     "storage" = "Drupal\Core\Entity\FieldableDatabaseStorageController",
  *     "access" = "Drupal\shortcut\ShortcutAccessController",
  *     "form" = {
  *       "default" = "Drupal\shortcut\ShortcutFormController",
@@ -40,7 +39,8 @@ use Drupal\shortcut\ShortcutInterface;
  *     "label" = "title"
  *   },
  *   links = {
- *     "edit-form" = "/admin/config/user-interface/shortcut/link/{shortcut}"
+ *     "delete-form" = "shortcut.link_delete",
+ *     "edit-form" = "shortcut.link_edit"
  *   }
  * )
  */
@@ -110,8 +110,8 @@ class Shortcut extends ContentEntityBase implements ShortcutInterface {
   /**
    * {@inheritdoc}
    */
-  public static function preCreate(EntityStorageControllerInterface $storage_controller, array &$values) {
-    parent::preCreate($storage_controller, $values);
+  public static function preCreate(EntityStorageInterface $storage, array &$values) {
+    parent::preCreate($storage, $values);
 
     if (!isset($values['shortcut_set'])) {
       $values['shortcut_set'] = 'default';
@@ -121,19 +121,18 @@ class Shortcut extends ContentEntityBase implements ShortcutInterface {
   /**
    * {@inheritdoc}
    */
-  public function preSave(EntityStorageControllerInterface $storage_controller) {
-    parent::preSave($storage_controller);
+  public function preSave(EntityStorageInterface $storage) {
+    parent::preSave($storage);
 
-    if ($route_info = \Drupal::service('router.matcher.final_matcher')->findRouteNameParameters($this->path->value)) {
-      $this->setRouteName($route_info[0]);
-      $this->setRouteParams($route_info[1]);
-    }
+    $url = Url::createFromPath($this->path->value);
+    $this->setRouteName($url->getRouteName());
+    $this->setRouteParams($url->getRouteParameters());
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function baseFieldDefinitions($entity_type) {
+  public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields['id'] = FieldDefinition::create('integer')
       ->setLabel(t('ID'))
       ->setDescription(t('The ID of the shortcut.'))
@@ -181,7 +180,7 @@ class Shortcut extends ContentEntityBase implements ShortcutInterface {
       ->setComputed(TRUE);
 
     $item_definition = $fields['path']->getItemDefinition();
-    $item_definition->setClass('\Drupal\shortcut\ShortcutPath');
+    $item_definition->setClass('\Drupal\shortcut\ShortcutPathItem');
     $fields['path']->setItemDefinition($item_definition);
 
     return $fields;

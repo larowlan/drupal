@@ -7,6 +7,7 @@
 
 namespace Drupal\Core\Authentication;
 
+use Drupal\Core\Session\AnonymousUserSession;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
@@ -37,7 +38,7 @@ class AuthenticationManager implements AuthenticationProviderInterface, Authenti
    *
    * @var array
    */
-  protected $providerOrders;
+  protected $providerOrders = array();
 
   /**
    * Sorted list of registered providers.
@@ -99,7 +100,7 @@ class AuthenticationManager implements AuthenticationProviderInterface, Authenti
 
     // No provider returned a valid account, so set the user to anonymous.
     if (!$account) {
-      $account = drupal_anonymous_user();
+      $account = new AnonymousUserSession();
     }
 
     // No provider was fired, so assume the one with the least priority

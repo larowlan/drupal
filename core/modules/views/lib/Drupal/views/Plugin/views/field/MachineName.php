@@ -7,6 +7,7 @@
 
 namespace Drupal\views\Plugin\views\field;
 
+use Drupal\Component\Utility\String;
 use Drupal\views\ResultRow;
 
 /**
@@ -17,7 +18,7 @@ use Drupal\views\ResultRow;
  * - options callback: The function to call in order to generate the value options. If omitted, the options 'Yes' and 'No' will be used.
  * - options arguments: An array of arguments to pass to the options callback.
  *
- * @PluginID("machine_name")
+ * @ViewsField("machine_name")
  */
 class MachineName extends FieldPluginBase {
 
@@ -72,7 +73,7 @@ class MachineName extends FieldPluginBase {
   public function render(ResultRow $values) {
     $value = $values->{$this->field_alias};
     if (!empty($this->options['machine_name']) || !isset($this->valueOptions[$value])) {
-      $result = check_plain($value);
+      $result = String::checkPlain($value);
     }
     else {
       $result = $this->valueOptions[$value];

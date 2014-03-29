@@ -81,7 +81,7 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
     $tid = $this->term->id();
 
     // Just being able to create the entity like this verifies a lot of code.
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $entity->field_test_taxonomy_term->target_id = $tid;
     $entity->name->value = $this->randomName();
     $entity->save();
@@ -90,17 +90,17 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
     $this->assertTrue($entity->field_test_taxonomy_term instanceof FieldItemListInterface, 'Field implements interface.');
     $this->assertTrue($entity->field_test_taxonomy_term[0] instanceof FieldItemInterface, 'Field item implements interface.');
     $this->assertEqual($entity->field_test_taxonomy_term->target_id, $tid);
-    $this->assertEqual($entity->field_test_taxonomy_term->entity->name->value, $this->term->name->value);
+    $this->assertEqual($entity->field_test_taxonomy_term->entity->getName(), $this->term->getName());
     $this->assertEqual($entity->field_test_taxonomy_term->entity->id(), $tid);
     $this->assertEqual($entity->field_test_taxonomy_term->entity->uuid(), $this->term->uuid());
 
     // Change the name of the term via the reference.
     $new_name = $this->randomName();
-    $entity->field_test_taxonomy_term->entity->name = $new_name;
+    $entity->field_test_taxonomy_term->entity->setName($new_name);
     $entity->field_test_taxonomy_term->entity->save();
     // Verify it is the correct name.
     $term = entity_load('taxonomy_term', $tid);
-    $this->assertEqual($term->name->value, $new_name);
+    $this->assertEqual($term->getName(), $new_name);
 
     // Make sure the computed term reflects updates to the term id.
     $term2 = entity_create('taxonomy_term', array(
@@ -112,7 +112,7 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
 
     $entity->field_test_taxonomy_term->target_id = $term2->id();
     $this->assertEqual($entity->field_test_taxonomy_term->entity->id(), $term2->id());
-    $this->assertEqual($entity->field_test_taxonomy_term->entity->name->value, $term2->name->value);
+    $this->assertEqual($entity->field_test_taxonomy_term->entity->getName(), $term2->getName());
 
     // Delete terms so we have nothing to reference and try again
     $term->delete();
@@ -128,7 +128,7 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
     $referenced_entity_id = $this->vocabulary->id();
 
     // Just being able to create the entity like this verifies a lot of code.
-    $entity = entity_create('entity_test', array());
+    $entity = entity_create('entity_test');
     $entity->field_test_taxonomy_vocabulary->target_id = $referenced_entity_id;
     $entity->name->value = $this->randomName();
     $entity->save();
@@ -146,8 +146,8 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
     $entity->field_test_taxonomy_vocabulary->entity->name = $new_name;
     $entity->field_test_taxonomy_vocabulary->entity->save();
     // Verify it is the correct name.
-    $term = entity_load('taxonomy_vocabulary', $referenced_entity_id);
-    $this->assertEqual($term->name, $new_name);
+    $vocabulary = entity_load('taxonomy_vocabulary', $referenced_entity_id);
+    $this->assertEqual($vocabulary->name, $new_name);
 
     // Make sure the computed term reflects updates to the term id.
     $vocabulary2 = entity_create('taxonomy_vocabulary', array(

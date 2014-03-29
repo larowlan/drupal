@@ -8,12 +8,12 @@
 namespace Drupal\user\Form;
 
 use Drupal\Component\Utility\String;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\user\TempStoreFactory;
-use Drupal\user\UserStorageControllerInterface;
+use Drupal\user\UserStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -32,14 +32,14 @@ class UserMultipleCancelConfirm extends ConfirmFormBase {
   /**
    * The config factory.
    *
-   * @var \Drupal\Core\Config\ConfigFactory
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
   /**
-   * The user storage controller.
+   * The user storage.
    *
-   * @var \Drupal\user\UserStorageControllerInterface
+   * @var \Drupal\user\UserStorageInterface
    */
   protected $userStorage;
 
@@ -55,14 +55,14 @@ class UserMultipleCancelConfirm extends ConfirmFormBase {
    *
    * @param \Drupal\user\TempStoreFactory $temp_store_factory
    *   The temp store factory.
-   * @param \Drupal\Core\Config\ConfigFactory $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
-   * @param \Drupal\user\UserStorageControllerInterface $user_storage
-   *   The user storage controller.
+   * @param \Drupal\user\UserStorageInterface $user_storage
+   *   The user storage.
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager.
    */
-  public function __construct(TempStoreFactory $temp_store_factory, ConfigFactory $config_factory, UserStorageControllerInterface $user_storage, EntityManagerInterface $entity_manager) {
+  public function __construct(TempStoreFactory $temp_store_factory, ConfigFactoryInterface $config_factory, UserStorageInterface $user_storage, EntityManagerInterface $entity_manager) {
     $this->tempStoreFactory = $temp_store_factory;
     $this->configFactory = $config_factory;
     $this->userStorage = $user_storage;
@@ -76,7 +76,7 @@ class UserMultipleCancelConfirm extends ConfirmFormBase {
     return new static(
       $container->get('user.tempstore'),
       $container->get('config.factory'),
-      $container->get('entity.manager')->getStorageController('user'),
+      $container->get('entity.manager')->getStorage('user'),
       $container->get('entity.manager')
     );
   }

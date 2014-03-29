@@ -17,7 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Field handler to display entity label optionally linked to entity page.
  *
- * @PluginID("entity_label")
+ * @ViewsField("entity_label")
  */
 class EntityLabel extends FieldPluginBase {
 
@@ -106,12 +106,12 @@ class EntityLabel extends FieldPluginBase {
       return;
     }
 
+    /** @var $entity \Drupal\Core\Entity\EntityInterface */
     $entity = $this->loadedReferencers[$type][$value];
 
     if (!empty($this->options['link_to_entity'])) {
-      $uri = $entity->uri();
       $this->options['alter']['make_link'] = TRUE;
-      $this->options['alter']['path'] = $uri['path'];
+      $this->options['alter']['path'] = $entity->getSystemPath();
     }
 
     return $this->sanitizeValue($entity->label());
@@ -131,7 +131,7 @@ class EntityLabel extends FieldPluginBase {
     }
 
     foreach ($entity_ids_per_type as $type => $ids) {
-      $this->loadedReferencers[$type] = $this->entityManager->getStorageController($type)->loadMultiple($ids);
+      $this->loadedReferencers[$type] = $this->entityManager->getStorage($type)->loadMultiple($ids);
     }
   }
 

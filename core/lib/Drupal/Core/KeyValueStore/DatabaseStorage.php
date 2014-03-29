@@ -47,6 +47,16 @@ class DatabaseStorage extends StorageBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function has($key) {
+    return (bool) $this->connection->query('SELECT 1 FROM {' . $this->connection->escapeTable($this->table) . '} WHERE collection = :collection AND name = :key', array(
+      ':collection' => $this->collection,
+      ':key' => $key,
+    ))->fetchField();
+  }
+
+  /**
    * Implements Drupal\Core\KeyValueStore\KeyValueStoreInterface::getMultiple().
    */
   public function getMultiple(array $keys) {
@@ -87,7 +97,7 @@ class DatabaseStorage extends StorageBase {
    */
   public function set($key, $value) {
     $this->connection->merge($this->table)
-      ->key(array(
+      ->keys(array(
         'name' => $key,
         'collection' => $this->collection,
       ))
@@ -109,6 +119,17 @@ class DatabaseStorage extends StorageBase {
       ->condition('name', $key)
       ->execute();
     return $result == Merge::STATUS_INSERT;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function rename($key, $new_key) {
+    $this->connection->update($this->table)
+      ->fields(array('name' => $new_key))
+      ->condition('collection', $this->collection)
+      ->condition('name', $key)
+      ->execute();
   }
 
   /**

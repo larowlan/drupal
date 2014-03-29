@@ -1,5 +1,4 @@
 id: taxonomy_term.forums.forum_container
-uuid: 8421d585-f6ef-4209-ad00-cfb30a1ab075
 status: true
 langcode: en
 entity_type: taxonomy_term
@@ -14,3 +13,7 @@ default_value:
 default_value_function: ''
 settings: {  }
 field_type: list_boolean
+dependencies:
+  entity:
+    - field.field.forum.forum_container
+    - taxonomy.vocabulary.forums

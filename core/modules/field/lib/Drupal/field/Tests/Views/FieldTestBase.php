@@ -32,7 +32,7 @@ abstract class FieldTestBase extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = array('field_test_views');
+  public static $modules = array('node', 'field_test_views');
 
   /**
    * Stores the field definitions used by the test.
@@ -52,6 +52,12 @@ abstract class FieldTestBase extends ViewTestBase {
   protected function setUp() {
     parent::setUp();
 
+    // Ensure the page node type exists.
+    entity_create('node_type', array(
+      'type' => 'page',
+      'name' => 'page',
+    ))->save();
+
     ViewTestData::createTestViews(get_class($this), array('field_test_views'));
   }
 
@@ -66,7 +72,7 @@ abstract class FieldTestBase extends ViewTestBase {
         'type' => 'text',
       );
 
-      $this->fields[$i] = $field = entity_create('field_entity', $field);
+      $this->fields[$i] = $field = entity_create('field_config', $field);
       $field->save();
     }
     return $field_names;
@@ -79,7 +85,7 @@ abstract class FieldTestBase extends ViewTestBase {
         'entity_type' => 'node',
         'bundle' => 'page',
       );
-      $this->instances[$key] = entity_create('field_instance', $instance);
+      $this->instances[$key] = entity_create('field_instance_config', $instance);
       $this->instances[$key]->save();
     }
   }

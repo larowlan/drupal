@@ -7,7 +7,9 @@
 
 namespace Drupal\views_ui\Tests;
 
+use Drupal\Component\Utility\String;
 use Drupal\views\Plugin\Core\Entity\View;
+use Drupal\views\Views;
 
 /**
  * Tests some general functionality of editing views, like deleting a view.
@@ -36,12 +38,14 @@ class ViewEditTest extends UITestBase {
     $this->drupalGet('admin/structure/views/view/test_view');
     $this->assertLink(t('Delete view'), 0, 'Ensure that the view delete link appears');
 
+    $view = $this->container->get('entity.manager')->getStorage('view')->load('test_view');
     $this->clickLink(t('Delete view'));
     $this->assertUrl('admin/structure/views/view/test_view/delete');
     $this->drupalPostForm(NULL, array(), t('Delete'));
+    $this->assertRaw(t('View %name deleted', array('%name' => $view->label())));
 
     $this->assertUrl('admin/structure/views');
-    $view = $this->container->get('entity.manager')->getStorageController('view')->load('test_view');
+    $view = $this->container->get('entity.manager')->getStorage('view')->load('test_view');
     $this->assertFalse($view instanceof View);
   }
 
@@ -60,7 +64,7 @@ class ViewEditTest extends UITestBase {
 
     // Save the view, and test the new ID has been saved.
     $this->drupalPostForm(NULL, array(), 'Save');
-    $view = \Drupal::entityManager()->getStorageController('view')->load('test_view');
+    $view = \Drupal::entityManager()->getStorage('view')->load('test_view');
     $displays = $view->get('display');
     $this->assertTrue(!empty($displays['test_1']), 'Display data found for new display ID key.');
     $this->assertIdentical($displays['test_1']['id'], 'test_1', 'New display ID matches the display ID key.');
@@ -111,6 +115,49 @@ class ViewEditTest extends UITestBase {
     $this->assertResponse(200);
     $this->assertFieldByName('field_langcode', '***CURRENT_LANGUAGE***');
     $this->assertFieldByName('field_langcode_add_to_query', TRUE);
+  }
+
+  /**
+   * Tests that plugins selected from the view edit form contain providers.
+   */
+  public function testPluginProviders() {
+    $plugin_data = array(
+      'access' => array(
+        'value' => 'test_static',
+        'provider' => 'views_test_data',
+      ),
+      'cache' => array(
+        'value' => 'time',
+        'provider' => 'views',
+      ),
+      'exposed_form' => array(
+        'value' => 'input_required',
+        'provider' => 'views',
+      ),
+      'pager' => array(
+        'value' => 'full',
+        'provider' => 'views',
+      ),
+      'row' => array(
+        'value' => 'test_row',
+        'provider' => 'views_test_data',
+      ),
+      'style' => array(
+        'value' => 'test_style',
+        'provider' => 'views_test_data',
+      ),
+    );
+
+    foreach ($plugin_data as $plugin_type => $plugin_options) {
+      $element_name = $plugin_type . '[type]';
+      // Save the plugin form, to change the plugin used.
+      $this->drupalPostForm("admin/structure/views/nojs/display/test_view/default/$plugin_type", array($element_name => $plugin_options['value']), t('Apply'));
+      $this->drupalPostForm('admin/structure/views/view/test_view', array(), t('Save'));
+      // Check the plugin provider.
+      $view = Views::getView('test_view');
+      $displays = $view->storage->get('display');
+      $this->assertIdentical($displays['default']['display_options'][$plugin_type]['provider'], $plugin_options['provider'], String::format('Expected provider found for @plugin.', array('@plugin' => $plugin_type)));
+    }
   }
 
 }

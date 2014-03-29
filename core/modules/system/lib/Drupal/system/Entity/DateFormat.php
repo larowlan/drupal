@@ -9,32 +9,31 @@ namespace Drupal\system\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityBase;
 use Drupal\Core\Datetime\DrupalDateTime;
-use Drupal\Core\Entity\EntityStorageControllerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\system\DateFormatInterface;
 
 /**
  * Defines the Date Format configuration entity class.
  *
- * @EntityType(
+ * @ConfigEntityType(
  *   id = "date_format",
  *   label = @Translation("Date format"),
  *   controllers = {
- *     "storage" = "Drupal\Core\Config\Entity\ConfigStorageController",
  *     "access" = "Drupal\system\DateFormatAccessController",
- *     "list" = "Drupal\system\DateFormatListController",
+ *     "list_builder" = "Drupal\system\DateFormatListBuilder",
  *     "form" = {
  *       "add" = "Drupal\system\Form\DateFormatAddForm",
  *       "edit" = "Drupal\system\Form\DateFormatEditForm",
  *       "delete" = "Drupal\system\Form\DateFormatDeleteForm"
  *     }
  *   },
- *   config_prefix = "system.date_format",
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "label",
- *     "uuid" = "uuid"
+ *     "label" = "label"
  *   },
+ *   admin_permission = "administer site configuration",
  *   links = {
+ *     "delete-form" = "system.date_format_delete",
  *     "edit-form" = "system.date_format_edit"
  *   }
  * )
@@ -47,13 +46,6 @@ class DateFormat extends ConfigEntityBase implements DateFormatInterface {
    * @var string
    */
   public $id;
-
-  /**
-   * The date format UUID.
-   *
-   * @var string
-   */
-  public $uuid;
 
   /**
    * The human-readable name of the date format entity.
@@ -79,8 +71,8 @@ class DateFormat extends ConfigEntityBase implements DateFormatInterface {
   /**
    * {@inheritdoc}
    */
-  public function getExportProperties() {
-    $properties = parent::getExportProperties();
+  public function toArray() {
+    $properties = parent::toArray();
     $names = array(
       'locked',
       'pattern',

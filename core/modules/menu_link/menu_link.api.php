@@ -14,11 +14,10 @@
  * Alter a menu link after it has been translated and before it is rendered.
  *
  * This hook is invoked from _menu_link_translate() after a menu link has been
- * translated; i.e., after dynamic path argument placeholders (%) have been
- * replaced with actual values, the user access to the link's target page has
- * been checked, and the link has been localized. It is only invoked if
- * $menu_link['options']['alter'] has been set to a non-empty value (e.g. TRUE).
- * This flag should be set using hook_menu_link_presave().
+ * translated; i.e., after the user access to the link's target page has
+ * been checked. It is only invoked if $menu_link['options']['alter'] has been
+ * set to a non-empty value (e.g. TRUE). This flag should be set using
+ * hook_menu_link_presave().
  *
  * Implementations of this hook are able to alter any property of the menu link.
  * For example, this hook may be used to add a page-specific query string to all
@@ -29,8 +28,6 @@
  *
  * @param \Drupal\menu_link\Entity\MenuLink $menu_link
  *   A menu link entity.
- * @param array $map
- *   Associative array containing the menu $map (path parts and/or objects).
  *
  * @see hook_menu_link_alter()
  */
@@ -89,7 +86,7 @@ function hook_menu_link_presave(\Drupal\menu_link\Entity\MenuLink $menu_link) {
   // Flag a menu link to be altered by hook_menu_link_load(), but only if it is
   // derived from a menu router item; i.e., do not alter a custom menu link
   // pointing to the same path that has been created by a user.
-  if ($menu_link->link_path == 'user' && $menu_link->module == 'system') {
+  if ($menu_link->machine_name == 'user.page') {
     $menu_link->options['alter'] = TRUE;
   }
 }
@@ -114,7 +111,7 @@ function hook_menu_link_insert(\Drupal\menu_link\Entity\MenuLink $menu_link) {
   $record['mlid'] = $menu_link->id();
   $record['menu_name'] = $menu_link->menu_name;
   $record['status'] = 0;
-  drupal_write_record('menu_example', $record);
+  db_insert('menu_example')->fields($record)->execute();
 }
 
 /**

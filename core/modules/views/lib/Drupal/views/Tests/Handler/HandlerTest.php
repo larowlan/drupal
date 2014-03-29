@@ -41,6 +41,7 @@ class HandlerTest extends ViewTestBase {
 
   protected function setUp() {
     parent::setUp();
+    $this->drupalCreateContentType(array('type' => 'page'));
     $this->container->get('comment.manager')->addDefaultField('node', 'page');
     $this->enableViewsTestModule();
   }
@@ -57,7 +58,7 @@ class HandlerTest extends ViewTestBase {
     // and arguments.
     $data['views_test_data']['access_callback'] = $data['views_test_data']['id'];
     $data['views_test_data']['access_callback_arguments'] = $data['views_test_data']['id'];
-    foreach (ViewExecutable::viewsHandlerTypes() as $type => $info) {
+    foreach (ViewExecutable::getHandlerTypes() as $type => $info) {
       if (isset($data['views_test_data']['access_callback'][$type]['id'])) {
         $data['views_test_data']['access_callback'][$type]['access callback'] = 'views_test_data_handler_test_access_callback';
 
@@ -76,7 +77,6 @@ class HandlerTest extends ViewTestBase {
   function testFilterInOperatorUi() {
     $admin_user = $this->drupalCreateUser(array('administer views', 'administer site configuration'));
     $this->drupalLogin($admin_user);
-    menu_router_rebuild();
 
     $path = 'admin/structure/views/nojs/handler/test_filter_in_operator_ui/default/filter/type';
     $this->drupalGet($path);
@@ -195,7 +195,7 @@ class HandlerTest extends ViewTestBase {
   public function testHandlerWeights() {
     $handler_types = array('fields', 'filters', 'sorts');
 
-    $view = views_get_view('test_view_handler_weight');
+    $view = Views::getView('test_view_handler_weight');
     $view->initDisplay();
 
     // Store the order of handlers before saving the view.
@@ -206,7 +206,7 @@ class HandlerTest extends ViewTestBase {
 
     // Save the view and see if our filters are in the same order.
     $view->save();
-    $view = views_get_view('test_view_handler_weight');
+    $view = views::getView('test_view_handler_weight');
     $view->initDisplay();
 
     foreach ($handler_types as $type) {
@@ -279,7 +279,7 @@ class HandlerTest extends ViewTestBase {
    * Tests the relationship method on the base class.
    */
   public function testSetRelationship() {
-    $view = views_get_view('test_handler_relationships');
+    $view = Views::getView('test_handler_relationships');
     $view->setDisplay();
     // Setup a broken relationship.
     $view->addHandler('default', 'relationship', $this->randomName(), $this->randomName(), array(), 'broken_relationship');
@@ -318,7 +318,7 @@ class HandlerTest extends ViewTestBase {
    * @see \Drupal\views\Plugin\views\HandlerBase::placeholder()
    */
   public function testPlaceholder() {
-    $view = views_get_view('test_view');
+    $view = Views::getView('test_view');
     $view->initHandlers();
     $view->initQuery();
 
@@ -350,7 +350,7 @@ class HandlerTest extends ViewTestBase {
    * @see views_test_data_handler_test_access_callback
    */
   public function testAccess() {
-    $view = views_get_view('test_handler_test_access');
+    $view = Views::getView('test_handler_test_access');
     $views_data = $this->viewsData();
     $views_data = $views_data['views_test_data'];
 

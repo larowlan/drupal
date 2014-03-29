@@ -74,7 +74,7 @@ class EditorSelectionTest extends EditTestBase {
     );
 
     // Create an entity with values for this text field.
-    $this->entity = entity_create('entity_test', array());
+    $this->entity = entity_create('entity_test');
     $this->entity->{$field_name}->value = 'Hello, world!';
     $this->entity->{$field_name}->format = 'full_html';
     $this->entity->save();
@@ -111,6 +111,8 @@ class EditorSelectionTest extends EditTestBase {
   public function testTextWysiwyg() {
     // Enable edit_test module so that the 'wysiwyg' editor becomes available.
     $this->enableModules(array('edit_test'));
+    $this->editorManager = $this->container->get('plugin.manager.edit.editor');
+    $this->editorSelector = new EditorSelector($this->editorManager, $this->container->get('plugin.manager.field.formatter'));
 
     $field_name = 'field_textarea';
     $this->createFieldWithInstance(
@@ -126,7 +128,7 @@ class EditorSelectionTest extends EditTestBase {
     );
 
     // Create an entity with values for this text field.
-    $this->entity = entity_create('entity_test', array());
+    $this->entity = entity_create('entity_test');
     $this->entity->{$field_name}->value = 'Hello, world!';
     $this->entity->{$field_name}->format = 'filtered_html';
     $this->entity->save();
@@ -151,7 +153,7 @@ class EditorSelectionTest extends EditTestBase {
   public function testNumber() {
     $field_name = 'field_nr';
     $this->createFieldWithInstance(
-      $field_name, 'number_integer', 1, 'Simple number field',
+      $field_name, 'integer', 1, 'Simple number field',
       // Instance settings.
       array(),
       // Widget type & settings.
@@ -163,7 +165,7 @@ class EditorSelectionTest extends EditTestBase {
     );
 
     // Create an entity with values for this text field.
-    $this->entity = entity_create('entity_test', array());
+    $this->entity = entity_create('entity_test');
     $this->entity->{$field_name}->value = 42;
     $this->entity->save();
 

@@ -2,19 +2,19 @@
 
 /**
  * @file
- * Contains Drupal\Core\Path\Path.
+ * Contains \Drupal\Core\Path\Path.
  */
 
 namespace Drupal\Core\Path;
 
-use Drupal\Core\Database\Database;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\Language;
 
 /**
- * Defines a class for CRUD operations on path aliases.
+ * Provides a class for CRUD operations on path aliases.
  */
-class Path {
+class Path implements PathInterface {
 
   /**
    * The database connection.
@@ -24,45 +24,28 @@ class Path {
   protected $connection;
 
   /**
+   * The module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
    * Constructs a Path CRUD object.
    *
    * @param \Drupal\Core\Database\Connection $connection
    *   A database connection for reading and writing path aliases.
    *
-   * @param \Drupal\Core\Path\AliasManager $alias_manager
-   *   An alias manager with an internal cache of stored aliases.
-   *
-   * @todo This class should not take an alias manager in its constructor. Once
-   *   we move to firing an event for CRUD operations instead of invoking a
-   *   hook, we can have a listener that calls cacheClear() on the alias manager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler.
    */
-  public function __construct(Connection $connection, AliasManager $alias_manager) {
+  public function __construct(Connection $connection, ModuleHandlerInterface $module_handler) {
     $this->connection = $connection;
-    $this->alias_manager = $alias_manager;
+    $this->moduleHandler = $module_handler;
   }
 
   /**
-   * Saves a path alias to the database.
-   *
-   * @param string $source
-   *   The internal system path.
-   *
-   * @param string $alias
-   *   The URL alias.
-   *
-   * @param string $langcode
-   *   The language code of the alias.
-   *
-   * @param int $pid
-   *   Unique path alias identifier.
-   *
-   * @return
-   *   FALSE if the path could not be saved or an associative array containing
-   *   the following keys:
-   *   - source: The internal system path.
-   *   - alias: The URL alias.
-   *   - pid: Unique path alias identifier.
-   *   - langcode: The language code of the alias.
+   * {@inheritdoc}
    */
   public function save($source, $alias, $langcode = Language::LANGCODE_NOT_SPECIFIED, $pid = NULL) {
 
@@ -78,8 +61,7 @@ class Path {
         ->fields($fields);
       $pid = $query->execute();
       $fields['pid'] = $pid;
-      // @todo: Find a correct place to invoke hook_path_insert().
-      $hook = 'path_insert';
+      $operation = 'insert';
     }
     else {
       $fields['pid'] = $pid;
@@ -87,31 +69,18 @@ class Path {
         ->fields($fields)
         ->condition('pid', $pid);
       $pid = $query->execute();
-      // @todo: figure out where we can invoke hook_path_update()
-      $hook = 'path_update';
+      $operation = 'update';
     }
     if ($pid) {
       // @todo Switch to using an event for this instead of a hook.
-      module_invoke_all($hook, $fields);
-      $this->alias_manager->cacheClear();
+      $this->moduleHandler->invokeAll('path_' . $operation, array($fields));
       return $fields;
     }
     return FALSE;
   }
 
   /**
-   * Fetches a specific URL alias from the database.
-   *
-   * @param $conditions
-   *   An array of query conditions.
-   *
-   * @return
-   *   FALSE if no alias was found or an associative array containing the
-   *   following keys:
-   *   - source: The internal system path.
-   *   - alias: The URL alias.
-   *   - pid: Unique path alias identifier.
-   *   - langcode: The language code of the alias.
+   * {@inheritdoc}
    */
   public function load($conditions) {
     $select = $this->connection->select('url_alias');
@@ -125,10 +94,7 @@ class Path {
   }
 
   /**
-   * Deletes a URL alias.
-   *
-   * @param array $conditions
-   *   An array of criteria.
+   * {@inheritdoc}
    */
   public function delete($conditions) {
     $path = $this->load($conditions);
@@ -138,8 +104,86 @@ class Path {
     }
     $deleted = $query->execute();
     // @todo Switch to using an event for this instead of a hook.
-    module_invoke_all('path_delete', $path);
-    $this->alias_manager->cacheClear();
+    $this->moduleHandler->invokeAll('path_delete', array($path));
     return $deleted;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function preloadPathAlias($preloaded, $langcode) {
+    $args = array(
+      ':system' => $preloaded,
+      ':langcode' => $langcode,
+      ':langcode_undetermined' => Language::LANGCODE_NOT_SPECIFIED,
+    );
+    // Always get the language-specific alias before the language-neutral one.
+    // For example 'de' is less than 'und' so the order needs to be ASC, while
+    // 'xx-lolspeak' is more than 'und' so the order needs to be DESC. We also
+    // order by pid ASC so that fetchAllKeyed() returns the most recently
+    // created alias for each source. Subsequent queries using fetchField() must
+    // use pid DESC to have the same effect. For performance reasons, the query
+    // builder is not used here.
+    if ($langcode == Language::LANGCODE_NOT_SPECIFIED) {
+      // Prevent PDO from complaining about a token the query doesn't use.
+      unset($args[':langcode']);
+      $result = $this->connection->query('SELECT source, alias FROM {url_alias} WHERE source IN (:system) AND langcode = :langcode_undetermined ORDER BY pid ASC', $args);
+    }
+    elseif ($langcode < Language::LANGCODE_NOT_SPECIFIED) {
+      $result = $this->connection->query('SELECT source, alias FROM {url_alias} WHERE source IN (:system) AND langcode IN (:langcode, :langcode_undetermined) ORDER BY langcode ASC, pid ASC', $args);
+    }
+    else {
+      $result = $this->connection->query('SELECT source, alias FROM {url_alias} WHERE source IN (:system) AND langcode IN (:langcode, :langcode_undetermined) ORDER BY langcode DESC, pid ASC', $args);
+    }
+
+    return $result->fetchAllKeyed();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function lookupPathAlias($path, $langcode) {
+    $args = array(
+      ':source' => $path,
+      ':langcode' => $langcode,
+      ':langcode_undetermined' => Language::LANGCODE_NOT_SPECIFIED,
+    );
+    // See the queries above.
+    if ($langcode == Language::LANGCODE_NOT_SPECIFIED) {
+      unset($args[':langcode']);
+      $alias = $this->connection->query("SELECT alias FROM {url_alias} WHERE source = :source AND langcode = :langcode_undetermined ORDER BY pid DESC", $args)->fetchField();
+    }
+    elseif ($langcode > Language::LANGCODE_NOT_SPECIFIED) {
+      $alias = $this->connection->query("SELECT alias FROM {url_alias} WHERE source = :source AND langcode IN (:langcode, :langcode_undetermined) ORDER BY langcode DESC, pid DESC", $args)->fetchField();
+    }
+    else {
+      $alias = $this->connection->query("SELECT alias FROM {url_alias} WHERE source = :source AND langcode IN (:langcode, :langcode_undetermined) ORDER BY langcode ASC, pid DESC", $args)->fetchField();
+    }
+
+    return $alias;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function lookupPathSource($path, $langcode) {
+    $args = array(
+      ':alias' => $path,
+      ':langcode' => $langcode,
+      ':langcode_undetermined' => Language::LANGCODE_NOT_SPECIFIED,
+    );
+    // See the queries above.
+    if ($langcode == Language::LANGCODE_NOT_SPECIFIED) {
+      unset($args[':langcode']);
+      $result = $this->connection->query("SELECT source FROM {url_alias} WHERE alias = :alias AND langcode = :langcode_undetermined ORDER BY pid DESC", $args);
+    }
+    elseif ($langcode > Language::LANGCODE_NOT_SPECIFIED) {
+      $result = $this->connection->query("SELECT source FROM {url_alias} WHERE alias = :alias AND langcode IN (:langcode, :langcode_undetermined) ORDER BY langcode DESC, pid DESC", $args);
+    }
+    else {
+      $result = $this->connection->query("SELECT source FROM {url_alias} WHERE alias = :alias AND langcode IN (:langcode, :langcode_undetermined) ORDER BY langcode ASC, pid DESC", $args);
+    }
+
+    return $result->fetchField();
   }
 }

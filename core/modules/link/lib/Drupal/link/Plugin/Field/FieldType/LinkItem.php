@@ -2,14 +2,15 @@
 
 /**
  * @file
- * Contains \Drupal\email\Plugin\Field\FieldType\LinkItem.
+ * Contains \Drupal\link\Plugin\Field\FieldType\LinkItem.
  */
 
 namespace Drupal\link\Plugin\Field\FieldType;
 
-use Drupal\Core\Field\ConfigFieldItemBase;
-use Drupal\Core\TypedData\DataDefinition;
+use Drupal\Core\Field\FieldItemBase;
 use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\TypedData\DataDefinition;
+use Drupal\Core\TypedData\MapDataDefinition;
 
 /**
  * Plugin implementation of the 'link' field type.
@@ -18,37 +19,35 @@ use Drupal\Core\Field\FieldDefinitionInterface;
  *   id = "link",
  *   label = @Translation("Link"),
  *   description = @Translation("Stores a URL string, optional varchar link text, and optional blob of attributes to assemble a link."),
- *   instance_settings = {
- *     "title" = "1"
- *   },
  *   default_widget = "link_default",
  *   default_formatter = "link"
  * )
  */
-class LinkItem extends ConfigFieldItemBase {
-
-  /**
-   * Definitions of the contained properties.
-   *
-   * @var array
-   */
-  static $propertyDefinitions;
+class LinkItem extends FieldItemBase {
 
   /**
    * {@inheritdoc}
    */
-  public function getPropertyDefinitions() {
-    if (!isset(static::$propertyDefinitions)) {
-      static::$propertyDefinitions['url'] = DataDefinition::create('uri')
-        ->setLabel(t('URL'));
+  public static function defaultInstanceSettings() {
+    return array(
+      'title' => 1,
+    ) + parent::defaultInstanceSettings();
+  }
 
-      static::$propertyDefinitions['title'] = DataDefinition::create('string')
-        ->setLabel(t('Link text'));
+  /**
+   * {@inheritdoc}
+   */
+  public static function propertyDefinitions(FieldDefinitionInterface $field_definition) {
+    $properties['url'] = DataDefinition::create('uri')
+      ->setLabel(t('URL'));
 
-      static::$propertyDefinitions['attributes'] = DataDefinition::create('map')
-        ->setLabel(t('Attributes'));
-    }
-    return static::$propertyDefinitions;
+    $properties['title'] = DataDefinition::create('string')
+      ->setLabel(t('Link text'));
+
+    $properties['attributes'] = MapDataDefinition::create()
+      ->setLabel(t('Attributes'));
+
+    return $properties;
   }
 
   /**
@@ -89,7 +88,7 @@ class LinkItem extends ConfigFieldItemBase {
     $element['title'] = array(
       '#type' => 'radios',
       '#title' => t('Allow link text'),
-      '#default_value' => $this->getFieldSetting('title'),
+      '#default_value' => $this->getSetting('title'),
       '#options' => array(
         DRUPAL_DISABLED => t('Disabled'),
         DRUPAL_OPTIONAL => t('Optional'),

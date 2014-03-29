@@ -27,11 +27,11 @@ class ShortcutController extends ControllerBase {
    *   The shortcut add form.
    */
   public function addForm(ShortcutSetInterface $shortcut_set) {
-    $shortcut = $this->entityManager()->getStorageController('shortcut')->create(array('shortcut_set' => $shortcut_set->id()));
+    $shortcut = $this->entityManager()->getStorage('shortcut')->create(array('shortcut_set' => $shortcut_set->id()));
     if ($this->moduleHandler()->moduleExists('language')) {
       $shortcut->langcode = language_get_default_langcode('shortcut', $shortcut_set->id());
     }
-    return $this->entityManager()->getForm($shortcut, 'add');
+    return $this->entityFormBuilder()->getForm($shortcut, 'add');
   }
 
 }

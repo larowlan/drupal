@@ -19,6 +19,8 @@ taxonomy.term_edit:
   defaults:
     _entity_form: 'taxonomy_term.default'
     _title: 'Edit term'
+  options:
+    _admin_route: TRUE
   requirements:
     _entity_access: 'taxonomy_term.update'
 
@@ -27,6 +29,8 @@ taxonomy.term_delete:
   defaults:
     _entity_form: 'taxonomy_term.delete'
     _title: 'Delete term'
+  options:
+    _admin_route: TRUE
   requirements:
     _entity_access: 'taxonomy_term.delete'
 
@@ -39,10 +43,10 @@ taxonomy.vocabulary_add:
     _entity_create_access: 'taxonomy_vocabulary'
 
 taxonomy.vocabulary_edit:
-  path: '/admin/structure/taxonomy/manage/{taxonomy_vocabulary}/edit'
+  path: '/admin/structure/taxonomy/manage/{taxonomy_vocabulary}'
   defaults:
     _entity_form: 'taxonomy_vocabulary.default'
-    _title: 'Edit vocabulary'
+    _title_callback: '\Drupal\taxonomy\Controller\TaxonomyController::vocabularyTitle'
   requirements:
     _entity_access: 'taxonomy_vocabulary.update'
 
@@ -76,9 +80,10 @@ taxonomy.autocomplete_vid:
     _permission: 'access content'
 
 taxonomy.overview_terms:
-  path: '/admin/structure/taxonomy/manage/{taxonomy_vocabulary}'
+  path: '/admin/structure/taxonomy/manage/{taxonomy_vocabulary}/overview'
   defaults:
     _form: 'Drupal\taxonomy\Form\OverviewTerms'
+    _title_callback: 'Drupal\taxonomy\Controller\TaxonomyController::vocabularyTitle'
   requirements:
     _entity_access: 'taxonomy_vocabulary.view'
 

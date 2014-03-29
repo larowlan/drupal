@@ -7,6 +7,7 @@
 
 namespace Drupal\search\Tests;
 
+use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\field\Field;
 
 /**
@@ -28,7 +29,7 @@ class SearchCommentTest extends SearchTestBase {
   public static function getInfo() {
     return array(
       'name' => 'Comment Search tests',
-      'description' => 'Verify text formats and filters used elsewhere.',
+      'description' => 'Test integration searching comments.',
       'group' => 'Search',
     );
   }
@@ -114,7 +115,7 @@ class SearchCommentTest extends SearchTestBase {
 
     // Hide comments.
     $this->drupalLogin($this->admin_user);
-    $node->set('comment', COMMENT_HIDDEN);
+    $node->set('comment', CommentItemInterface::HIDDEN);
     $node->save();
 
     // Invoke search index update.

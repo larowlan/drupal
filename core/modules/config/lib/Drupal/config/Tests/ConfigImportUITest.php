@@ -52,12 +52,14 @@ class ConfigImportUITest extends WebTestBase {
     // Create new config entity.
     $original_dynamic_data = array(
       'id' => 'new',
-      'uuid' => '30df59bd-7b03-4cf7-bb35-d42fc49f0651',
       'label' => 'New',
       'weight' => 0,
       'style' => '',
+      'test_dependencies' => array(),
       'status' => TRUE,
+      'uuid' => '30df59bd-7b03-4cf7-bb35-d42fc49f0651',
       'langcode' => language_default()->id,
+      'dependencies' => array(),
       'protected_property' => '',
     );
     $staging->write($dynamic_name, $original_dynamic_data);
@@ -101,15 +103,15 @@ class ConfigImportUITest extends WebTestBase {
     $this->assertNoText(t('There are no configuration changes.'));
 
     // Acquire a fake-lock on the import mechanism.
-    $config_importer_lock = $this->configImporter()->getId();
-    $this->container->get('lock')->acquire($config_importer_lock);
+    $config_importer = $this->configImporter();
+    $this->container->get('lock')->acquire($config_importer::LOCK_ID);
 
     // Attempt to import configuration and verify that an error message appears.
     $this->drupalPostForm(NULL, array(), t('Import all'));
     $this->assertText(t('Another request may be synchronizing configuration already.'));
 
     // Release the lock, just to keep testing sane.
-    $this->container->get('lock')->release($config_importer_lock);
+    $this->container->get('lock')->release($config_importer::LOCK_ID);
 
     // Verify site name has not changed.
     $this->assertNotEqual($new_site_name, \Drupal::config('system.site')->get('name'));

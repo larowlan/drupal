@@ -1,6 +1,5 @@
 format: basic_html
 name: 'Basic HTML'
-uuid: c4b4acfb-5731-47ad-b500-dbaffaa37647
 status: true
 weight: 0
 roles:
@@ -19,7 +18,7 @@ filters:
   filter_caption:
     id: filter_caption
     provider: filter
-    status: 1
+    status: true
     weight: 8
     settings: {  }
   filter_html_image_secure:

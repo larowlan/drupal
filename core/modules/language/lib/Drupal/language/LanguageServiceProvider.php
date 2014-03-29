@@ -18,6 +18,8 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 class LanguageServiceProvider extends ServiceProviderBase {
 
+  const CONFIG_PREFIX = 'language.entity.';
+
   /**
    * {@inheritdoc}
    */
@@ -49,7 +51,19 @@ class LanguageServiceProvider extends ServiceProviderBase {
     $definition = $container->getDefinition('language_manager');
     $definition->setClass('Drupal\language\ConfigurableLanguageManager')
       ->addArgument(new Reference('config.factory'))
-      ->addArgument(new Reference('module_handler'));
+      ->addArgument(new Reference('module_handler'))
+      ->addArgument(new Reference('language.config_factory_override'));
+    if ($default_language_values = $this->getDefaultLanguageValues()) {
+      $container->setParameter('language.default_values', $default_language_values);
+    }
+
+    // For monolingual sites, we explicitly set the default language for the
+    // language config override service as there is no language negotiation.
+    if (!$this->isMultilingual()) {
+      $container->getDefinition('language.config_factory_override')
+        ->addMethodCall('setLanguageFromDefault', array(new Reference('language.default')));
+    }
+
   }
 
   /**
@@ -59,7 +73,9 @@ class LanguageServiceProvider extends ServiceProviderBase {
    *   TRUE if the site is multilingual, FALSE otherwise.
    */
   protected function isMultilingual() {
-    $prefix = 'language.entity.';
+    // Assign the prefix to a local variable so it can be used in an anonymous
+    // function.
+    $prefix = static::CONFIG_PREFIX;
     // @todo Try to swap out for config.storage to take advantage of database
     //   and caching. This might prove difficult as this is called before the
     //   container has finished building.
@@ -70,4 +86,21 @@ class LanguageServiceProvider extends ServiceProviderBase {
     return count($config_ids) > 1;
   }
 
+  /**
+   * Gets the default language values.
+   *
+   * @return array|bool
+   *   Returns the default language values for the language configured in
+   *   system.site:langcode if the corresponding configuration entity exists,
+   *   otherwise FALSE.
+   */
+  protected function getDefaultLanguageValues() {
+    $config_storage = BootstrapConfigStorageFactory::get();
+    $system = $config_storage->read('system.site');
+    $default_language = $config_storage->read(static::CONFIG_PREFIX . $system['langcode']);
+    if (is_array($default_language)) {
+      return $default_language + array('default' => TRUE);
+    }
+    return FALSE;
+  }
 }

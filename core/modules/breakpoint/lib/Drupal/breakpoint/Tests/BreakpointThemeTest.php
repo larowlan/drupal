@@ -15,13 +15,6 @@ use Drupal\breakpoint\Entity\Breakpoint;
  */
 class BreakpointThemeTest extends BreakpointGroupTestBase {
 
-  /**
-   * Modules to enable.
-   *
-   * @var array
-   */
-  public static $modules = array('breakpoint_theme_test');
-
   public static function getInfo() {
     return array(
       'name' => 'Breakpoint theme functionality',
@@ -58,10 +51,6 @@ class BreakpointThemeTest extends BreakpointGroupTestBase {
 
     // Verify we can load this breakpoint defined by the theme.
     $this->verifyBreakpointGroup($breakpoint_group_obj);
-
-    // Disable the test theme and verify the breakpoint group is deleted.
-    theme_disable(array('breakpoint_test_theme'));
-    $this->assertFalse(entity_load('breakpoint_group', $breakpoint_group_obj->id()), 'breakpoint_group_load: Loading a deleted breakpoint group returns false.', 'Breakpoint API');
   }
 
   /**
@@ -86,10 +75,6 @@ class BreakpointThemeTest extends BreakpointGroupTestBase {
 
     // Verify we can load this breakpoint defined by the theme.
     $this->verifyBreakpointGroup($breakpoint_group_obj);
-
-    // Disable the test theme and verify the breakpoint group is deleted.
-    theme_disable(array('breakpoint_test_theme'));
-    $this->assertFalse(entity_load('breakpoint_group', $breakpoint_group_obj->id()), 'breakpoint_group_load: Loading a deleted breakpoint group returns false.', 'Breakpoint API');
   }
 
 }

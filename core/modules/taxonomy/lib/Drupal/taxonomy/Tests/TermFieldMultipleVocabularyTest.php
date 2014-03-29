@@ -42,7 +42,7 @@ class TermFieldMultipleVocabularyTest extends TaxonomyTestBase {
 
     // Set up a field and instance.
     $this->field_name = drupal_strtolower($this->randomName());
-    entity_create('field_entity', array(
+    entity_create('field_config', array(
       'name' => $this->field_name,
       'entity_type' => 'entity_test',
       'type' => 'taxonomy_term_reference',
@@ -60,7 +60,7 @@ class TermFieldMultipleVocabularyTest extends TaxonomyTestBase {
         ),
       )
     ))->save();
-    entity_create('field_instance', array(
+    entity_create('field_instance_config', array(
       'field_name' => $this->field_name,
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
@@ -87,7 +87,9 @@ class TermFieldMultipleVocabularyTest extends TaxonomyTestBase {
 
     // Submit an entity with both terms.
     $this->drupalGet('entity_test/add');
-    $this->assertFieldByName("{$this->field_name}[]", '', 'Widget is displayed.');
+    // Just check if the widget for the select is displayed, the NULL value is
+    // used to ignore the value check.
+    $this->assertFieldByName("{$this->field_name}[]", NULL, 'Widget is displayed.');
     $edit = array(
       'user_id' => mt_rand(0, 10),
       'name' => $this->randomName(),
@@ -100,29 +102,24 @@ class TermFieldMultipleVocabularyTest extends TaxonomyTestBase {
 
     // Render the entity.
     $entity = entity_load('entity_test', $id);
-    $entities = array($id => $entity);
-    $display = entity_get_display($entity->entityType(), $entity->bundle(), 'full');
-    field_attach_prepare_view('entity_test', $entities, array($entity->bundle() => $display));
-    $entity->content = field_attach_view($entity, $display);
-    $this->content = drupal_render($entity->content);
-    $this->assertText($term1->label(), 'Term 1 name is displayed.');
-    $this->assertText($term2->label(), 'Term 2 name is displayed.');
+    $display = entity_get_display($entity->getEntityTypeId(), $entity->bundle(), 'full');
+    $content = $display->build($entity);
+    $this->drupalSetContent(drupal_render($content));
+    $this->assertText($term1->getName(), 'Term 1 name is displayed.');
+    $this->assertText($term2->getName(), 'Term 2 name is displayed.');
 
     // Delete vocabulary 2.
     $this->vocabulary2->delete();
 
     // Re-render the content.
     $entity = entity_load('entity_test', $id);
-    $entities = array($id => $entity);
-    $display = entity_get_display($entity->entityType(), $entity->bundle(), 'full');
-    field_attach_prepare_view('entity_test', $entities, array($entity->bundle() => $display));
-    $entity->content = field_attach_view($entity, $display);
-    $this->plainTextContent = FALSE;
-    $this->content = drupal_render($entity->content);
+    $display = entity_get_display($entity->getEntityTypeId(), $entity->bundle(), 'full');
+    $content = $display->build($entity);
+    $this->drupalSetContent(drupal_render($content));
 
     // Term 1 should still be displayed; term 2 should not be.
-    $this->assertText($term1->label(), 'Term 1 name is displayed.');
-    $this->assertNoText($term2->label(), 'Term 2 name is not displayed.');
+    $this->assertText($term1->getName(), 'Term 1 name is displayed.');
+    $this->assertNoText($term2->getName(), 'Term 2 name is not displayed.');
 
     // Verify that field and instance settings are correct.
     $field = field_info_field('entity_test', $this->field_name);
@@ -130,7 +127,9 @@ class TermFieldMultipleVocabularyTest extends TaxonomyTestBase {
 
     // The widget should still be displayed.
     $this->drupalGet('entity_test/add');
-    $this->assertFieldByName("{$this->field_name}[]", '', 'Widget is still displayed.');
+    // Just check if the widget for the select is displayed, the NULL value is
+    // used to ignore the value check.
+    $this->assertFieldByName("{$this->field_name}[]", NULL, 'Widget is still displayed.');
 
     // Term 1 should still pass validation.
     $edit = array(

@@ -32,7 +32,7 @@ settings:
             - Table
             - HorizontalRule
         -
-          name: Block Formatting
+          name: 'Block Formatting'
           items:
             - Format
         -
@@ -40,7 +40,6 @@ settings:
           items:
             - ShowBlocks
             - Source
-
   plugins:
     stylescombo:
       styles: ''
@@ -54,3 +53,8 @@ image_upload:
     height: 0
 status: true
 langcode: en
+dependencies:
+  entity:
+    - filter.format.full_html
+  module:
+    - ckeditor

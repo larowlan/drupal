@@ -7,6 +7,7 @@
 
 namespace Drupal\simpletest\Tests;
 
+use Drupal\Core\Database\Driver\pgsql\Select;
 use Drupal\simpletest\WebTestBase;
 
 class SimpleTestTest extends WebTestBase {
@@ -39,7 +40,7 @@ class SimpleTestTest extends WebTestBase {
   }
 
   function setUp() {
-    if (!$this->inCURL()) {
+    if (!$this->isInChildSite()) {
       parent::setUp();
       // Create and log in an admin user.
       $this->drupalLogin($this->drupalCreateUser(array('administer unit tests')));
@@ -54,7 +55,7 @@ class SimpleTestTest extends WebTestBase {
    * Test the internal browsers functionality.
    */
   function testInternalBrowser() {
-    if (!$this->inCURL()) {
+    if (!$this->isInChildSite()) {
       // Retrieve the test page and check its title and headers.
       $this->drupalGet('test-page');
       $this->assertTrue($this->drupalGetHeader('Date'), 'An HTTP header was received.');
@@ -91,10 +92,12 @@ class SimpleTestTest extends WebTestBase {
       $headers = $this->drupalGetHeaders(TRUE);
       $this->assertEqual(count($headers), 2, 'Simpletest stopped following redirects after the first one.');
 
-      // Remove the Simpletest settings.php so we can test the protection
+      // Remove the Simpletest private key file so we can test the protection
       // against requests that forge a valid testing user agent to gain access
       // to the installer.
-      drupal_unlink($this->public_files_directory . '/settings.php');
+      // @see drupal_valid_test_ua()
+      // Not using File API; a potential error must trigger a PHP warning.
+      unlink($this->siteDirectory . '/.htkey');
       global $base_url;
       $this->drupalGet(url($base_url . '/core/install.php', array('external' => TRUE, 'absolute' => TRUE)));
       $this->assertResponse(403, 'Cannot access install.php.');
@@ -105,7 +108,7 @@ class SimpleTestTest extends WebTestBase {
    * Test validation of the User-Agent header we use to perform test requests.
    */
   function testUserAgentValidation() {
-    if (!$this->inCURL()) {
+    if (!$this->isInChildSite()) {
       global $base_url;
       $system_path = $base_url . '/' . drupal_get_path('module', 'system');
       $HTTP_path = $system_path .'/tests/http.php?q=node';
@@ -144,10 +147,10 @@ class SimpleTestTest extends WebTestBase {
   function testWebTestRunner() {
     $this->pass = t('SimpleTest pass.');
     $this->fail = t('SimpleTest fail.');
-    $this->valid_permission = 'access content';
+    $this->valid_permission = 'access administration pages';
     $this->invalid_permission = 'invalid permission';
 
-    if ($this->inCURL()) {
+    if ($this->isInChildSite()) {
       // Only run following code if this test is running itself through a CURL
       // request.
       $this->stubTest();
@@ -160,7 +163,7 @@ class SimpleTestTest extends WebTestBase {
         $this->drupalGet('admin/config/development/testing');
 
         $edit = array();
-        $edit['Drupal\simpletest\Tests\SimpleTestTest'] = TRUE;
+        $edit['tests[Drupal\simpletest\Tests\SimpleTestTest]'] = TRUE;
         $this->drupalPostForm(NULL, $edit, t('Run tests'));
 
         // Parse results and confirm that they are correct.
@@ -231,7 +234,7 @@ class SimpleTestTest extends WebTestBase {
 
     $this->assertAssertion("Debug: 'Foo'", 'Debug', 'Fail', 'SimpleTestTest.php', 'Drupal\simpletest\Tests\SimpleTestTest->stubTest()');
 
-    $this->assertEqual('6 passes, 5 fails, 2 exceptions, and 1 debug message', $this->childTestResults['summary'], 'Stub test summary is correct');
+    $this->assertEqual('6 passes, 5 fails, 2 exceptions, 1 debug message', $this->childTestResults['summary']);
 
     $this->test_ids[] = $test_id = $this->getTestIdFromResults();
     $this->assertTrue($test_id, 'Found test ID in results.');
@@ -296,7 +299,7 @@ class SimpleTestTest extends WebTestBase {
           $assertion['file'] = $this->asText($row->td[2]);
           $assertion['line'] = $this->asText($row->td[3]);
           $assertion['function'] = $this->asText($row->td[4]);
-          $ok_url = file_create_url('core/misc/watchdog-ok.png');
+          $ok_url = file_create_url('core/misc/icons/73b355/check.png');
           $assertion['status'] = ($row->td[5]->img['src'] == $ok_url) ? 'Pass' : 'Fail';
           $results['assertions'][] = $assertion;
         }
@@ -335,10 +338,4 @@ class SimpleTestTest extends WebTestBase {
     return trim(html_entity_decode(strip_tags($element->asXML())));
   }
 
-  /**
-   * Check if the test is being run from inside a CURL request.
-   */
-  function inCURL() {
-    return (bool) drupal_valid_test_ua();
-  }
 }

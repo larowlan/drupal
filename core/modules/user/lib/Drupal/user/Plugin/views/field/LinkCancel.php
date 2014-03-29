@@ -15,7 +15,7 @@ use Drupal\views\ResultRow;
  *
  * @ingroup views_field_handlers
  *
- * @PluginID("user_link_cancel")
+ * @ViewsField("user_link_cancel")
  */
 class LinkCancel extends Link {
 
@@ -28,8 +28,7 @@ class LinkCancel extends Link {
 
       $text = !empty($this->options['text']) ? $this->options['text'] : t('Cancel account');
 
-      $uri = $entity->uri();
-      $this->options['alter']['path'] = $uri['path'] . '/cancel';
+      $this->options['alter']['path'] = $entity->getSystemPath('cancel-form');
       $this->options['alter']['query'] = drupal_get_destination();
 
       return $text;

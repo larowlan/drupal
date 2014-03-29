@@ -19,7 +19,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @ingroup views_argument_handlers
  *
- * @PluginID("file_fid")
+ * @ViewsArgument("file_fid")
  */
 class Fid extends Numeric implements ContainerFactoryPluginInterface {
 
@@ -77,7 +77,7 @@ class Fid extends Numeric implements ContainerFactoryPluginInterface {
     $fids = $this->entityQuery->get('file')
       ->condition('fid', $this->value)
       ->execute();
-    $controller = $this->entityManager->getStorageController('file');
+    $controller = $this->entityManager->getStorage('file');
     $files = $controller->loadMultiple($fids);
     $titles = array();
     foreach ($files as $file) {

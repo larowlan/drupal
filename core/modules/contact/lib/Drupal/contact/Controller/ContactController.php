@@ -8,7 +8,6 @@
 namespace Drupal\contact\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\contact\CategoryInterface;
 use Drupal\user\UserInterface;
@@ -20,7 +19,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * Controller routines for contact routes.
  */
-class ContactController extends ControllerBase implements ContainerInjectionInterface {
+class ContactController extends ControllerBase {
 
   /**
    * The flood service.
@@ -70,7 +69,7 @@ class ContactController extends ControllerBase implements ContainerInjectionInte
     // Use the default category if no category has been passed.
     if (empty($contact_category)) {
       $contact_category = $this->entityManager()
-        ->getStorageController('contact_category')
+        ->getStorage('contact_category')
         ->load($this->config('contact.settings')->get('default_category'));
       // If there are no categories, do not display the form.
       if (empty($contact_category)) {
@@ -86,12 +85,12 @@ class ContactController extends ControllerBase implements ContainerInjectionInte
     }
 
     $message = $this->entityManager()
-      ->getStorageController('contact_message')
+      ->getStorage('contact_message')
       ->create(array(
         'category' => $contact_category->id(),
       ));
 
-    $form = $this->entityManager()->getForm($message);
+    $form = $this->entityFormBuilder()->getForm($message);
     $form['#title'] = String::checkPlain($contact_category->label());
     return $form;
   }
@@ -111,12 +110,12 @@ class ContactController extends ControllerBase implements ContainerInjectionInte
       $this->contactFloodControl();
     }
 
-    $message = $this->entityManager()->getStorageController('contact_message')->create(array(
+    $message = $this->entityManager()->getStorage('contact_message')->create(array(
       'category' => 'personal',
       'recipient' => $user->id(),
     ));
 
-    $form = $this->entityManager()->getForm($message);
+    $form = $this->entityFormBuilder()->getForm($message);
     $form['#title'] = $this->t('Contact @username', array('@username' => $user->getUsername()));
     return $form;
   }
