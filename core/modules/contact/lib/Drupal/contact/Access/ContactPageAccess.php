@@ -72,6 +72,11 @@ class ContactPageAccess implements AccessInterface {
       return static::DENY;
     }
 
+    // If the user has no email address, do not allow users to contact them.
+    if (!$contact_account->getEmail()) {
+      return static::DENY;
+    }
+
     // If the requested user has disabled their contact form, do not allow users
     // to contact them.
     $account_data = $this->userData->get('contact', $contact_account->id(), 'enabled');
