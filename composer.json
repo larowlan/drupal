@@ -5,6 +5,8 @@
   "license": "GPL-2.0+",
   "require": {
     "php": ">=5.4.2",
+    "behat/mink": "~1.5",
+    "behat/mink-goutte-driver": "*",
     "sdboyer/gliph": "0.1.*",
     "symfony/class-loader": "2.4.*",
     "symfony/dependency-injection": "2.4.*",
