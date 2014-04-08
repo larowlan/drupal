@@ -7,6 +7,7 @@
 
 namespace Drupal\simpletest;
 
+use Behat\Mink\Element\NodeElement;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\Json;
 use Drupal\Component\Utility\NestedArray;
@@ -22,7 +23,12 @@ use Drupal\Core\Session\UserSession;
 use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\block\Entity\Block;
+use Behat\Mink\Driver\Goutte\Client;
 use Symfony\Component\HttpFoundation\Request;
+use Behat\Mink\Mink;
+use Behat\Mink\Session;
+use Behat\Mink\Driver\GoutteDriver;
+use Guzzle\Http\Client as GuzzleClient;
 
 /**
  * Test case for typical Drupal tests.
@@ -189,11 +195,130 @@ abstract class WebTestBase extends TestBase {
   protected $customTranslations;
 
   /**
+   * Current mink object.
+   *
+   * @var \Behat\Mink\Mink
+   */
+  protected $mink;
+
+  /**
+   * Guzzle connection.
+   *
+   * @var \
+   */
+  protected $guzzle;
+
+  /**
    * Constructor for \Drupal\simpletest\WebTestBase.
    */
   function __construct($test_id = NULL) {
     parent::__construct($test_id);
     $this->skipClasses[__CLASS__] = TRUE;
+  }
+
+  /**
+   * Resets the mink sessions.
+   */
+  protected function resetMink() {
+    $this->getMink()->resetSessions();
+  }
+
+  /**
+   * Initializes Mink session.
+   */
+  protected function initMink() {
+    global $base_url;
+    $curl_options = array(
+      'curl.CURLOPT_TIMEOUT' => 30,
+      'curl.CURLOPT_MAXREDIRS' => 3,
+      'curl.CURPOT_URL' => $base_url,
+      'curl.CURLOPT_FOLLOWLOCATION' => FALSE,
+      'curl.CURLOPT_RETURNTRANSFER' => TRUE,
+      // Required to make the tests run on HTTPS.
+      'curl.CURLOPT_SSL_VERIFYPEER' => FALSE,
+      // Required to make the tests run on HTTPS.
+      'curl.CURLOPT_SSL_VERIFYHOST' => FALSE,
+      'curl.CURLOPT_HEADERFUNCTION' => array(&$this, 'curlHeaderCallback'),
+      'curl.CURLOPT_USERAGENT' => $this->databasePrefix,
+    );
+    if (isset($this->httpauth_credentials)) {
+      $curl_options['curl.CURLOPT_HTTPAUTH'] = $this->httpauth_method;
+      $curl_options['curl.CURLOPT_USERPWD'] = $this->httpauth_credentials;
+    }
+    $guzzle = new GuzzleClient($base_url, $curl_options);
+    $client = new Client();
+    $client->setClient($guzzle);
+    $guzzle->setUserAgent($this->databasePrefix);
+    $client->setMaxRedirects($this->maximumRedirects);
+    $this->mink = new Mink(array(
+      'goutte' => new Session(new GoutteDriver($client)),
+    ));
+    $this->mink->setDefaultSessionName('goutte');
+    // Set the User agent.
+    $this->getMink()->getSession()->setRequestHeader('User-Agent', $this->databasePrefix);
+    $this->session_name = session_name();
+  }
+
+  /**
+   * Transforms legacy Curl options into the format expected by Guzzle.
+   *
+   * @param array $options
+   *   Array of curl options.
+   *
+   * @return array
+   *   Array of curl options transformed into the format expected by Guzzle.
+   */
+  protected function transformLegacyCurlOptions($options) {
+    foreach ($options as $key => $value) {
+      if (substr($key, 0, 5) == 'curl.') {
+        // Already in expected format.
+        continue;
+      }
+      $options['curl.' . $key] = $value;
+      unset($options[$key]);
+    }
+    return $options;
+  }
+
+  /**
+   * Sets Curl options on the Guzzle client used by the Goutte driver.
+   *
+   * @param array $options
+   *   Array of curl options to be set on the Guzzle client.
+   */
+  protected function setClientOptions($options) {
+    /** @var \Guzzle\Http\ClientInterface $guzzle_client */
+    $guzzle_client = $this->getMink()->getSession()->getDriver()->getClient()->getClient();
+    $existing_config = $guzzle_client->getConfig();
+    $options = $this->transformLegacyCurlOptions($options);
+    foreach ($options as $key => $value) {
+      $existing_config[$key] = $value;
+    }
+    $guzzle_client->setConfig($existing_config);
+  }
+
+  /**
+   * Returns the current mink object.
+   *
+   * @return \Behat\Mink\Mink
+   */
+  protected function getMink() {
+    if (!isset($this->mink)) {
+      $this->initMink();
+    }
+    return $this->mink;
+  }
+
+  /**
+   * Returns the named Mink session.
+   *
+   * @param string $name
+   *   (optional) Mink session name. Defaults to null.
+   *
+   * @return \Behat\Mink\Session
+   */
+  protected function getSession($name = null) {
+    return $this->getMink()->getSession($name);
   }
 
   /**
@@ -420,7 +545,7 @@ abstract class WebTestBase extends TestBase {
    *   The result from the xpath query.
    */
   protected function findBlockInstance(Block $block) {
-    return $this->xpath('//div[@id = :id]', array(':id' => 'block-' . $block->id()));
+    return $this->getSession()->getPage()->find('css', '#block-' . $block->id());
   }
 
   /**
@@ -1038,6 +1163,7 @@ abstract class WebTestBase extends TestBase {
     // Reset static variables and reload permissions.
     $this->refreshVariables();
     $this->checkPermissions(array(), TRUE);
+    $this->resetMink();
   }
 
   /**
@@ -1084,6 +1210,7 @@ abstract class WebTestBase extends TestBase {
     // testing so test classes containing multiple tests are not polluted.
     $this->curlClose();
     $this->curlCookies = array();
+    $this->resetMink();
   }
 
   /**
@@ -1097,45 +1224,13 @@ abstract class WebTestBase extends TestBase {
   protected function curlInitialize() {
     global $base_url;
 
-    if (!isset($this->curlHandle)) {
-      $this->curlHandle = curl_init();
-
-      // Some versions/configurations of cURL break on a NULL cookie jar, so
-      // supply a real file.
-      if (empty($this->cookieFile)) {
-        $this->cookieFile = $this->public_files_directory . '/cookie.jar';
-      }
-
-      $curl_options = array(
-        CURLOPT_COOKIEJAR => $this->cookieFile,
-        CURLOPT_URL => $base_url,
-        CURLOPT_FOLLOWLOCATION => FALSE,
-        CURLOPT_RETURNTRANSFER => TRUE,
-        // Required to make the tests run on HTTPS.
-        CURLOPT_SSL_VERIFYPEER => FALSE,
-        // Required to make the tests run on HTTPS.
-        CURLOPT_SSL_VERIFYHOST => FALSE,
-        CURLOPT_HEADERFUNCTION => array(&$this, 'curlHeaderCallback'),
-        CURLOPT_USERAGENT => $this->databasePrefix,
-      );
-      if (isset($this->httpauth_credentials)) {
-        $curl_options[CURLOPT_HTTPAUTH] = $this->httpauth_method;
-        $curl_options[CURLOPT_USERPWD] = $this->httpauth_credentials;
-      }
-      // curl_setopt_array() returns FALSE if any of the specified options
-      // cannot be set, and stops processing any further options.
-      $result = curl_setopt_array($this->curlHandle, $this->additionalCurlOptions + $curl_options);
-      if (!$result) {
-        throw new \UnexpectedValueException('One or more cURL options could not be set.');
-      }
-
-      // By default, the child session name should be the same as the parent.
-      $this->session_name = session_name();
+    if (!isset($this->mink)) {
+      $this->initMink();
     }
     // We set the user agent header on each request so as to use the current
     // time and a new uniqid.
     if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
-      curl_setopt($this->curlHandle, CURLOPT_USERAGENT, drupal_generate_test_ua($matches[0]));
+      $this->getMink()->getSession()->setRequestHeader('User-Agent', drupal_generate_test_ua($matches[0]));
     }
   }
 
@@ -1170,7 +1265,7 @@ abstract class WebTestBase extends TestBase {
       }
     }
 
-    $url = empty($curl_options[CURLOPT_URL]) ? curl_getinfo($this->curlHandle, CURLINFO_EFFECTIVE_URL) : $curl_options[CURLOPT_URL];
+    $url = empty($curl_options[CURLOPT_URL]) ? $this->getSession()->getCurrentUrl() : $curl_options[CURLOPT_URL];
 
     if (!empty($curl_options[CURLOPT_POST])) {
       // This is a fix for the Curl library to prevent Expect: 100-continue
@@ -1223,7 +1318,8 @@ abstract class WebTestBase extends TestBase {
       $curl_options[CURLOPT_COOKIE] .= implode('; ', $cookies) . ';';
     }
 
-    curl_setopt_array($this->curlHandle, $this->additionalCurlOptions + $curl_options);
+    // Set client options on Goutte's Guzzle client.
+    $this->setClientOptions($this->additionalCurlOptions + $curl_options);
 
     if (!$redirect) {
       // Reset headers, the session ID and the redirect counter.
@@ -1232,9 +1328,14 @@ abstract class WebTestBase extends TestBase {
       $this->redirect_count = 0;
     }
 
-    $content = curl_exec($this->curlHandle);
-    $status = curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE);
+    $this->getSession()->visit($url);
 
+    $content = $this->getSession()->getPage()->getContent();
+    $status = $this->getSession()->getStatusCode();
+
+    /**
+     * May not be needed. @todo larowlan confirm
+     *
     // cURL incorrectly handles URLs with fragments, so instead of
     // letting cURL handle redirects we take of them ourselves to
     // to prevent fragments being sent to the web server as part
@@ -1249,8 +1350,9 @@ abstract class WebTestBase extends TestBase {
         return $this->curlExec($curl_options, TRUE);
       }
     }
+    */
 
-    $this->drupalSetContent($content, isset($original_url) ? $original_url : curl_getinfo($this->curlHandle, CURLINFO_EFFECTIVE_URL));
+    $this->drupalSetContent($content, isset($original_url) ? $original_url : $this->getSession()->getCurrentUrl());
     $message_vars = array(
       '!method' => !empty($curl_options[CURLOPT_NOBODY]) ? 'HEAD' : (empty($curl_options[CURLOPT_POSTFIELDS]) ? 'GET' : 'POST'),
       '@url' => isset($original_url) ? $original_url : $url,
@@ -1273,6 +1375,8 @@ abstract class WebTestBase extends TestBase {
    * @see _drupal_log_error().
    */
   protected function curlHeaderCallback($curlHandler, $header) {
+    // @todo larowlan convert this to Guzzle/Mink, we need to subscribe to the
+    //   request complete method on the Guzzle response, so need to subclass.
     // Header fields can be extended over multiple lines by preceding each
     // extra line with at least one SP or HT. They should be joined on receive.
     // Details are in RFC2616 section 4.
@@ -1531,6 +1635,7 @@ abstract class WebTestBase extends TestBase {
    *   (e.g., "&extra_var1=hello+world&extra_var2=you%26me").
    */
   protected function drupalPostForm($path, $edit, $submit, array $options = array(), array $headers = array(), $form_html_id = NULL, $extra_post = NULL) {
+    // @todo larowlan refactor around Mink
     $submit_matches = FALSE;
     $ajax = is_array($submit);
     if (isset($path)) {
@@ -1543,24 +1648,26 @@ abstract class WebTestBase extends TestBase {
       if (!empty($form_html_id)) {
         $xpath .= "[@id='" . $form_html_id . "']";
       }
+      /** @var \Behat\Mink\Element\NodeElement[] $forms */
       $forms = $this->xpath($xpath);
       foreach ($forms as $form) {
         // We try to set the fields of this form as specified in $edit.
         $edit = $edit_save;
         $post = array();
         $upload = array();
-        $submit_matches = $this->handleForm($post, $edit, $upload, $ajax ? NULL : $submit, $form);
-        $action = isset($form['action']) ? $this->getAbsoluteUrl((string) $form['action']) : $this->getUrl();
+        $submit_element = $this->handleForm($post, $edit, $upload, $ajax ? NULL : $submit, $form);
+        $action = $form->getAttribute('action') ? $this->getAbsoluteUrl($form->getAttribute('action')) : $this->getUrl();
         if ($ajax) {
           $action = $this->getAbsoluteUrl(!empty($submit['path']) ? $submit['path'] : 'system/ajax');
           // Ajax callbacks verify the triggering element if necessary, so while
           // we may eventually want extra code that verifies it in the
           // handleForm() function, it's not currently a requirement.
-          $submit_matches = TRUE;
+          // @todo this needs to be an Element.
+          $submit_element = TRUE;
         }
         // We post only if we managed to handle every field in edit and the
         // submit button matches.
-        if (!$edit && ($submit_matches || !isset($submit))) {
+        if (!$edit && ($submit_element || !isset($submit))) {
           $post_array = $post;
           if ($upload) {
             foreach ($upload as $key => $file) {
@@ -1581,7 +1688,9 @@ abstract class WebTestBase extends TestBase {
           else {
             $post = $this->serializePostValues($post) . $extra_post;
           }
-          $out = $this->curlExec(array(CURLOPT_URL => $action, CURLOPT_POST => TRUE, CURLOPT_POSTFIELDS => $post, CURLOPT_HTTPHEADER => $headers));
+          // $out = $this->curlExec(array(CURLOPT_URL => $action, CURLOPT_POST => TRUE, CURLOPT_POSTFIELDS => $post, CURLOPT_HTTPHEADER => $headers));
+          $submit_element->press();
+          $out = $this->getSession()->getPage()->getContent();
           // Ensure that any changes to variables in the other thread are picked
           // up.
           $this->refreshVariables();
@@ -1590,6 +1699,10 @@ abstract class WebTestBase extends TestBase {
           // page(s).
           if ($new = $this->checkForMetaRefresh()) {
             $out = $new;
+          }
+
+          if ($session_id = $this->getSession()->getCookie($this->session_name)) {
+            $this->session_id = $session_id;
           }
 
           $verbose = 'POST request to: ' . $path;
@@ -1659,6 +1772,7 @@ abstract class WebTestBase extends TestBase {
    * @see ajax.js
    */
   protected function drupalPostAjaxForm($path, $edit, $triggering_element, $ajax_path = NULL, array $options = array(), array $headers = array(), $form_html_id = NULL, $ajax_settings = NULL) {
+    // @todo larowlan refactor around Mink
     // Get the content of the initial page prior to calling drupalPostForm(),
     // since drupalPostForm() replaces $this->content.
     if (isset($path)) {
@@ -1750,7 +1864,7 @@ abstract class WebTestBase extends TestBase {
    * @see ajax.js
    */
   protected function drupalProcessAjaxResponse($content, array $ajax_response, array $ajax_settings, array $drupal_settings) {
-
+    // @todo larowlan refactor around Mink
     // ajax.js applies some defaults to the settings object, so do the same
     // for what's used by this function.
     $ajax_settings += array(
@@ -1884,6 +1998,7 @@ abstract class WebTestBase extends TestBase {
    *   The Ajax page state POST data.
    */
   protected function getAjaxPageStatePostData() {
+    // @todo larowlan refactor around Mink
     $post = array();
     $drupal_settings = $this->drupalSettings;
     if (isset($drupal_settings['ajaxPageState'])) {
@@ -1958,6 +2073,7 @@ abstract class WebTestBase extends TestBase {
    *   Either the new page content or FALSE.
    */
   protected function checkForMetaRefresh() {
+    // @todo larowlan refactor around Mink
     if (strpos($this->drupalGetContent(), '<meta ') && $this->parse()) {
       $refresh = $this->xpath('//meta[@http-equiv="Refresh"]');
       if (!empty($refresh)) {
@@ -1986,6 +2102,7 @@ abstract class WebTestBase extends TestBase {
    *   The retrieved headers, also available as $this->drupalGetContent()
    */
   protected function drupalHead($path, array $options = array(), array $headers = array()) {
+    // @todo larowlan refactor around Mink
     $options['absolute'] = TRUE;
     $url = $this->container->get('url_generator')->generateFromPath($path, $options);
     $out = $this->curlExec(array(CURLOPT_NOBODY => TRUE, CURLOPT_URL => $url, CURLOPT_HTTPHEADER => $headers));
@@ -2007,29 +2124,32 @@ abstract class WebTestBase extends TestBase {
    * Ensure that the specified fields exist and attempt to create POST data in
    * the correct manner for the particular field type.
    *
-   * @param $post
+   * @param array $post
    *   Reference to array of post values.
-   * @param $edit
+   * @param array $edit
    *   Reference to array of edit values to be checked against the form.
-   * @param $submit
+   * @param array $upload
+   *   Array of file uploads
+   * @param string $submit
    *   Form submit button value.
-   * @param $form
+   * @param \Behat\Mink\Element\NodeElement $form
    *   Array of form elements.
    *
-   * @return
-   *   Submit value matches a valid submit input in the form.
+   * @return \Behat\Mink\Element\NodeElement|bool
+   *   The submit button for the form to trigger the POST.
    */
-  protected function handleForm(&$post, &$edit, &$upload, $submit, $form) {
+  protected function handleForm(&$post, &$edit, &$upload, $submit, NodeElement $form) {
     // Retrieve the form elements.
-    $elements = $form->xpath('.//input[not(@disabled)]|.//textarea[not(@disabled)]|.//select[not(@disabled)]');
+    /** @var \Behat\Mink\Element\NodeElement[] $elements */
+    $elements = $form->findAll('xpath', './/input[not(@disabled)]|.//textarea[not(@disabled)]|.//select[not(@disabled)]');
     $submit_matches = FALSE;
     foreach ($elements as $element) {
       // SimpleXML objects need string casting all the time.
-      $name = (string) $element['name'];
+      $name = (string) $element->getAttribute('name');
       // This can either be the type of <input> or the name of the tag itself
       // for <select> or <textarea>.
-      $type = isset($element['type']) ? (string) $element['type'] : $element->getName();
-      $value = isset($element['value']) ? (string) $element['value'] : '';
+      $type = $element->getAttribute('type') ? (string) $element->getAttribute('type') : $element->getTagName();
+      $value = $element->getValue();
       $done = FALSE;
       if (isset($edit[$name])) {
         switch ($type) {
@@ -2048,12 +2168,12 @@ abstract class WebTestBase extends TestBase {
           case 'time':
           case 'datetime':
           case 'datetime-local';
-            $post[$name] = $edit[$name];
+            $element->setValue($edit[$name]);
             unset($edit[$name]);
             break;
           case 'radio':
             if ($edit[$name] == $value) {
-              $post[$name] = $edit[$name];
+              $element->check();
               unset($edit[$name]);
             }
             break;
@@ -2062,29 +2182,21 @@ abstract class WebTestBase extends TestBase {
             // otherwise the checkbox will be set to its value regardless
             // of $edit.
             if ($edit[$name] === FALSE) {
-              unset($edit[$name]);
+              $element->uncheck();
               continue 2;
             }
             else {
               unset($edit[$name]);
-              $post[$name] = $value;
+              $element->check();
             }
             break;
           case 'select':
             $new_value = $edit[$name];
-            $options = $this->getAllOptions($element);
             if (is_array($new_value)) {
               // Multiple select box.
               if (!empty($new_value)) {
-                $index = 0;
-                $key = preg_replace('/\[\]$/', '', $name);
-                foreach ($options as $option) {
-                  $option_value = (string) $option['value'];
-                  if (in_array($option_value, $new_value)) {
-                    $post[$key . '[' . $index++ . ']'] = $option_value;
-                    $done = TRUE;
-                    unset($edit[$name]);
-                  }
+                foreach ($new_value as $value) {
+                  $element->selectOption($value, TRUE);
                 }
               }
               else {
@@ -2095,19 +2207,12 @@ abstract class WebTestBase extends TestBase {
               }
             }
             else {
-              // Single select box.
-              foreach ($options as $option) {
-                if ($new_value == $option['value']) {
-                  $post[$name] = $new_value;
-                  unset($edit[$name]);
-                  $done = TRUE;
-                  break;
-                }
-              }
+              $element->selectOption($edit[$name]);
+              unset($edit[$name]);
             }
             break;
           case 'file':
-            $upload[$name] = $edit[$name];
+            $element->attachFile($edit[$name]);
             unset($edit[$name]);
             break;
         }
@@ -2115,27 +2220,11 @@ abstract class WebTestBase extends TestBase {
       if (!isset($post[$name]) && !$done) {
         switch ($type) {
           case 'textarea':
-            $post[$name] = (string) $element;
+            $post[$name] = $element->getValue();
             break;
           case 'select':
-            $single = empty($element['multiple']);
-            $first = TRUE;
-            $index = 0;
-            $key = preg_replace('/\[\]$/', '', $name);
-            $options = $this->getAllOptions($element);
-            foreach ($options as $option) {
-              // For single select, we load the first option, if there is a
-              // selected option that will overwrite it later.
-              if ($option['selected'] || ($first && $single)) {
-                $first = FALSE;
-                if ($single) {
-                  $post[$name] = (string) $option['value'];
-                }
-                else {
-                  $post[$key . '[' . $index++ . ']'] = (string) $option['value'];
-                }
-              }
-            }
+            $single = !$element->getAttribute('multiple');
+            $post[$name] = $element->getValue();
             break;
           case 'file':
             break;
@@ -2143,12 +2232,12 @@ abstract class WebTestBase extends TestBase {
           case 'image':
             if (isset($submit) && $submit == $value) {
               $post[$name] = $value;
-              $submit_matches = TRUE;
+              $submit_matches = $element;
             }
             break;
           case 'radio':
           case 'checkbox':
-            if (!isset($element['checked'])) {
+            if (!$element->isChecked()) {
               break;
             }
             // Deliberate no break.
@@ -2227,17 +2316,8 @@ abstract class WebTestBase extends TestBase {
    *   http://php.net/manual/function.simplexml-element-xpath.php.
    */
   protected function xpath($xpath, array $arguments = array()) {
-    if ($this->parse()) {
-      $xpath = $this->buildXPathQuery($xpath, $arguments);
-      $result = $this->elements->xpath($xpath);
-      // Some combinations of PHP / libxml versions return an empty array
-      // instead of the documented FALSE. Forcefully convert any falsish values
-      // to an empty array to allow foreach(...) constructions.
-      return $result ? $result : array();
-    }
-    else {
-      return FALSE;
-    }
+    $xpath = $this->buildXPathQuery($xpath, $arguments);
+    return $this->getSession()->getPage()->findAll('xpath', $xpath);
   }
 
   /**
@@ -2250,6 +2330,7 @@ abstract class WebTestBase extends TestBase {
    *   Option elements in select.
    */
   protected function getAllOptions(\SimpleXMLElement $element) {
+    // @todo larowlan refactor around Mink
     $options = array();
     // Add all options items.
     foreach ($element->option as $option) {
@@ -2438,7 +2519,7 @@ abstract class WebTestBase extends TestBase {
    *   The current URL.
    */
   protected function getUrl() {
-    return $this->url;
+    return $this->getSession()->getCurrentUrl();
   }
 
   /**
@@ -2463,33 +2544,8 @@ abstract class WebTestBase extends TestBase {
    *   Values for duplicate headers are stored as a single comma-separated list.
    */
   protected function drupalGetHeaders($all_requests = FALSE) {
-    $request = 0;
-    $headers = array($request => array());
-    foreach ($this->headers as $header) {
-      $header = trim($header);
-      if ($header === '') {
-        $request++;
-      }
-      else {
-        if (strpos($header, 'HTTP/') === 0) {
-          $name = ':status';
-          $value = $header;
-        }
-        else {
-          list($name, $value) = explode(':', $header, 2);
-          $name = strtolower($name);
-        }
-        if (isset($headers[$request][$name])) {
-          $headers[$request][$name] .= ',' . trim($value);
-        }
-        else {
-          $headers[$request][$name] = trim($value);
-        }
-      }
-    }
-    if (!$all_requests) {
-      $headers = array_pop($headers);
-    }
+    /** @var \Symfony\Component\BrowserKit\Response $headers */
+    $headers = $this->getSession()->getDriver()->getClient()->getInternalResponse();
     return $headers;
   }
 
@@ -2512,29 +2568,15 @@ abstract class WebTestBase extends TestBase {
    *   The HTTP header value or FALSE if not found.
    */
   protected function drupalGetHeader($name, $all_requests = FALSE) {
-    $name = strtolower($name);
-    $header = FALSE;
-    if ($all_requests) {
-      foreach (array_reverse($this->drupalGetHeaders(TRUE)) as $headers) {
-        if (isset($headers[$name])) {
-          $header = $headers[$name];
-          break;
-        }
-      }
-    }
-    else {
-      $headers = $this->drupalGetHeaders();
-      if (isset($headers[$name])) {
-        $header = $headers[$name];
-      }
-    }
-    return $header;
+    return $this->drupalGetHeaders()->getHeader($name);
   }
 
   /**
    * Gets the current raw HTML of requested page.
    */
   protected function drupalGetContent() {
+    // @todo Refactor to use $this->getSession()->getPage()->getContent() once
+    //   MinkSession has been sub-classed to allow setting content.
     return $this->content;
   }
 
@@ -2584,6 +2626,8 @@ abstract class WebTestBase extends TestBase {
    * to ensure that the function worked properly.
    */
   protected function drupalSetContent($content, $url = 'internal:') {
+    // @todo Subclass MinkSession to include the ability to setPage() for
+    //   internal paths.
     $this->content = $content;
     $this->url = $url;
     $this->plainTextContent = FALSE;
@@ -3077,6 +3121,7 @@ abstract class WebTestBase extends TestBase {
    *   The selected value or FALSE.
    */
   protected function getSelectedItem(\SimpleXMLElement $element) {
+    // @todo Refactor to use Mink.
     foreach ($element->children() as $item) {
       if (isset($item['selected'])) {
         return $item['value'];
@@ -3502,7 +3547,7 @@ abstract class WebTestBase extends TestBase {
    *   Assertion result.
    */
   protected function assertResponse($code, $message = '', $group = 'Browser') {
-    $curl_code = curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE);
+    $curl_code = $this->getSession()->getStatusCode();
     $match = is_array($code) ? in_array($curl_code, $code) : $curl_code == $code;
     return $this->assertTrue($match, $message ? $message : String::format('HTTP response expected !code, actual !curl_code', array('!code' => $code, '!curl_code' => $curl_code)), $group);
   }
@@ -3527,7 +3572,7 @@ abstract class WebTestBase extends TestBase {
    *   Assertion result.
    */
   protected function assertNoResponse($code, $message = '', $group = 'Browser') {
-    $curl_code = curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE);
+    $curl_code = $this->getSession()->getStatusCode();
     $match = is_array($code) ? in_array($curl_code, $code) : $curl_code == $code;
     return $this->assertFalse($match, $message ? $message : String::format('HTTP response not expected !code, actual !curl_code', array('!code' => $code, '!curl_code' => $curl_code)), $group);
   }
