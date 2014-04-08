@@ -1795,7 +1795,7 @@ abstract class WebTestBase extends TestBase {
         $xpath = '//form[@id="' . $form_html_id . '"]' . $xpath;
       }
       $element = $this->xpath($xpath);
-      $element_id = (string) $element[0]['id'];
+      $element_id = (string) $element[0]->getAttribute('id');
       $ajax_settings = $drupal_settings['ajax'][$element_id];
     }
 
@@ -1808,7 +1808,7 @@ abstract class WebTestBase extends TestBase {
     }
     $ajax_html_ids = array();
     foreach ($this->xpath('//*[@id]') as $element) {
-      $ajax_html_ids[] = (string) $element['id'];
+      $ajax_html_ids[] = (string) $element->getAttribute('id');
     }
     if (!empty($ajax_html_ids)) {
       $extra_post['ajax_html_ids'] = implode(' ', $ajax_html_ids);
@@ -2079,7 +2079,7 @@ abstract class WebTestBase extends TestBase {
       if (!empty($refresh)) {
         // Parse the content attribute of the meta tag for the format:
         // "[delay]: URL=[page_to_redirect_to]".
-        if (preg_match('/\d+;\s*URL=(?<url>.*)/i', $refresh[0]['content'], $match)) {
+        if (preg_match('/\d+;\s*URL=(?<url>.*)/i', $refresh[0]->getAttribute('content'), $match)) {
           return $this->drupalGet($this->getAbsoluteUrl(decode_entities($match['url'])));
         }
       }
@@ -2310,7 +2310,7 @@ abstract class WebTestBase extends TestBase {
    *   placeholders in the query. The values may be either strings or numeric
    *   values.
    *
-   * @return array
+   * @return \Behat\Mink\Element\NodeElement[]
    *   The return value of the xpath search. For details on the xpath string
    *   format and return values see the SimpleXML documentation,
    *   http://php.net/manual/function.simplexml-element-xpath.php.
@@ -2467,10 +2467,11 @@ abstract class WebTestBase extends TestBase {
    */
   protected function clickLink($label, $index = 0) {
     $url_before = $this->getUrl();
+    /** @var \Behat\Mink\Element\NodeElement[] $urls */
     $urls = $this->xpath('//a[normalize-space()=:label]', array(':label' => $label));
 
     if (isset($urls[$index])) {
-      $url_target = $this->getAbsoluteUrl($urls[$index]['href']);
+      $url_target = $this->getAbsoluteUrl($urls[$index]->getAttribute('href'));
     }
 
     $this->assertTrue(isset($urls[$index]), String::format('Clicked link %label (@url_target) from @url_before', array('%label' => $label, '@url_target' => $url_target, '@url_before' => $url_before)), 'Browser');
@@ -2545,7 +2546,7 @@ abstract class WebTestBase extends TestBase {
    */
   protected function drupalGetHeaders($all_requests = FALSE) {
     /** @var \Symfony\Component\BrowserKit\Response $headers */
-    $headers = $this->getSession()->getDriver()->getClient()->getInternalResponse();
+    $headers = $this->getSession()->getDriver()->getClient()->getInternalResponse()->getHeaders();
     return $headers;
   }
 
@@ -3075,6 +3076,7 @@ abstract class WebTestBase extends TestBase {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertFieldByXPath($xpath, $value = NULL, $message = '', $group = 'Other') {
+    /** @var \Behat\Mink\Element\NodeElement[] $fields */
     $fields = $this->xpath($xpath);
 
     // If value specified then check array for match.
@@ -3083,7 +3085,7 @@ abstract class WebTestBase extends TestBase {
       $found = FALSE;
       if ($fields) {
         foreach ($fields as $field) {
-          if (isset($field['value']) && $field['value'] == $value) {
+          if ($field->getValue() == $value) {
             // Input element with correct value.
             $found = TRUE;
           }
@@ -3164,7 +3166,7 @@ abstract class WebTestBase extends TestBase {
       $found = FALSE;
       if ($fields) {
         foreach ($fields as $field) {
-          if ($field['value'] == $value) {
+          if ($field->getValue() == $value) {
             $found = TRUE;
           }
         }
@@ -3302,7 +3304,7 @@ abstract class WebTestBase extends TestBase {
    */
   protected function assertFieldChecked($id, $message = '', $group = 'Browser') {
     $elements = $this->xpath('//input[@id=:id]', array(':id' => $id));
-    return $this->assertTrue(isset($elements[0]) && !empty($elements[0]['checked']), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
+    return $this->assertTrue(isset($elements[0]) && $elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
   }
 
   /**
@@ -3324,8 +3326,9 @@ abstract class WebTestBase extends TestBase {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertNoFieldChecked($id, $message = '', $group = 'Browser') {
+    /** @var \Behat\Mink\Element\NodeElement[] $elements */
     $elements = $this->xpath('//input[@id=:id]', array(':id' => $id));
-    return $this->assertTrue(isset($elements[0]) && empty($elements[0]['checked']), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
+    return $this->assertTrue(isset($elements[0]) && !$elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
   }
 
   /**
@@ -3402,8 +3405,8 @@ abstract class WebTestBase extends TestBase {
    * @todo $id is unusable. Replace with $name.
    */
   protected function assertOptionSelected($id, $option, $message = '', $group = 'Browser') {
-    $elements = $this->xpath('//select[@id=:id]//option[@value=:option]', array(':id' => $id, ':option' => $option));
-    return $this->assertTrue(isset($elements[0]) && !empty($elements[0]['selected']), $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
+    $elements = $this->xpath('//select[@id=:id]', array(':id' => $id));
+    return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() == $option, $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
   }
 
   /**
@@ -3427,8 +3430,8 @@ abstract class WebTestBase extends TestBase {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertNoOptionSelected($id, $option, $message = '', $group = 'Browser') {
-    $elements = $this->xpath('//select[@id=:id]//option[@value=:option]', array(':id' => $id, ':option' => $option));
-    return $this->assertTrue(isset($elements[0]) && empty($elements[0]['selected']), $message ? $message : String::format('Option @option for field @id is not selected.', array('@option' => $option, '@id' => $id)), $group);
+    $elements = $this->xpath('//select[@id=:id]', array(':id' => $id));
+    return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() != $option, $message ? $message : String::format('Option @option for field @id is not selected.', array('@option' => $option, '@id' => $id)), $group);
   }
 
   /**

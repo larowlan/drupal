@@ -93,8 +93,8 @@ class ElementsLabelsTest extends WebTestBase {
 
     // Check title attribute for radios and checkboxes.
     $elements = $this->xpath('//div[@id="edit-form-checkboxes-title-attribute"]');
-    $this->assertEqual($elements[0]['title'], 'Checkboxes test' . ' (' . t('Required') . ')', 'Title attribute found.');
+    $this->assertEqual($elements[0]->getAttribute('title'), 'Checkboxes test' . ' (' . t('Required') . ')', 'Title attribute found.');
     $elements = $this->xpath('//div[@id="edit-form-radios-title-attribute"]');
-    $this->assertEqual($elements[0]['title'], 'Radios test' . ' (' . t('Required') . ')', 'Title attribute found.');
+    $this->assertEqual($elements[0]->getAttribute('title'), 'Radios test' . ' (' . t('Required') . ')', 'Title attribute found.');
   }
 }

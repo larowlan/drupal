@@ -190,7 +190,7 @@ class FormTest extends WebTestBase {
     // Check the page for error messages.
     $errors = $this->xpath('//div[contains(@class, "error")]//li');
     foreach ($errors as $error) {
-      $expected_key = array_search($error[0], $expected);
+      $expected_key = array_search($error->getText(), $expected);
       // If the error message is not one of the expected messages, fail.
       if ($expected_key === FALSE) {
         $this->fail(format_string("Unexpected error message: @error", array('@error' => $error[0])));

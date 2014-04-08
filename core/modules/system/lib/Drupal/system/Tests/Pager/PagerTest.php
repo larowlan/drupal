@@ -7,6 +7,7 @@
 
 namespace Drupal\system\Tests\Pager;
 
+use Behat\Mink\Element\NodeElement;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -98,13 +99,13 @@ class PagerTest extends WebTestBase {
       $page++;
       if ($current_page == $page) {
         $this->assertClass($element, 'pager-current', 'Item for current page has .pager-current class.');
-        $this->assertFalse(isset($element->a), 'Item for current page has no link.');
+        $this->assertFalse($element->getTagName() == 'a', 'Item for current page has no link.');
       }
       else {
         $this->assertNoClass($element, 'pager-current', "Item for page $page has no .pager-current class.");
         $this->assertClass($element, 'pager-item', "Item for page $page has .pager-item class.");
-        $this->assertTrue($element->a, "Link to page $page found.");
-        $this->assertNoClass($element->a, 'active', "Link to page $page is not active.");
+        $this->assertTrue($element->getTagName() == 'a', "Link to page $page found.");
+        $this->assertNoClass($element, 'active', "Link to page $page is not active.");
       }
       unset($elements[--$page]);
     }
@@ -114,57 +115,57 @@ class PagerTest extends WebTestBase {
     // Verify first/previous and next/last items and links.
     if (isset($first)) {
       $this->assertClass($first, 'pager-first', 'Item for first page has .pager-first class.');
-      $this->assertTrue($first->a, 'Link to first page found.');
-      $this->assertNoClass($first->a, 'active', 'Link to first page is not active.');
+      $this->assertTrue($first->getTagName() == 'a', 'Link to first page found.');
+      $this->assertNoClass($first, 'active', 'Link to first page is not active.');
     }
     if (isset($previous)) {
       $this->assertClass($previous, 'pager-previous', 'Item for first page has .pager-previous class.');
-      $this->assertTrue($previous->a, 'Link to previous page found.');
-      $this->assertNoClass($previous->a, 'active', 'Link to previous page is not active.');
+      $this->assertTrue($previous->getTagName() == 'a', 'Link to previous page found.');
+      $this->assertNoClass($previous, 'active', 'Link to previous page is not active.');
     }
     if (isset($next)) {
       $this->assertClass($next, 'pager-next', 'Item for next page has .pager-next class.');
-      $this->assertTrue($next->a, 'Link to next page found.');
-      $this->assertNoClass($next->a, 'active', 'Link to next page is not active.');
+      $this->assertTrue($next->getTagName() == 'a', 'Link to next page found.');
+      $this->assertNoClass($next, 'active', 'Link to next page is not active.');
     }
     if (isset($last)) {
       $this->assertClass($last, 'pager-last', 'Item for last page has .pager-last class.');
-      $this->assertTrue($last->a, 'Link to last page found.');
-      $this->assertNoClass($last->a, 'active', 'Link to last page is not active.');
+      $this->assertTrue($last->getTagName() == 'a', 'Link to last page found.');
+      $this->assertNoClass($last, 'active', 'Link to last page is not active.');
     }
   }
 
   /**
    * Asserts that an element has a given class.
    *
-   * @param \SimpleXMLElement $element
+   * @param \Behat\Mink\Element\NodeElement $element
    *   The element to test.
    * @param string $class
    *   The class to assert.
    * @param string $message
    *   (optional) A verbose message to output.
    */
-  protected function assertClass(\SimpleXMLElement $element, $class, $message = NULL) {
+  protected function assertClass(NodeElement $element, $class, $message = NULL) {
     if (!isset($message)) {
       $message = "Class .$class found.";
     }
-    $this->assertTrue(strpos($element['class'], $class) !== FALSE, $message);
+    $this->assertTrue(strpos($element->getAttribute('class'), $class) !== FALSE, $message);
   }
 
   /**
    * Asserts that an element does not have a given class.
    *
-   * @param \SimpleXMLElement $element
+   * @param \Behat\Mink\Element\NodeElement $element
    *   The element to test.
    * @param string $class
    *   The class to assert.
    * @param string $message
    *   (optional) A verbose message to output.
    */
-  protected function assertNoClass(\SimpleXMLElement $element, $class, $message = NULL) {
+  protected function assertNoClass(NodeElement $element, $class, $message = NULL) {
     if (!isset($message)) {
       $message = "Class .$class not found.";
     }
-    $this->assertTrue(strpos($element['class'], $class) === FALSE, $message);
+    $this->assertTrue(strpos($element->getAttribute('class'), $class) === FALSE, $message);
   }
 }

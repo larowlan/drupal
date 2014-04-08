@@ -96,9 +96,11 @@ class TriggeringElementTest extends WebTestBase {
     // a little trickery here, to work around the safeguards in drupalPostForm(): by
     // renaming the text field that is in the form to 'button1', we can get the
     // data we want into \Drupal::request()->request.
+    // @todo re-instate this somehow, but doesn't seem supported with Mink.
     $elements = $this->xpath('//form[@id="' . $form_html_id . '"]//input[@name="text"]');
-    $elements[0]['name'] = 'button1';
-    $this->drupalPostForm(NULL, array('button1' => 'button1'), NULL, array(), array(), $form_html_id);
+    /*$elements[0]['name'] = 'button1';
+    $this->drupalPostForm(NULL, array('button1' => 'button1'), NULL, array(), array(), $form_html_id);*/
+    $this->fail('Not supported with mink');
 
     // Ensure that $form_state['triggering_element'] was not set to the
     // restricted button. Do this with both a negative and positive assertion,

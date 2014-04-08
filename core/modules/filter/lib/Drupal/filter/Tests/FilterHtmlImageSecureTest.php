@@ -142,12 +142,12 @@ class FilterHtmlImageSecureTest extends WebTestBase {
       foreach ($this->xpath('//img[@testattribute="' . hash('sha256', $image) . '"]') as $element) {
         $found = TRUE;
         if ($converted == $red_x_image) {
-          $this->assertEqual((string) $element['src'], $red_x_image);
-          $this->assertEqual((string) $element['alt'], $alt_text);
-          $this->assertEqual((string) $element['title'], $title_text);
+          $this->assertEqual($element->getAttribute('src'), $red_x_image);
+          $this->assertEqual($element->getAttribute('alt'), $alt_text);
+          $this->assertEqual($element->getAttribute('title'), $title_text);
         }
         else {
-          $this->assertEqual((string) $element['src'], $converted);
+          $this->assertEqual($element->getAttribute('src'), $converted);
         }
       }
       $this->assertTrue($found, format_string('@image was found.', array('@image' => $image)));

@@ -151,7 +151,7 @@ class FilterFormatAccessTest extends WebTestBase {
     ));
     $options = array();
     foreach ($elements as $element) {
-      $options[(string) $element['value']] = $element;
+      $options[$element->getValue()] = $element;
     }
     $this->assertTrue(isset($options[$this->allowed_format->format]), 'The allowed text format appears as an option when adding a new node.');
     $this->assertFalse(isset($options[$this->disallowed_format->format]), 'The disallowed text format does not appear as an option when adding a new node.');

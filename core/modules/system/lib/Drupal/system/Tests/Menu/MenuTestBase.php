@@ -139,9 +139,9 @@ abstract class MenuTestBase extends WebTestBase {
     if (!empty($elements)) {
       foreach ($elements as $element) {
         $parts[] = array(
-          'text' => (string) $element,
-          'href' => (string) $element['href'],
-          'title' => (string) $element['title'],
+          'text' => $element->getText(),
+          'href' => $element->getAttribute('href'),
+          'title' => $element->getAttribute('title'),
         );
       }
     }

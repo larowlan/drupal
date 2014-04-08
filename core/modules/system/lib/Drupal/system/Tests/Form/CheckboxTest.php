@@ -78,16 +78,16 @@ class CheckboxTest extends WebTestBase {
     $this->drupalPostForm('form-test/checkboxes-zero/0', array(), 'Save');
     $checkboxes = $this->xpath('//input[@type="checkbox"]');
     foreach ($checkboxes as $checkbox) {
-      $checked = isset($checkbox['checked']);
-      $name = (string) $checkbox['name'];
+      $checked = $checkbox->isChecked();
+      $name = $checkbox->getAttribute('name');
       $this->assertIdentical($checked, $name == 'checkbox_zero_default[0]' || $name == 'checkbox_string_zero_default[0]', format_string('Checkbox %name correctly checked', array('%name' => $name)));
     }
     $edit = array('checkbox_off[0]' => '0');
     $this->drupalPostForm('form-test/checkboxes-zero/0', $edit, 'Save');
     $checkboxes = $this->xpath('//input[@type="checkbox"]');
     foreach ($checkboxes as $checkbox) {
-      $checked = isset($checkbox['checked']);
-      $name = (string) $checkbox['name'];
+      $checked = $checkbox->isChecked();
+      $name = $checkbox->getAttribute('name');
       $this->assertIdentical($checked, $name == 'checkbox_off[0]' || $name == 'checkbox_zero_default[0]' || $name == 'checkbox_string_zero_default[0]', format_string('Checkbox %name correctly checked', array('%name' => $name)));
     }
   }

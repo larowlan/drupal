@@ -502,7 +502,7 @@ class LocaleTranslationUiTest extends WebTestBase {
 
     // Submit the translations without changing the translation.
     $textarea = current($this->xpath('//textarea'));
-    $lid = (string) $textarea[0]['name'];
+    $lid = $textarea->getAttribute('name');
     $edit = array(
       $lid => $translation->getString(),
     );
@@ -520,7 +520,7 @@ class LocaleTranslationUiTest extends WebTestBase {
 
     // Submit the translations with a new translation.
     $textarea = current($this->xpath('//textarea'));
-    $lid = (string) $textarea[0]['name'];
+    $lid = $textarea->getAttribute('name');
     $edit = array(
       $lid => $this->randomName(100),
     );

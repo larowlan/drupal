@@ -155,7 +155,7 @@ class NodeAccessBaseTableTest extends NodeTestBase {
       $this->nids_visible = array();
       foreach ($this->xpath("//a[text()='Read more']") as $link) {
         // See also testTranslationRendering() in NodeTranslationUITest.
-        $this->assertTrue(preg_match('|node/(\d+)$|', (string) $link['href'], $matches), 'Read more points to a node');
+        $this->assertTrue(preg_match('|node/(\d+)$|', $link->getAttribute('href'), $matches), 'Read more points to a node');
         $this->nids_visible[$matches[1]] = TRUE;
       }
       foreach ($this->nodesByUser as $uid => $data) {

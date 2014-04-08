@@ -64,7 +64,7 @@ class ElementTest extends WebTestBase {
       $expected_values = array('0', 'foo', '1', 'bar', '>');
       foreach ($elements as $element) {
         $expected = array_shift($expected_values);
-        $this->assertIdentical((string) $element['value'], $expected);
+        $this->assertIdentical($element->getValue(), $expected);
       }
     }
 
@@ -78,7 +78,7 @@ class ElementTest extends WebTestBase {
       $expected_values = array('0', 'foo', 'bar', '>', '1');
       foreach ($elements as $element) {
         $expected = array_shift($expected_values);
-        $this->assertIdentical((string) $element['value'], $expected);
+        $this->assertIdentical($element->getValue(), $expected);
       }
     }
     // Verify that custom #description properties are output.
