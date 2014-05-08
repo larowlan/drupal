@@ -30,7 +30,7 @@ class ConfigTranslationListUiTest extends WebTestBase {
     'custom_block',
     'field',
     'field_ui',
-    'menu',
+    'menu_ui',
     'node',
     'shortcut',
     'taxonomy',
@@ -73,7 +73,7 @@ class ConfigTranslationListUiTest extends WebTestBase {
       'administer account settings',
       'administer languages',
       'administer image styles',
-      'administer responsive image',
+      'administer responsive images',
       'translate configuration',
     );
 

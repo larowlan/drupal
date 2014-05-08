@@ -8,14 +8,15 @@
 namespace Drupal\simpletest;
 
 use Behat\Mink\Element\NodeElement;
+use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\Crypt;
-use Drupal\Component\Utility\Json;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\ConnectionNotDefinedException;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\AnonymousUserSession;
@@ -28,7 +29,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Behat\Mink\Mink;
 use Behat\Mink\Session;
 use Behat\Mink\Driver\GoutteDriver;
-use Guzzle\Http\Client as GuzzleClient;
+use GuzzleHttp\Client as GuzzleClient;
 
 /**
  * Test case for typical Drupal tests.
@@ -179,6 +180,11 @@ abstract class WebTestBase extends TestBase {
    * The kernel used in this test.
    */
   protected $kernel;
+
+  /**
+   * The config directories used in this test.
+   */
+  protected $configDirectories = array();
 
   /**
    * Cookies to set on curl requests.
@@ -454,11 +460,54 @@ abstract class WebTestBase extends TestBase {
 
     $this->assertEqual($status, SAVED_NEW, String::format('Created content type %type.', array('%type' => $type->id())));
 
-    // Reset permissions so that permissions for this content type are
-    // available.
-    $this->checkPermissions(array(), TRUE);
-
     return $type;
+  }
+
+  /**
+   * Builds the renderable view of an entity.
+   *
+   * Entities postpone the composition of their renderable arrays to #pre_render
+   * functions in order to maximize cache efficacy. This means that the full
+   * rendable array for an entity is constructed in drupal_render(). Some tests
+   * require the complete renderable array for an entity outside of the
+   * drupal_render process in order to verify the presence of specific values.
+   * This method isolates the steps in the render process that produce an
+   * entity's renderable array.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity to prepare a renderable array for.
+   * @param string $view_mode
+   *   (optional) The view mode that should be used to build the entity.
+   * @param null $langcode
+   *   (optional) For which language the entity should be prepared, defaults to
+   *   the current content language.
+   * @param bool $reset
+   *   (optional) Whether to clear the cache for this entity.
+   * @return array
+   *
+   * @see drupal_render()
+   */
+  protected function drupalBuildEntityView(EntityInterface $entity, $view_mode = 'full', $langcode = NULL, $reset = FALSE) {
+    $render_controller = $this->container->get('entity.manager')->getViewBuilder($entity->getEntityTypeId());
+    if ($reset) {
+      $render_controller->resetCache(array($entity->id()));
+    }
+    $elements = $render_controller->view($entity, $view_mode, $langcode);
+    // If the default values for this element have not been loaded yet, populate
+    // them.
+    if (isset($elements['#type']) && empty($elements['#defaults_loaded'])) {
+      $elements += element_info($elements['#type']);
+    }
+
+    // Make any final changes to the element before it is rendered. This means
+    // that the $element or the children can be altered or corrected before the
+    // element is rendered into the final text.
+    if (isset($elements['#pre_render'])) {
+      foreach ($elements['#pre_render'] as $callable) {
+        $elements = call_user_func($callable, $elements);
+      }
+    }
+    return $elements;
   }
 
   /**
@@ -667,7 +716,7 @@ abstract class WebTestBase extends TestBase {
   }
 
   /**
-   * Internal helper function; Create a role with specified permissions.
+   * Creates a role with specified permissions.
    *
    * @param array $permissions
    *   Array of permission names to assign to role.
@@ -735,23 +784,16 @@ abstract class WebTestBase extends TestBase {
   }
 
   /**
-   * Check to make sure that the array of permissions are valid.
+   * Checks whether a given list of permission names is valid.
    *
-   * @param $permissions
-   *   Permissions to check.
-   * @param $reset
-   *   Reset cached available permissions.
+   * @param array $permissions
+   *   The permission names to check.
    *
-   * @return
-   *   TRUE or FALSE depending on whether the permissions are valid.
+   * @return bool
+   *   TRUE if the permissions are valid, FALSE otherwise.
    */
-  protected function checkPermissions(array $permissions, $reset = FALSE) {
-    $available = &drupal_static(__FUNCTION__);
-
-    if (!isset($available) || $reset) {
-      $available = array_keys(\Drupal::moduleHandler()->invokeAll('permission'));
-    }
-
+  protected function checkPermissions(array $permissions) {
+    $available = array_keys(\Drupal::moduleHandler()->invokeAll('permission'));
     $valid = TRUE;
     foreach ($permissions as $permission) {
       if (!in_array($permission, $available)) {
@@ -824,8 +866,8 @@ abstract class WebTestBase extends TestBase {
     if (!isset($account->session_id)) {
       return FALSE;
     }
-    // @see _drupal_session_read(). The session ID is hashed before being stored
-    // in the database.
+    // The session ID is hashed before being stored in the database.
+    // @see \Drupal\Core\Session\SessionHandler::read()
     return (bool) db_query("SELECT sid FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.sid = :sid", array(':sid' => Crypt::hashBase64($account->session_id)))->fetchField();
   }
 
@@ -970,6 +1012,18 @@ abstract class WebTestBase extends TestBase {
       ->set('interface.default', 'test_mail_collector')
       ->save();
 
+    // By default, verbosely display all errors and disable all production
+    // environment optimizations for all tests to avoid needless overhead and
+    // ensure a sane default experience for test authors.
+    // @see https://drupal.org/node/2259167
+    \Drupal::config('system.logging')
+      ->set('error_level', 'verbose')
+      ->save();
+    \Drupal::config('system.performance')
+      ->set('css.preprocess', FALSE)
+      ->set('js.preprocess', FALSE)
+      ->save();
+
     // Restore the original Simpletest batch.
     $batch = &batch_get();
     $batch = $this->originalBatch;
@@ -1019,6 +1073,7 @@ abstract class WebTestBase extends TestBase {
   protected function installParameters() {
     $connection_info = Database::getConnectionInfo();
     $driver = $connection_info['default']['driver'];
+    $connection_info['default']['prefix'] = $connection_info['default']['prefix']['default'];
     unset($connection_info['default']['driver']);
     unset($connection_info['default']['namespace']);
     unset($connection_info['default']['pdo']);
@@ -1139,10 +1194,52 @@ abstract class WebTestBase extends TestBase {
   }
 
   /**
-   * Overrides \Drupal\simpletest\TestBase::rebuildContainer().
+   * Rebuilds \Drupal::getContainer().
+   *
+   * Use this to build a new kernel and service container. For example, when the
+   * list of enabled modules is changed via the internal browser, in which case
+   * the test process still contains an old kernel and service container with an
+   * old module list.
+   *
+   * @see TestBase::prepareEnvironment()
+   * @see TestBase::restoreEnvironment()
+   *
+   * @todo Fix http://drupal.org/node/1708692 so that module enable/disable
+   *   changes are immediately reflected in \Drupal::getContainer(). Until then,
+   *   tests can invoke this workaround when requiring services from newly
+   *   enabled modules to be immediately available in the same request.
    */
   protected function rebuildContainer($environment = 'prod') {
-    parent::rebuildContainer($environment);
+    // Preserve the request object after the container rebuild.
+    $request = \Drupal::request();
+    // When called from InstallerTestBase, the current container is the minimal
+    // container from TestBase::prepareEnvironment(), which does not contain a
+    // request stack.
+    if (\Drupal::getContainer()->initialized('request_stack')) {
+      $request_stack = \Drupal::service('request_stack');
+    }
+
+    $this->kernel = new DrupalKernel($environment, drupal_classloader(), FALSE);
+    $this->kernel->boot();
+    // DrupalKernel replaces the container in \Drupal::getContainer() with a
+    // different object, so we need to replace the instance on this test class.
+    $this->container = \Drupal::getContainer();
+    // The current user is set in TestBase::prepareEnvironment().
+    $this->container->set('request', $request);
+    if (isset($request_stack)) {
+      $this->container->set('request_stack', $request_stack);
+    }
+    else {
+      $this->container->get('request_stack')->push($request);
+    }
+    $this->container->get('current_user')->setAccount(\Drupal::currentUser());
+
+    // The request context is normally set by the router_listener from within
+    // its KernelEvents::REQUEST listener. In the simpletest parent site this
+    // event is not fired, therefore it is necessary to updated the request
+    // context manually here.
+    $this->container->get('router.request_context')->fromRequest($request);
+
     // Make sure the url generator has a request object, otherwise calls to
     // $this->drupalGet() will fail.
     $this->prepareRequestForGenerator();
@@ -1162,7 +1259,6 @@ abstract class WebTestBase extends TestBase {
 
     // Reset static variables and reload permissions.
     $this->refreshVariables();
-    $this->checkPermissions(array(), TRUE);
     $this->resetMink();
   }
 
@@ -2246,6 +2342,8 @@ abstract class WebTestBase extends TestBase {
         }
       }
     }
+    // An empty name means the value is not sent.
+    unset($post['']);
     return $submit_matches;
   }
 

@@ -71,23 +71,6 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
 
     $token = $this->generator->get('bar');
     $this->assertTrue($this->generator->validate($token, 'bar'));
-
-    // Check the skip_anonymous option with both a anonymous user and a real
-    // user.
-    $account = $this->getMock('Drupal\Core\Session\AccountInterface');
-    $account->expects($this->once())
-      ->method('isAnonymous')
-      ->will($this->returnValue(TRUE));
-    $this->generator->setCurrentUser($account);
-    $this->assertTrue($this->generator->validate($token, 'foo', TRUE));
-
-    $account = $this->getMock('Drupal\Core\Session\AccountInterface');
-    $account->expects($this->once())
-      ->method('isAnonymous')
-      ->will($this->returnValue(FALSE));
-    $this->generator->setCurrentUser($account);
-
-    $this->assertFalse($this->generator->validate($token, 'foo', TRUE));
   }
 
   /**
@@ -101,6 +84,9 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
    * @dataProvider providerTestValidateParameterTypes
    */
   public function testValidateParameterTypes($token, $value) {
+    // Ensure that there is a valid token seed on the session.
+    $ignored_token = $this->generator->get();
+
     // The following check might throw PHP fatals and notices, so we disable
     // error assertions.
     set_error_handler(function () {return TRUE;});
@@ -134,6 +120,9 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
    * @expectedException InvalidArgumentException
    */
   public function testInvalidParameterTypes($token, $value = '') {
+    // Ensure that there is a valid token seed on the session.
+    $ignored_token = $this->generator->get();
+
     $this->generator->validate($token, $value);
   }
 

@@ -10,7 +10,7 @@ namespace Drupal\config_import_test;
 use Drupal\Core\Config\ConfigCrudEvent;
 use Drupal\Core\Config\ConfigEvents;
 use Drupal\Core\Config\ConfigImporterEvent;
-use Drupal\Core\KeyValueStore\StateInterface;
+use Drupal\Core\State\StateInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
@@ -21,14 +21,14 @@ class EventSubscriber implements EventSubscriberInterface {
   /**
    * The key value store.
    *
-   * @var \Drupal\Core\KeyValueStore\StateInterface
+   * @var \Drupal\Core\State\StateInterface
    */
   protected $state;
 
   /**
    * Constructs the event subscriber.
    *
-   * @param \Drupal\Core\KeyValueStore\StateInterface $state
+   * @param \Drupal\Core\State\StateInterface $state
    *   The key value store.
    */
   public function __construct(StateInterface $state) {
@@ -44,7 +44,11 @@ class EventSubscriber implements EventSubscriberInterface {
    * @throws \Drupal\Core\Config\ConfigNameException
    */
   public function onConfigImporterValidate(ConfigImporterEvent $event) {
-
+    if ($this->state->get('config_import_test.config_import_validate_fail', FALSE)) {
+      // Log more than one error to test multiple validation errors.
+      $event->getConfigImporter()->logError('Config import validate error 1.');
+      $event->getConfigImporter()->logError('Config import validate error 2.');
+    }
   }
 
   /**
@@ -101,6 +105,7 @@ class EventSubscriber implements EventSubscriberInterface {
   static function getSubscribedEvents() {
     $events[ConfigEvents::SAVE][] = array('onConfigSave', 40);
     $events[ConfigEvents::DELETE][] = array('onConfigDelete', 40);
+    $events[ConfigEvents::IMPORT_VALIDATE] = array('onConfigImporterValidate');
     return $events;
   }
 

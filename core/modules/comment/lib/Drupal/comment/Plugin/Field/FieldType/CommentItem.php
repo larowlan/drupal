@@ -7,7 +7,7 @@
 
 namespace Drupal\comment\Plugin\Field\FieldType;
 
-use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\Field\FieldItemBase;
 use Drupal\Core\Session\AnonymousUserSession;
@@ -51,7 +51,7 @@ class CommentItem extends FieldItemBase implements CommentItemInterface {
   /**
    * {@inheritdoc}
    */
-  public static function propertyDefinitions(FieldDefinitionInterface $field_definition) {
+  public static function propertyDefinitions(FieldStorageDefinitionInterface $field_definition) {
     $properties['status'] = DataDefinition::create('integer')
       ->setLabel(t('Comment status value'));
 
@@ -79,7 +79,7 @@ class CommentItem extends FieldItemBase implements CommentItemInterface {
   /**
    * {@inheritdoc}
    */
-  public static function schema(FieldDefinitionInterface $field_definition) {
+  public static function schema(FieldStorageDefinitionInterface $field_definition) {
     return array(
       'columns' => array(
         'status' => array(
@@ -126,10 +126,13 @@ class CommentItem extends FieldItemBase implements CommentItemInterface {
       '#description' => t('Show comment replies in a threaded list.'),
     );
     $element['comment']['per_page'] = array(
-      '#type' => 'select',
+      '#type' => 'number',
       '#title' => t('Comments per page'),
       '#default_value' => $settings['per_page'],
-      '#options' => _comment_per_page(),
+      '#required' => TRUE,
+      '#min' => 10,
+      '#max' => 1000,
+      '#step' => 10,
     );
     $element['comment']['anonymous'] = array(
       '#type' => 'select',

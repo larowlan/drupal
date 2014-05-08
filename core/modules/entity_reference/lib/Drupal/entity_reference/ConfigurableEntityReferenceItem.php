@@ -8,12 +8,14 @@
 namespace Drupal\entity_reference;
 
 use Drupal\Component\Utility\String;
-use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem;
+use Drupal\Core\Form\OptGroup;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\TypedData\AllowedValuesInterface;
 use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\Validation\Plugin\Validation\Constraint\AllowedValuesConstraint;
+use Drupal\field\FieldConfigInterface;
 
 /**
  * Alternative plugin implementation of the 'entity_reference' field type.
@@ -68,7 +70,7 @@ class ConfigurableEntityReferenceItem extends EntityReferenceItem implements All
   public function getSettableValues(AccountInterface $account = NULL) {
     // Flatten options first, because "settable options" may contain group
     // arrays.
-    $flatten_options = \Drupal::formBuilder()->flattenOptions($this->getSettableOptions($account));
+    $flatten_options = OptGroup::flattenOptions($this->getSettableOptions($account));
     return array_keys($flatten_options);
   }
 
@@ -97,7 +99,7 @@ class ConfigurableEntityReferenceItem extends EntityReferenceItem implements All
   /**
    * {@inheritdoc}
    */
-  public static function propertyDefinitions(FieldDefinitionInterface $field_definition) {
+  public static function propertyDefinitions(FieldStorageDefinitionInterface $field_definition) {
     $settings = $field_definition->getSettings();
     $target_type = $settings['target_type'];
 
@@ -136,13 +138,13 @@ class ConfigurableEntityReferenceItem extends EntityReferenceItem implements All
   /**
    * {@inheritdoc}
    */
-  public static function schema(FieldDefinitionInterface $field_definition) {
+  public static function schema(FieldStorageDefinitionInterface $field_definition) {
     $schema = parent::schema($field_definition);
 
     $target_type = $field_definition->getSetting('target_type');
     $target_type_info = \Drupal::entityManager()->getDefinition($target_type);
 
-    if ($target_type_info->isSubclassOf('\Drupal\Core\Entity\ContentEntityInterface')) {
+    if ($target_type_info->isSubclassOf('\Drupal\Core\Entity\ContentEntityInterface') && $field_definition instanceof FieldConfigInterface) {
       $schema['columns']['revision_id'] = array(
         'description' => 'The revision ID of the target entity.',
         'type' => 'int',

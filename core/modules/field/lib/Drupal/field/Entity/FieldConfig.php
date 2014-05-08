@@ -9,10 +9,8 @@ namespace Drupal\field\Entity;
 
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
-use Drupal\Core\Field\FieldDefinition;
-use Drupal\Core\Field\TypedData\FieldItemDataDefinition;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\field\FieldException;
 use Drupal\field\FieldConfigInterface;
 
@@ -102,10 +100,10 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
    * The field cardinality.
    *
    * The maximum number of values the field can hold. Possible values are
-   * positive integers or FieldDefinitionInterface::CARDINALITY_UNLIMITED.
-   * Defaults to 1.
+   * positive integers or
+   * FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED. Defaults to 1.
    *
-   * @var integer
+   * @var int
    */
   public $cardinality = 1;
 
@@ -180,13 +178,6 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
    * @see \Drupal\Core\TypedData\ComplexDataDefinitionInterface::getPropertyDefinitions()
    */
   protected $propertyDefinitions;
-
-  /**
-   * The data definition of a field item.
-   *
-   * @var \Drupal\Core\TypedData\DataDefinition
-   */
-  protected $itemDefinition;
 
   /**
    * Constructs a FieldConfig object.
@@ -447,6 +438,7 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
     foreach ($fields as $field) {
       if (!$field->deleted) {
         \Drupal::entityManager()->getStorage($field->entity_type)->onFieldDelete($field);
+        $field->deleted = TRUE;
       }
     }
 
@@ -539,8 +531,7 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
     $field_type_manager = \Drupal::service('plugin.manager.field.field_type');
 
     $settings = $field_type_manager->getDefaultSettings($this->type);
-    $instance_settings = $field_type_manager->getDefaultInstanceSettings($this->type);
-    return $this->settings + $settings + $instance_settings;
+    return $this->settings + $settings;
   }
 
   /**
@@ -630,7 +621,7 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
    */
   public function isMultiple() {
     $cardinality = $this->getCardinality();
-    return ($cardinality == static::CARDINALITY_UNLIMITED) || ($cardinality > 1);
+    return ($cardinality == FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED) || ($cardinality > 1);
   }
 
   /**
@@ -638,26 +629,6 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
    */
   public function isLocked() {
     return $this->locked;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getDefaultValue(EntityInterface $entity) { }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function isDisplayConfigurable($context) {
-    return TRUE;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getDisplayOptions($display_context) {
-    // Hide configurable fields by default.
-    return array('type' => 'hidden');
   }
 
   /**
@@ -686,36 +657,63 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
   /**
    * Determines whether a field has any data.
    *
-   * @return
+   * @return bool
    *   TRUE if the field has data for any entity; FALSE otherwise.
    */
   public function hasData() {
-    if ($this->getBundles()) {
-      $storage_details = $this->getSchema();
-      $columns = array_keys($storage_details['columns']);
-      $factory = \Drupal::service('entity.query');
-      // Entity Query throws an exception if there is no base table.
-      $entity_type = \Drupal::entityManager()->getDefinition($this->entity_type);
-      if (!$entity_type->getBaseTable()) {
-        return FALSE;
+    return $this->entityCount(TRUE);
+  }
+
+  /**
+   * Determines the number of entities that have field data.
+   *
+   * @param bool $as_bool
+   *   (Optional) Optimises query for hasData(). Defaults to FALSE.
+   *
+   * @return bool|int
+   *   The number of entities that have field data. If $as_bool parameter is
+   *   TRUE then the value will either be TRUE or FALSE.
+   */
+  public function entityCount($as_bool = FALSE) {
+    $count = 0;
+    $factory = \Drupal::service('entity.query');
+    $entity_type = \Drupal::entityManager()->getDefinition($this->entity_type);
+    // Entity Query throws an exception if there is no base table.
+    if ($entity_type->getBaseTable()) {
+      if ($this->deleted) {
+        $query = $factory->get($this->entity_type)
+          ->condition('id:' . $this->uuid() . '.deleted', 1);
       }
-      $query = $factory->get($this->entity_type);
-      $group = $query->orConditionGroup();
-      foreach ($columns as $column) {
-        $group->exists($this->name . '.' . $column);
+      elseif ($this->getBundles()) {
+        $storage_details = $this->getSchema();
+        $columns = array_keys($storage_details['columns']);
+        $query = $factory->get($this->entity_type);
+        $group = $query->orConditionGroup();
+        foreach ($columns as $column) {
+          $group->exists($this->name . '.' . $column);
+        }
+        $query = $query->condition($group);
       }
-      $result = $query
-        ->condition($group)
-        ->count()
-        ->accessCheck(FALSE)
-        ->range(0, 1)
-        ->execute();
-      if ($result) {
-        return TRUE;
+
+      if (isset($query)) {
+        $query
+          ->count()
+          ->accessCheck(FALSE);
+        // If we are performing the query just to check if the field has data
+        // limit the number of rows returned by the subquery.
+        if ($as_bool) {
+          $query->range(0, 1);
+        }
+        $count = $query->execute();
       }
     }
 
-    return FALSE;
+    if ($as_bool) {
+      return (bool) $count;
+    }
+    else {
+      return (int) $count;
+    }
   }
 
   /**
@@ -742,62 +740,6 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
   /**
    * {@inheritdoc}
    */
-  public static function createFromDataType($type) {
-    // Forward to the field definition class for creating new data definitions
-    // via the typed manager.
-    return FieldDefinition::createFromDataType($type);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function createFromItemType($item_type) {
-    // Forward to the field definition class for creating new data definitions
-    // via the typed manager.
-    return FieldDefinition::createFromItemType($item_type);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getDataType() {
-    return 'list';
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function isList() {
-    return TRUE;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function isReadOnly() {
-    return FALSE;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function isComputed() {
-    return FALSE;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getClass() {
-    // Derive list class from the field type.
-    $type_definition = \Drupal::service('plugin.manager.field.field_type')
-      ->getDefinition($this->getType());
-    return $type_definition['list_class'];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function getConstraints() {
     return array();
   }
@@ -807,17 +749,6 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
    */
   public function getConstraint($constraint_name) {
     return NULL;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getItemDefinition() {
-    if (!isset($this->itemDefinition)) {
-      $this->itemDefinition = FieldItemDataDefinition::create($this)
-        ->setSettings($this->getSettings());
-    }
-    return $this->itemDefinition;
   }
 
   /**
@@ -860,19 +791,11 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
 
   /**
    * Helper to retrieve the field item class.
-   *
-   * @todo: Remove once getClass() adds in defaults. See
-   * https://drupal.org/node/2116341.
    */
   protected function getFieldItemClass() {
-    if ($class = $this->getItemDefinition()->getClass()) {
-      return $class;
-    }
-    else {
-      $type_definition = \Drupal::typedDataManager()
-        ->getDefinition($this->getItemDefinition()->getDataType());
-      return $type_definition['class'];
-    }
+    $type_definition = \Drupal::typedDataManager()
+      ->getDefinition('field_item:' . $this->getType());
+    return $type_definition['class'];
   }
 
 }

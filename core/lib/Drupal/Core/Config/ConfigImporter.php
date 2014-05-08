@@ -11,9 +11,12 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ThemeHandlerInterface;
 use Drupal\Component\Utility\String;
 use Drupal\Core\Config\Entity\ImportableEntityStorageInterface;
+use Drupal\Core\Config\ConfigEvents;
 use Drupal\Core\DependencyInjection\DependencySerialization;
 use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Lock\LockBackendInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\StringTranslation\TranslationInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -36,6 +39,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  * @see \Drupal\Core\Config\ConfigImporterEvent
  */
 class ConfigImporter extends DependencySerialization {
+  use StringTranslationTrait;
 
   /**
    * The name used to identify the lock.
@@ -127,6 +131,31 @@ class ConfigImporter extends DependencySerialization {
   protected $processedSystemTheme = FALSE;
 
   /**
+   * A log of any errors encountered.
+   *
+   * If errors are logged during the validation event the configuration
+   * synchronization will not occur. If errors occur during an import then best
+   * efforts are made to complete the synchronization.
+   *
+   * @var array
+   */
+  protected $errors = array();
+
+  /**
+   * The total number of extensions to process.
+   *
+   * @var int
+   */
+  protected $totalExtensionsToProcess = 0;
+
+  /**
+   * The total number of configuration objects to process.
+   *
+   * @var int
+   */
+  protected $totalConfigurationToProcess = 0;
+
+  /**
    * Constructs a configuration import object.
    *
    * @param \Drupal\Core\Config\StorageComparerInterface $storage_comparer
@@ -144,8 +173,10 @@ class ConfigImporter extends DependencySerialization {
    *   The module handler
    * @param \Drupal\Core\Extension\ThemeHandlerInterface $theme_handler
    *   The theme handler
+   * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
+   *   The string translation service.
    */
-  public function __construct(StorageComparerInterface $storage_comparer, EventDispatcherInterface $event_dispatcher, ConfigManagerInterface $config_manager, LockBackendInterface $lock, TypedConfigManagerInterface $typed_config, ModuleHandlerInterface $module_handler, ThemeHandlerInterface $theme_handler) {
+  public function __construct(StorageComparerInterface $storage_comparer, EventDispatcherInterface $event_dispatcher, ConfigManagerInterface $config_manager, LockBackendInterface $lock, TypedConfigManagerInterface $typed_config, ModuleHandlerInterface $module_handler, ThemeHandlerInterface $theme_handler, TranslationInterface $string_translation) {
     $this->storageComparer = $storage_comparer;
     $this->eventDispatcher = $event_dispatcher;
     $this->configManager = $config_manager;
@@ -153,8 +184,29 @@ class ConfigImporter extends DependencySerialization {
     $this->typedConfigManager = $typed_config;
     $this->moduleHandler = $module_handler;
     $this->themeHandler = $theme_handler;
+    $this->stringTranslation = $string_translation;
     $this->processedConfiguration = $this->storageComparer->getEmptyChangelist();
     $this->processedExtensions = $this->getEmptyExtensionsProcessedList();
+  }
+
+  /**
+   * Logs an error message.
+   *
+   * @param string $message
+   *   The message to log.
+   */
+  public function logError($message) {
+    $this->errors[] = $message;
+  }
+
+  /**
+   * Returns error messages created while running the import.
+   *
+   * @return array
+   *   List of messages.
+   */
+  public function getErrors() {
+    return $this->errors;
   }
 
   /**
@@ -207,12 +259,12 @@ class ConfigImporter extends DependencySerialization {
    *
    * @param array $ops
    *   The operations to check for changes. Defaults to all operations, i.e.
-   *   array('delete', 'create', 'update').
+   *   array('delete', 'create', 'update', 'rename').
    *
    * @return bool
    *   TRUE if there are changes to process and FALSE if not.
    */
-  public function hasUnprocessedConfigurationChanges($ops = array('delete', 'create', 'update')) {
+  public function hasUnprocessedConfigurationChanges($ops = array('delete', 'create', 'rename', 'update')) {
     foreach ($ops as $op) {
       if (count($this->getUnprocessedConfiguration($op))) {
         return TRUE;
@@ -235,7 +287,7 @@ class ConfigImporter extends DependencySerialization {
    * Sets a change as processed.
    *
    * @param string $op
-   *   The change operation performed, either delete, create or update.
+   *   The change operation performed, either delete, create, rename, or update.
    * @param string $name
    *   The name of the configuration processed.
    */
@@ -248,7 +300,7 @@ class ConfigImporter extends DependencySerialization {
    *
    * @param string $op
    *   The change operation to get the unprocessed list for, either delete,
-   *   create or update.
+   *   create, rename, or update.
    *
    * @return array
    *   An array of configuration names.
@@ -314,16 +366,33 @@ class ConfigImporter extends DependencySerialization {
       return $module_data[$module]->sort;
     }, $module_list);
 
-    // Work out what modules to install and uninstall.
+    // Determine which modules to uninstall.
     $uninstall = array_diff(array_keys($current_extensions['module']), array_keys($new_extensions['module']));
-    $install = array_diff(array_keys($new_extensions['module']), array_keys($current_extensions['module']));
-    // Sort the module list by their weights. So that dependencies
-    // are uninstalled last.
-    asort($module_list);
+    // Sort the list of newly uninstalled extensions by their weights, so that
+    // dependencies are uninstalled last. Extensions of the same weight are
+    // sorted in reverse alphabetical order, to ensure the order is exactly
+    // opposite from installation. For example, this module list:
+    // array(
+    //   'actions' => 0,
+    //   'ban' => 0,
+    //   'options' => -2,
+    //   'text' => -1,
+    // );
+    // will result in the following sort order:
+    // -2   options
+    // -1   text
+    //  0 0 ban
+    //  0 1 actions
+    // @todo Move this sorting functionality to the extension system.
+    array_multisort(array_values($module_list), SORT_ASC, array_keys($module_list), SORT_DESC, $module_list);
     $uninstall = array_intersect(array_keys($module_list), $uninstall);
-    // Sort the module list by their weights (reverse). So that dependencies
-    // are installed first.
-    arsort($module_list);
+
+    // Determine which modules to install.
+    $install = array_diff(array_keys($new_extensions['module']), array_keys($current_extensions['module']));
+    // Ensure that installed modules are sorted in exactly the reverse order
+    // (with dependencies installed first, and modules of the same weight sorted
+    // in alphabetical order).
+    $module_list = array_reverse($module_list);
     $install = array_intersect(array_keys($module_list), $install);
 
     // Work out what themes to enable and to disable.
@@ -398,34 +467,207 @@ class ConfigImporter extends DependencySerialization {
    */
   public function import() {
     if ($this->hasUnprocessedConfigurationChanges()) {
-      $this->createExtensionChangelist();
+      $sync_steps = $this->initialize();
 
-      // Ensure that the changes have been validated.
-      $this->validate();
-
-      if (!$this->lock->acquire(static::LOCK_ID)) {
-        // Another process is synchronizing configuration.
-        throw new ConfigImporterException(sprintf('%s is already importing', static::LOCK_ID));
+      foreach ($sync_steps as $step) {
+        $context = array();
+        do {
+          $this->doSyncStep($step, $context);
+        } while ($context['finished'] < 1);
       }
-
-      // Process any extension changes before importing configuration.
-      $this->handleExtensions();
-
-      // First pass deleted, then new, and lastly changed configuration, in order
-      // to handle dependencies correctly.
-      foreach (array('delete', 'create', 'update') as $op) {
-        foreach ($this->getUnprocessedConfiguration($op) as $name) {
-          $this->processConfiguration($op, $name);
-        }
-      }
-      // Allow modules to react to a import.
-      $this->eventDispatcher->dispatch(ConfigEvents::IMPORT, new ConfigImporterEvent($this));
-
-      // The import is now complete.
-      $this->lock->release(static::LOCK_ID);
-      $this->reset();
     }
     return $this;
+  }
+
+  /**
+   * Calls a config import step.
+   *
+   * @param string|callable $sync_step
+   *   The step to do. Either a method on the ConfigImporter class or a
+   *   callable.
+   * @param array $context
+   *   A batch context array. If the config importer is not running in a batch
+   *   the only array key that is used is $context['finished']. A process needs
+   *   to set $context['finished'] = 1 when it is done.
+   *
+   * @throws \InvalidArgumentException
+   *   Exception thrown if the $sync_step can not be called.
+   */
+  public function doSyncStep($sync_step, &$context) {
+    if (!is_array($sync_step) && method_exists($this, $sync_step)) {
+      $this->$sync_step($context);
+    }
+    elseif (is_callable($sync_step)) {
+      call_user_func_array($sync_step, array(&$context, $this));
+    }
+    else {
+      throw new \InvalidArgumentException('Invalid configuration synchronization step');
+    }
+  }
+
+  /**
+   * Initializes the config importer in preparation for processing a batch.
+   *
+   * @return array
+   *   An array of \Drupal\Core\Config\ConfigImporter method names and callables
+   *   that are invoked to complete the import. If there are modules or themes
+   *   to process then an extra step is added.
+   *
+   * @throws \Drupal\Core\Config\ConfigImporterException
+   *   If the configuration is already importing.
+   */
+  public function initialize() {
+    $this->createExtensionChangelist();
+
+    // Ensure that the changes have been validated.
+    $this->validate();
+
+    if (!$this->lock->acquire(static::LOCK_ID)) {
+      // Another process is synchronizing configuration.
+      throw new ConfigImporterException(sprintf('%s is already importing', static::LOCK_ID));
+    }
+
+    $sync_steps = array();
+    $modules = $this->getUnprocessedExtensions('module');
+    foreach (array('install', 'uninstall') as $op) {
+      $this->totalExtensionsToProcess += count($modules[$op]);
+    }
+    $themes = $this->getUnprocessedExtensions('theme');
+    foreach (array('enable', 'disable') as $op) {
+      $this->totalExtensionsToProcess += count($themes[$op]);
+    }
+
+    // We have extensions to process.
+    if ($this->totalExtensionsToProcess > 0) {
+      $sync_steps[] = 'processExtensions';
+    }
+    $sync_steps[] = 'processConfigurations';
+
+    // Allow modules to add new steps to configuration synchronization.
+    $this->moduleHandler->alter('config_import_steps', $sync_steps, $this);
+    $sync_steps[] = 'finish';
+    return $sync_steps;
+  }
+
+  /**
+   * Processes extensions as a batch operation.
+   *
+   * @param array $context.
+   *   The batch context.
+   */
+  public function processExtensions(array &$context) {
+    $operation = $this->getNextExtensionOperation();
+    if (!empty($operation)) {
+      $this->processExtension($operation['type'], $operation['op'], $operation['name']);
+      $context['message'] = t('Synchronising extensions: @op @name.', array('@op' => $operation['op'], '@name' => $operation['name']));
+      $processed_count = count($this->processedExtensions['module']['install']) + count($this->processedExtensions['module']['uninstall']);
+      $processed_count += count($this->processedExtensions['theme']['disable']) + count($this->processedExtensions['theme']['enable']);
+      $context['finished'] = $processed_count / $this->totalExtensionsToProcess;
+    }
+    else {
+      $context['finished'] = 1;
+    }
+  }
+
+  /**
+   * Processes configuration as a batch operation.
+   *
+   * @param array $context.
+   *   The batch context.
+   */
+  public function processConfigurations(array &$context) {
+    // The first time this is called we need to calculate the total to process.
+    // This involves recalculating the changelist which will ensure that if
+    // extensions have been processed any configuration affected will be taken
+    // into account.
+    if ($this->totalConfigurationToProcess == 0) {
+      $this->storageComparer->reset();
+      foreach (array('delete', 'create', 'rename', 'update') as $op) {
+        foreach ($this->getUnprocessedConfiguration($op) as $name) {
+          $this->totalConfigurationToProcess += count($this->getUnprocessedConfiguration($op));
+        }
+      }
+    }
+    $operation = $this->getNextConfigurationOperation();
+    if (!empty($operation)) {
+      if ($this->checkOp($operation['op'], $operation['name'])) {
+        $this->processConfiguration($operation['op'], $operation['name']);
+      }
+      $context['message'] = t('Synchronizing configuration: @op @name.', array('@op' => $operation['op'], '@name' => $operation['name']));
+      $processed_count = count($this->processedConfiguration['create']) + count($this->processedConfiguration['delete']) + count($this->processedConfiguration['update']);
+      $context['finished'] = $processed_count / $this->totalConfigurationToProcess;
+    }
+    else {
+      $context['finished'] = 1;
+    }
+  }
+
+  /**
+   * Finishes the batch.
+   *
+   * @param array $context.
+   *   The batch context.
+   */
+  public function finish(array &$context) {
+    $this->eventDispatcher->dispatch(ConfigEvents::IMPORT, new ConfigImporterEvent($this));
+    // The import is now complete.
+    $this->lock->release(static::LOCK_ID);
+    $this->reset();
+    $context['message'] = t('Finalising configuration synchronisation.');
+    $context['finished'] = 1;
+  }
+
+  /**
+   * Gets the next extension operation to perform.
+   *
+   * @return array|bool
+   *   An array containing the next operation and extension name to perform it
+   *   on. If there is nothing left to do returns FALSE;
+   */
+  protected function getNextExtensionOperation() {
+    foreach (array('install', 'uninstall') as $op) {
+      $modules = $this->getUnprocessedExtensions('module');
+      if (!empty($modules[$op])) {
+        return array(
+          'op' => $op,
+          'type' => 'module',
+          'name' => array_shift($modules[$op]),
+        );
+      }
+    }
+    foreach (array('enable', 'disable') as $op) {
+      $themes = $this->getUnprocessedExtensions('theme');
+      if (!empty($themes[$op])) {
+        return array(
+          'op' => $op,
+          'type' => 'theme',
+          'name' => array_shift($themes[$op]),
+        );
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Gets the next configuration operation to perform.
+   *
+   * @return array|bool
+   *   An array containing the next operation and configuration name to perform
+   *   it on. If there is nothing left to do returns FALSE;
+   */
+  protected function getNextConfigurationOperation() {
+    // The order configuration operations is processed is important. Deletes
+    // have to come first so that recreates can work.
+    foreach (array('delete', 'create', 'rename', 'update') as $op) {
+      $config_names = $this->getUnprocessedConfiguration($op);
+      if (!empty($config_names)) {
+        return array(
+          'op' => $op,
+          'name' => array_shift($config_names),
+        );
+      }
+    }
+    return FALSE;
   }
 
   /**
@@ -433,14 +675,32 @@ class ConfigImporter extends DependencySerialization {
    *
    * Events should throw a \Drupal\Core\Config\ConfigImporterException to
    * prevent an import from occurring.
+   *
+   * @throws \Drupal\Core\Config\ConfigImporterException
+   *   Exception thrown if the validate event logged any errors.
    */
   public function validate() {
     if (!$this->validated) {
-      if (!$this->storageComparer->validateSiteUuid()) {
-        throw new ConfigImporterException('Site UUID in source storage does not match the target storage.');
+      // Validate renames.
+      foreach ($this->getUnprocessedConfiguration('rename') as $name) {
+        $names = $this->storageComparer->extractRenameNames($name);
+        $old_entity_type_id = $this->configManager->getEntityTypeIdByName($names['old_name']);
+        $new_entity_type_id = $this->configManager->getEntityTypeIdByName($names['new_name']);
+        if ($old_entity_type_id != $new_entity_type_id) {
+          $this->logError($this->t('Entity type mismatch on rename. !old_type not equal to !new_type for existing configuration !old_name and staged configuration !new_name.', array('old_type' => $old_entity_type_id, 'new_type' => $new_entity_type_id, 'old_name' => $names['old_name'], 'new_name' => $names['new_name'])));
+        }
+        // Has to be a configuration entity.
+        if (!$old_entity_type_id) {
+          $this->logError($this->t('Rename operation for simple configuration. Existing configuration !old_name and staged configuration !new_name.', array('old_name' => $names['old_name'], 'new_name' => $names['new_name'])));
+        }
       }
       $this->eventDispatcher->dispatch(ConfigEvents::IMPORT_VALIDATE, new ConfigImporterEvent($this));
-      $this->validated = TRUE;
+      if (count($this->getErrors())) {
+        throw new ConfigImporterException('There were errors validating the config synchronization.');
+      }
+      else {
+        $this->validated = TRUE;
+      }
     }
     return $this;
   }
@@ -452,10 +712,23 @@ class ConfigImporter extends DependencySerialization {
    *   The change operation.
    * @param string $name
    *   The name of the configuration to process.
+   *
+   * @throws \Exception
+   *   Thrown when the import process fails, only thrown when no importer log is
+   *   set, otherwise the exception message is logged and the configuration
+   *   is skipped.
    */
   protected function processConfiguration($op, $name) {
-    if (!$this->importInvokeOwner($op, $name)) {
-      $this->importConfig($op, $name);
+    try {
+      if (!$this->importInvokeOwner($op, $name)) {
+        $this->importConfig($op, $name);
+      }
+    }
+    catch (\Exception $e) {
+      $this->logError($this->t('Unexpected error during import with operation @op for @name: @message', array('@op' => $op, '@name' => $name, '@message' => $e->getMessage())));
+      // Error for that operation was logged, mark it as processed so that
+      // the import can continue.
+      $this->setProcessedConfiguration($op, $name);
     }
   }
 
@@ -506,6 +779,82 @@ class ConfigImporter extends DependencySerialization {
   }
 
   /**
+   * Checks that the operation is still valid.
+   *
+   * During a configuration import secondary writes and deletes are possible.
+   * This method checks that the operation is still valid before processing a
+   * configuration change.
+   *
+   * @param string $op
+   *   The change operation.
+   * @param string $name
+   *   The name of the configuration to process.
+   *
+   * @throws \Drupal\Core\Config\ConfigImporterException
+   *
+   * @return bool
+   *   TRUE is to continue processing, FALSE otherwise.
+   */
+  protected function checkOp($op, $name) {
+    if ($op == 'rename') {
+      $names = $this->storageComparer->extractRenameNames($name);
+      $target_exists = $this->storageComparer->getTargetStorage()->exists($names['new_name']);
+      if ($target_exists) {
+        // If the target exists, the rename has already occurred as the
+        // result of a secondary configuration write. Change the operation
+        // into an update. This is the desired behavior since renames often
+        // have to occur together. For example, renaming a node type must
+        // also result in renaming its field instances and entity displays.
+        $this->storageComparer->moveRenameToUpdate($name);
+        return FALSE;
+      }
+      return TRUE;
+    }
+    $target_exists = $this->storageComparer->getTargetStorage()->exists($name);
+    switch ($op) {
+      case 'delete':
+        if (!$target_exists) {
+          // The configuration has already been deleted. For example, a field
+          // is automatically deleted if all the instances are.
+          $this->setProcessedConfiguration($op, $name);
+          return FALSE;
+        }
+        break;
+
+      case 'create':
+        if ($target_exists) {
+          // If the target already exists, use the entity storage to delete it
+          // again, if is a simple config, delete it directly.
+          if ($entity_type_id = $this->configManager->getEntityTypeIdByName($name)) {
+            $entity_storage = $this->configManager->getEntityManager()->getStorage($entity_type_id);
+            $entity_type = $this->configManager->getEntityManager()->getDefinition($entity_type_id);
+            $entity = $entity_storage->load($entity_storage->getIDFromConfigName($name, $entity_type->getConfigPrefix()));
+            $entity->delete();
+            $this->logError($this->t('Deleted and replaced configuration entity "@name"', array('@name' => $name)));
+          }
+          else {
+            $this->storageComparer->getTargetStorage()->delete($name);
+            $this->logError($this->t('Deleted and replaced configuration "@name"', array('@name' => $name)));
+          }
+          return TRUE;
+        }
+        break;
+
+      case 'update':
+        if (!$target_exists) {
+          $this->logError($this->t('Update target "@name" is missing.', array('@name' => $name)));
+          // Mark as processed so that the synchronisation continues. Once the
+          // the current synchronisation is complete it will show up as a
+          // create.
+          $this->setProcessedConfiguration($op, $name);
+          return FALSE;
+        }
+        break;
+    }
+    return TRUE;
+  }
+
+  /**
    * Writes a configuration change from the source to the target storage.
    *
    * @param string $op
@@ -536,7 +885,7 @@ class ConfigImporter extends DependencySerialization {
    *
    * @param string $op
    *   The change operation to get the unprocessed list for, either delete,
-   *   create or update.
+   *   create, rename, or update.
    * @param string $name
    *   The name of the configuration to process.
    *
@@ -549,6 +898,10 @@ class ConfigImporter extends DependencySerialization {
    *   otherwise.
    */
   protected function importInvokeOwner($op, $name) {
+    // Renames are handled separately.
+    if ($op == 'rename') {
+      return $this->importInvokeRename($name);
+    }
     // Validate the configuration object name before importing it.
     // Config::validateName($name);
     if ($entity_type = $this->configManager->getEntityTypeIdByName($name)) {
@@ -578,6 +931,44 @@ class ConfigImporter extends DependencySerialization {
   }
 
   /**
+   * Imports a configuration entity rename.
+   *
+   * @param string $rename_name
+   *   The rename configuration name, as provided by
+   *   \Drupal\Core\Config\StorageComparer::createRenameName().
+   *
+   * @return bool
+   *   TRUE if the configuration was imported as a configuration entity. FALSE
+   *   otherwise.
+   *
+   * @see \Drupal\Core\Config\ConfigImporter::createRenameName()
+   */
+  protected function importInvokeRename($rename_name) {
+    $names = $this->storageComparer->extractRenameNames($rename_name);
+    $entity_type_id = $this->configManager->getEntityTypeIdByName($names['old_name']);
+    $old_config = new Config($names['old_name'], $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
+    if ($old_data = $this->storageComparer->getTargetStorage()->read($names['old_name'])) {
+      $old_config->initWithData($old_data);
+    }
+
+    $data = $this->storageComparer->getSourceStorage()->read($names['new_name']);
+    $new_config = new Config($names['new_name'], $this->storageComparer->getTargetStorage(), $this->eventDispatcher, $this->typedConfigManager);
+    if ($data !== FALSE) {
+      $new_config->setData($data);
+    }
+
+    $entity_storage = $this->configManager->getEntityManager()->getStorage($entity_type_id);
+    // Call to the configuration entity's storage to handle the configuration
+    // change.
+    if (!($entity_storage instanceof ImportableEntityStorageInterface)) {
+      throw new EntityStorageException(String::format('The entity storage "@storage" for the "@entity_type" entity type does not support imports', array('@storage' => get_class($entity_storage), '@entity_type' => $entity_type_id)));
+    }
+    $entity_storage->importRename($names['old_name'], $new_config, $old_config);
+    $this->setProcessedConfiguration('rename', $rename_name);
+    return TRUE;
+  }
+
+  /**
    * Determines if a import is already running.
    *
    * @return bool
@@ -598,50 +989,6 @@ class ConfigImporter extends DependencySerialization {
   }
 
   /**
-   * Checks if a configuration object will be updated by the import.
-   *
-   * @param string $config_name
-   *   The configuration object name.
-   *
-   * @return bool
-   *   TRUE if the configuration object will be updated.
-   */
-  protected function hasUpdate($config_name) {
-    return in_array($config_name, $this->getUnprocessedConfiguration('update'));
-  }
-
-  /**
-   * Handle changes to installed modules and themes.
-   */
-  protected function handleExtensions() {
-    $processed_extension = FALSE;
-    foreach (array('install', 'uninstall') as $op) {
-      $modules = $this->getUnprocessedExtensions('module');
-      foreach($modules[$op] as $module) {
-        $processed_extension = TRUE;
-        $this->processExtension('module', $op, $module);
-      }
-    }
-    foreach (array('enable', 'disable') as $op) {
-      $themes = $this->getUnprocessedExtensions('theme');
-      foreach($themes[$op] as $theme) {
-        $processed_extension = TRUE;
-        $this->processExtension('theme', $op, $theme);
-      }
-    }
-
-    if ($processed_extension) {
-      // Recalculate differences as default config could have been imported.
-      $this->storageComparer->reset();
-      $this->processed = $this->storageComparer->getEmptyChangelist();
-      // Modules have been updated. Services etc might have changed.
-      // We don't reinject storage comparer because swapping out the active
-      // store during config import is a complete nonsense.
-      $this->recalculateChangelist = TRUE;
-    }
-  }
-
-  /**
    * Gets all the service dependencies from \Drupal.
    *
    * Since the ConfigImporter handles module installation the kernel and the
@@ -656,5 +1003,7 @@ class ConfigImporter extends DependencySerialization {
     $this->typedConfigManager = \Drupal::service('config.typed');
     $this->moduleHandler = \Drupal::moduleHandler();
     $this->themeHandler = \Drupal::service('theme_handler');
+    $this->stringTranslation = \Drupal::service('string_translation');
   }
+
 }

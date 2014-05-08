@@ -27,9 +27,9 @@ use Drupal\user\UserInterface;
  *     "view_builder" = "Drupal\node\NodeViewBuilder",
  *     "access" = "Drupal\node\NodeAccessController",
  *     "form" = {
- *       "default" = "Drupal\node\NodeFormController",
+ *       "default" = "Drupal\node\NodeForm",
  *       "delete" = "Drupal\node\Form\NodeDeleteForm",
- *       "edit" = "Drupal\node\NodeFormController"
+ *       "edit" = "Drupal\node\NodeForm"
  *     },
  *     "list_builder" = "Drupal\node\NodeListBuilder",
  *     "translation" = "Drupal\node\NodeTranslationHandler"
@@ -60,20 +60,6 @@ use Drupal\user\UserInterface;
  * )
  */
 class Node extends ContentEntityBase implements NodeInterface {
-
-  /**
-   * Implements Drupal\Core\Entity\EntityInterface::id().
-   */
-  public function id() {
-    return $this->get('nid')->value;
-  }
-
-  /**
-   * Overrides Drupal\Core\Entity\Entity::getRevisionId().
-   */
-  public function getRevisionId() {
-    return $this->get('vid')->value;
-  }
 
   /**
    * {@inheritdoc}

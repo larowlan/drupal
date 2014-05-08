@@ -16,7 +16,7 @@ interface StorageComparerInterface {
    * Gets the configuration source storage.
    *
    * @return \Drupal\Core\Config\StorageInterface
-   *   Storage controller object used to read configuration.
+   *   Storage object used to read configuration.
    */
   public function getSourceStorage();
 
@@ -24,7 +24,7 @@ interface StorageComparerInterface {
    * Gets the configuration target storage.
    *
    * @return \Drupal\Core\Config\StorageInterface
-   *   Storage controller object used to write configuration.
+   *   Storage object used to write configuration.
    */
   public function getTargetStorage();
 
@@ -79,5 +79,31 @@ interface StorageComparerInterface {
    *   TRUE if identical, FALSE if not.
    */
   public function validateSiteUuid();
+
+  /**
+   * Moves a rename operation to an update.
+   *
+   * @param string $rename
+   *   The rename name, as provided by ConfigImporter::createRenameName().
+   *
+   * @see \Drupal\Core\Config\ConfigImporter::createRenameName()
+   */
+  public function moveRenameToUpdate($rename);
+
+  /**
+   * Extracts old and new configuration names from a configuration change name.
+   *
+   * @param string $name
+   *   The configuration change name, as provided by
+   *   ConfigImporter::createRenameName().
+   *
+   * @return array
+   *   An associative array of configuration names. The array keys are
+   *   'old_name' and and 'new_name' representing the old and name configuration
+   *   object names during a rename operation.
+   *
+   * @see \Drupal\Core\Config\StorageComparer::createRenameNames()
+   */
+  public function extractRenameNames($name);
 
 }

@@ -19,7 +19,7 @@ use Symfony\Cmf\Component\Routing\RouteObjectInterface;
  *
  * The Drupal routing system defines how Drupal responds to URLs passed to the
  * browser. The menu system, which depends on the routing system, is used for
- * navigation. The Menu module allows menus to be created in the user interface
+ * navigation. The Menu UI module allows menus to be created in the user interface
  * as hierarchical lists of links.
  *
  * @section registering_paths Registering router paths
@@ -365,14 +365,6 @@ function theme_menu_local_action($variables) {
 }
 
 /**
- * Generates elements for the $arg array in the help hook.
- */
-function drupal_help_arg($arg = array()) {
-  // Note - the number of empty elements should be > MENU_MAX_PARTS.
-  return $arg + array('', '', '', '', '', '', '', '', '', '', '', '');
-}
-
-/**
  * Returns an array containing the names of system-defined (default) menus.
  */
 function menu_list_system_menus() {
@@ -422,8 +414,8 @@ function menu_secondary_menu() {
  *   Returns menu name, if exist
  */
 function _menu_get_links_source($name, $default) {
-  $config = \Drupal::config('menu.settings');
-  return \Drupal::moduleHandler()->moduleExists('menu') ? $config->get($name) : $default;
+  $config = \Drupal::config('menu_ui.settings');
+  return \Drupal::moduleHandler()->moduleExists('menu_ui') ? $config->get($name) : $default;
 }
 
 /**
@@ -658,113 +650,6 @@ function menu_get_active_menu_names() {
 }
 
 /**
- * Sets the active path, which determines which page is loaded.
- *
- * Note that this may not have the desired effect unless invoked very early
- * in the page load or unless you do a subrequest to generate your page output.
- *
- * @param $path
- *   A Drupal path - not a path alias.
- */
-function menu_set_active_item($path) {
-  // Since the active item has changed, the active menu trail may also be out
-  // of date.
-  drupal_static_reset('menu_set_active_trail');
-  // @todo Refactor to use the Symfony Request object.
-  _current_path($path);
-}
-
-/**
- * Sets the active trail (path to the menu tree root) of the current page.
- *
- * Any trail set by this function will only be used for functionality that calls
- * menu_get_active_trail(). Drupal core only uses trails set here for
- * the page title and not for menu trees or page content.
- *
- * To affect the trail used by menu trees, use menu_tree_set_path(). To affect
- * the page content, use menu_set_active_item() instead.
- *
- * @param $new_trail
- *   Menu trail to set; the value is saved in a static variable and can be
- *   retrieved by menu_get_active_trail(). The format of this array should be
- *   the same as the return value of menu_get_active_trail().
- *
- * @return
- *   The active trail. See menu_get_active_trail() for details.
- */
-function menu_set_active_trail($new_trail = NULL) {
-  $trail = &drupal_static(__FUNCTION__);
-
-  /** @var \Drupal\menu_link\MenuTreeInterface $menu_tree */
-  $menu_tree = \Drupal::service('menu_link.tree');
-
-  if (isset($new_trail)) {
-    $trail = $new_trail;
-  }
-  elseif (!isset($trail)) {
-    $trail = array();
-    $trail[] = array(
-      'title' => t('Home'),
-      'href' => '<front>',
-      'link_path' => '',
-      'localized_options' => array(),
-      'type' => 0,
-    );
-
-    // Try to retrieve a menu link corresponding to the current path. If more
-    // than one exists, the link from the most preferred menu is returned.
-    $preferred_link = menu_link_get_preferred();
-
-    // There is a link for the current path.
-    if ($preferred_link) {
-       _menu_link_translate($preferred_link);
-      // Pass TRUE for $only_active_trail to make menu_tree_page_data() build
-      // a stripped down menu tree containing the active trail only, in case
-      // the given menu has not been built in this request yet.
-      $tree = $menu_tree->buildPageData($preferred_link['menu_name'], NULL, TRUE);
-      list($key, $curr) = each($tree);
-    }
-    // There is no link for the current path.
-    else {
-      $curr = FALSE;
-    }
-
-    while ($curr) {
-      $link = $curr['link'];
-      if ($link['in_active_trail']) {
-        // Add the link to the trail, unless it links to its parent.
-        if (!($link['type'] & MENU_LINKS_TO_PARENT)) {
-          // The menu tree for the active trail may contain additional links
-          // that have not been translated yet, since they contain dynamic
-          // argument placeholders (%). Such links are not contained in regular
-          // menu trees, and have only been loaded for the additional
-          // translation that happens here, so as to be able to display them in
-          // the breadcumb for the current page.
-          // @see _menu_tree_check_access()
-          // @see _menu_link_translate()
-          if (strpos($link['href'], '%') !== FALSE) {
-            _menu_link_translate($link);
-          }
-          if ($link['access']) {
-            $trail[] = $link;
-          }
-        }
-        $tree = $curr['below'] ? $curr['below'] : array();
-      }
-      list($key, $curr) = each($tree);
-    }
-    // Make sure the current page is in the trail to build the page title, by
-    // appending either the preferred link or the menu router item for the
-    // current page. Exclude it if we are on the front page.
-    $last = end($trail);
-    if ($preferred_link && $last['href'] != $preferred_link['href'] && !drupal_is_front_page()) {
-      $trail[] = $preferred_link;
-    }
-  }
-  return $trail;
-}
-
-/**
  * Looks up the preferred menu link for a given system path.
  *
  * @param $path
@@ -847,28 +732,6 @@ function menu_link_get_preferred($path = NULL, $selected_menu = NULL) {
 }
 
 /**
- * Gets the active trail (path to root menu root) of the current page.
- *
- * If a trail is supplied to menu_set_active_trail(), that value is returned. If
- * a trail is not supplied to menu_set_active_trail(), the path to the current
- * page is calculated and returned. The calculated trail is also saved as a
- * static value for use by subsequent calls to menu_get_active_trail().
- *
- * @return
- *   Path to menu root of the current page, as an array of menu link items,
- *   starting with the site's home page. Each link item is an associative array
- *   with the following components:
- *   - title: Title of the item.
- *   - href: Drupal path of the item.
- *   - localized_options: Options for passing into the l() function.
- *   - type: A menu type constant, such as MENU_DEFAULT_LOCAL_TASK, or 0 to
- *     indicate it's not really in the menu (used for the home page item).
- */
-function menu_get_active_trail() {
-  return menu_set_active_trail();
-}
-
-/**
  * Clears all cached menu data.
  *
  * This should be called any time broad changes
@@ -885,10 +748,6 @@ function menu_cache_clear_all() {
 function menu_reset_static_cache() {
   \Drupal::entityManager()
     ->getStorage('menu_link')->resetCache();
-  drupal_static_reset('_menu_build_tree');
-  drupal_static_reset('menu_tree');
-  drupal_static_reset('menu_tree_all_data');
-  drupal_static_reset('menu_tree_page_data');
   drupal_static_reset('menu_link_get_preferred');
 }
 
@@ -956,6 +815,9 @@ function menu_link_rebuild_defaults() {
         $link['customized'] = $existing_item->customized;
         $link['updated'] = $existing_item->updated;
         $menu_link = $menu_link_storage->createFromDefaultLink($link);
+        // @todo Do not create a new entity in order to update it, see
+        //   https://drupal.org/node/2241865
+        $menu_link->setOriginalId($existing_item->mlid);
 
         // Convert the existing item to a typed object.
         /** @var \Drupal\menu_link\MenuLinkInterface $existing_item */

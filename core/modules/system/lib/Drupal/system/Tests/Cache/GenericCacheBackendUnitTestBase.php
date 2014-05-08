@@ -8,6 +8,7 @@
 namespace Drupal\system\Tests\Cache;
 
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\simpletest\DrupalUnitTestBase;
 
 /**
@@ -135,10 +136,11 @@ abstract class GenericCacheBackendUnitTestBase extends DrupalUnitTestBase {
     $backend = $this->getCacheBackend();
 
     $this->assertIdentical(FALSE, $backend->get('test1'), "Backend does not contain data for cache id test1.");
-    $backend->set('test1', 7);
+    $with_backslash = array('foo' => '\Drupal\foo\Bar');
+    $backend->set('test1', $with_backslash);
     $cached = $backend->get('test1');
     $this->assert(is_object($cached), "Backend returned an object for cache id test1.");
-    $this->assertIdentical(7, $cached->data);
+    $this->assertIdentical($with_backslash, $cached->data);
     $this->assertTrue($cached->valid, 'Item is marked as valid.');
     $this->assertEqual($cached->created, REQUEST_TIME, 'Created time is correct.');
     $this->assertEqual($cached->expire, Cache::PERMANENT, 'Expire time is correct.');
@@ -293,6 +295,43 @@ abstract class GenericCacheBackendUnitTestBase extends DrupalUnitTestBase {
     $this->assertFalse(in_array('test2', $cids), "Existing cache id test2 is not in cids array.");
     $this->assertFalse(in_array('test7', $cids), "Existing cache id test7 is not in cids array.");
     $this->assertFalse(in_array('test19', $cids), "Added cache id test19 is not in cids array.");
+  }
+
+  /**
+   * Tests \Drupal\Core\Cache\CacheBackendInterface::setMultiple().
+   */
+  public function testSetMultiple() {
+    $backend = $this->getCacheBackend();
+
+    $future_expiration = REQUEST_TIME + 100;
+
+    // Set multiple testing keys.
+    $backend->set('cid_1', 'Some other value');
+    $items = array(
+      'cid_1' => array('data' => 1),
+      'cid_2' => array('data' => 2),
+      'cid_3' => array('data' => array(1, 2)),
+      'cid_4' => array('data' => 1, 'expire' => $future_expiration),
+      'cid_5' => array('data' => 1, 'tags' => array('test' => array('a', 'b'))),
+    );
+    $backend->setMultiple($items);
+    $cids = array_keys($items);
+    $cached = $backend->getMultiple($cids);
+
+    $this->assertEqual($cached['cid_1']->data, $items['cid_1']['data'], 'Over-written cache item set correctly.');
+    $this->assertEqual($cached['cid_1']->expire, CacheBackendInterface::CACHE_PERMANENT, 'Cache expiration defaults to permanent.');
+
+    $this->assertEqual($cached['cid_2']->data, $items['cid_2']['data'], 'New cache item set correctly.');
+    $this->assertEqual($cached['cid_2']->expire, CacheBackendInterface::CACHE_PERMANENT, 'Cache expiration defaults to permanent.');
+
+    $this->assertEqual($cached['cid_3']->data, $items['cid_3']['data'], 'New cache item with serialized data set correctly.');
+    $this->assertEqual($cached['cid_3']->expire, CacheBackendInterface::CACHE_PERMANENT, 'Cache expiration defaults to permanent.');
+
+    $this->assertEqual($cached['cid_4']->data, $items['cid_4']['data'], 'New cache item set correctly.');
+    $this->assertEqual($cached['cid_4']->expire, $future_expiration, 'Cache expiration has been correctly set.');
+
+    $this->assertEqual($cached['cid_5']->data, $items['cid_5']['data'], 'New cache item set correctly.');
+    $this->assertEqual($cached['cid_5']->tags, array('test:a', 'test:b'));
   }
 
   /**

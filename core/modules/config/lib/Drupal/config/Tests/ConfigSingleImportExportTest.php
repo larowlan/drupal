@@ -7,8 +7,8 @@
 
 namespace Drupal\config\Tests;
 
+use Drupal\Component\Serialization\Yaml;
 use Drupal\simpletest\WebTestBase;
-use Symfony\Component\Yaml\Yaml;
 
 /**
  * Tests the user interface for importing/exporting a single configuration.
@@ -111,12 +111,11 @@ EOD;
    */
   public function testImportSimpleConfiguration() {
     $this->drupalLogin($this->drupalCreateUser(array('import configuration')));
-    $yaml = new Yaml();
     $config = \Drupal::config('system.site')->set('name', 'Test simple import');
     $edit = array(
       'config_type' => 'system.simple',
       'config_name' => $config->getName(),
-      'import' => $yaml->dump($config->get()),
+      'import' => Yaml::encode($config->get()),
     );
     $this->drupalPostForm('admin/config/development/configuration/single/import', $edit, t('Import'));
     $this->assertRaw(t('Are you sure you want to update the %name @type?', array('%name' => $config->getName(), '@type' => 'simple configuration')));
@@ -152,7 +151,7 @@ EOD;
     $this->assertFieldByXPath('//select[@name="config_name"]//option[@selected="selected"]', t('Fallback date format'), 'The fallback date format config entity is selected when specified in the URL.');
 
     $fallback_date = \Drupal::entityManager()->getStorage('date_format')->load('fallback');
-    $data = \Drupal::service('config.storage')->encode($fallback_date->toArray());
+    $data = Yaml::encode($fallback_date->toArray());
     $this->assertFieldByXPath('//textarea[@name="export"]', $data, 'The fallback date format config entity export code is displayed.');
   }
 

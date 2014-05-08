@@ -12,7 +12,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Entity\Query\QueryFactory;
-use Drupal\Core\KeyValueStore\StateInterface;
+use Drupal\Core\State\StateInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -68,7 +68,7 @@ class MenuTree implements MenuTreeInterface {
   /**
    * The state.
    *
-   * @var \Drupal\Core\KeyValueStore\StateInterface
+   * @var \Drupal\Core\State\StateInterface
    */
   protected $state;
 
@@ -131,7 +131,7 @@ class MenuTree implements MenuTreeInterface {
    *   The entity manager.
    * @param \Drupal\Core\Entity\Query\QueryFactory $entity_query_factory
    *   The entity query factory.
-   * @param \Drupal\Core\KeyValueStore\StateInterface $state
+   * @param \Drupal\Core\State\StateInterface $state
    *   The state.
    */
   public function __construct(Connection $database, CacheBackendInterface $cache_backend, LanguageManagerInterface $language_manager, RequestStack $request_stack, EntityManagerInterface $entity_manager, QueryFactory $entity_query_factory, StateInterface $state) {
@@ -226,7 +226,6 @@ class MenuTree implements MenuTreeInterface {
       // that needs to be checked for access on all levels, we simply check
       // whether we have the menu already in cache, or otherwise, build a
       // minimum tree containing the active trail only.
-      // @see menu_set_active_trail()
       if (!isset($this->menuPageTrees[$cid]) && $only_active_trail) {
         $cid .= ':trail';
       }
@@ -461,7 +460,7 @@ class MenuTree implements MenuTreeInterface {
     if (!isset($this->menuTree[$tree_cid])) {
       $cache = $this->cache->get($tree_cid);
       if ($cache && $cache->data) {
-        $this->menuFullTrees[$tree_cid] = $cache->data;
+        $this->menuTree[$tree_cid] = $cache->data;
       }
     }
 

@@ -1,0 +1,13 @@
+id: d6_contact_settings
+label: Drupal 6 contact configuration
+source:
+  plugin: variable
+  variables:
+    - contact_default_status
+    - contact_hourly_threshold
+process:
+  user_default_enabled: contact_default_status
+  'flood.limit': contact_hourly_threshold
+destination:
+  plugin: config
+  config_name: contact.settings

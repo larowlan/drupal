@@ -17,6 +17,11 @@ use Symfony\Component\HttpFoundation\Request;
 interface ConfigurableLanguageManagerInterface extends LanguageManagerInterface {
 
   /**
+   * Rebuild the container to register services needed on multilingual sites.
+   */
+  public static function rebuildServices();
+
+  /**
    * Injects the request object.
    *
    * @param \Symfony\Component\HttpFoundation\Request
@@ -90,5 +95,13 @@ interface ConfigurableLanguageManagerInterface extends LanguageManagerInterface 
    *   The language config override object.
    */
   public function getLanguageConfigOverride($langcode, $name);
+
+  /**
+   * Prepare a language code list for unused predefined languages.
+   *
+   * @return array
+   *   List of predefined language names keyed by langcode.
+   */
+  public function getUnusedPredefinedList();
 
 }

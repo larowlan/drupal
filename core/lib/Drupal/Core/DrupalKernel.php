@@ -218,7 +218,7 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
       $this->moduleList = isset($extensions['module']) ? $extensions['module'] : array();
     }
     $module_filenames = $this->getModuleFileNames();
-    $this->registerNamespaces($this->getModuleNamespaces($module_filenames));
+    $this->registerNamespacesPsr4($this->getModuleNamespacesPsr4($module_filenames));
 
     // Load each module's serviceProvider class.
     foreach ($this->moduleList as $module => $weight) {
@@ -248,7 +248,6 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
     }
     return $serviceProviders;
   }
-
 
   /**
    * {@inheritdoc}
@@ -409,8 +408,8 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
       // All namespaces must be registered before we attempt to use any service
       // from the container.
       $container_modules = $this->container->getParameter('container.modules');
-      $namespaces_before = $this->classLoader->getPrefixes();
-      $this->registerNamespaces($this->container->getParameter('container.namespaces'));
+      $namespaces_before = $this->classLoader->getPrefixesPsr4();
+      $this->registerNamespacesPsr4($this->container->getParameter('container.namespaces'));
 
       // If 'container.modules' is wrong, the container must be rebuilt.
       if (!isset($this->moduleList)) {
@@ -423,9 +422,9 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
         // registerNamespaces() performs a merge rather than replace, so to
         // effectively remove erroneous registrations, we must replace them with
         // empty arrays.
-        $namespaces_after = $this->classLoader->getPrefixes();
+        $namespaces_after = $this->classLoader->getPrefixesPsr4();
         $namespaces_before += array_fill_keys(array_diff(array_keys($namespaces_after), array_keys($namespaces_before)), array());
-        $this->registerNamespaces($namespaces_before);
+        $this->registerNamespacesPsr4($namespaces_before);
       }
     }
 
@@ -501,14 +500,15 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
     $container->setParameter('container.modules', $this->getModulesParameter());
 
     // Get a list of namespaces and put it onto the container.
-    $namespaces = $this->getModuleNamespaces($this->getModuleFileNames());
+    $namespaces = $this->getModuleNamespacesPsr4($this->getModuleFileNames());
     // Add all components in \Drupal\Core and \Drupal\Component that have a
     // Plugin directory.
     foreach (array('Core', 'Component') as $parent_directory) {
       $path = DRUPAL_ROOT . '/core/lib/Drupal/' . $parent_directory;
+      $parent_namespace = 'Drupal\\' . $parent_directory;
       foreach (new \DirectoryIterator($path) as $component) {
         if (!$component->isDot() && $component->isDir() && is_dir($component->getPathname() . '/Plugin')) {
-          $namespaces['Drupal\\' . $parent_directory . '\\' . $component->getFilename()] = DRUPAL_ROOT . '/core/lib';
+          $namespaces[$parent_namespace . '\\' . $component->getFilename()] = $path . '/' . $component->getFilename();
         }
       }
     }
@@ -618,19 +618,6 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
   }
 
   /**
-   * Overrides and eliminates this method from the parent class. Do not use.
-   *
-   * This method is part of the KernelInterface interface, but takes an object
-   * implementing LoaderInterface as its only parameter. This is part of the
-   * Config compoment from Symfony, which is not provided by Drupal core.
-   *
-   * Modules wishing to provide an extension to this class which uses this
-   * method are responsible for ensuring the Config component exists.
-   */
-  public function registerContainerConfiguration(LoaderInterface $loader) {
-  }
-
-  /**
    * Gets the PHP code storage object to use for the compiled container.
    *
    * @return \Drupal\Component\PhpStorage\PhpStorageInterface
@@ -681,7 +668,11 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
   }
 
   /**
-   * Returns the file name for each enabled module.
+   * Gets the file name for each enabled module.
+   *
+   * @return array
+   *   Array where each key is a module name, and each value is a path to the
+   *   respective *.module or *.profile file.
    */
   protected function getModuleFileNames() {
     $filenames = array();
@@ -694,18 +685,67 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
   }
 
   /**
-   * Gets the namespaces of each enabled module.
+   * Gets the PSR-4 base directories for module namespaces.
+   *
+   * @param array $module_file_names
+   *   Array where each key is a module name, and each value is a path to the
+   *   respective *.module or *.profile file.
+   *
+   * @return array
+   *   Array where each key is a module namespace like 'Drupal\system', and each
+   *   value is an array of PSR-4 base directories associated with the module
+   *   namespace.
    */
-  protected function getModuleNamespaces($moduleFileNames) {
+  protected function getModuleNamespacesPsr4($module_file_names) {
     $namespaces = array();
-    foreach ($moduleFileNames as $module => $filename) {
+    foreach ($module_file_names as $module => $filename) {
+      // @todo Remove lib/Drupal/$module, once the switch to PSR-4 is complete.
+      $namespaces["Drupal\\$module"][] = DRUPAL_ROOT . '/' . dirname($filename) . '/lib/Drupal/' . $module;
+      $namespaces["Drupal\\$module"][] = DRUPAL_ROOT . '/' . dirname($filename) . '/src';
+    }
+    return $namespaces;
+  }
+
+  /**
+   * Gets the PSR-0 base directories for module namespaces.
+   *
+   * @param array $module_file_names
+   *   Array where each key is a module name, and each value is a path to the
+   *   respective *.module or *.profile file.
+   *
+   * @return array
+   *   Array where each key is a module namespace like 'Drupal\system', and each
+   *   value is a PSR-0 base directory associated with the module namespace.
+   */
+  protected function getModuleNamespaces($module_file_names) {
+    $namespaces = array();
+    foreach ($module_file_names as $module => $filename) {
       $namespaces["Drupal\\$module"] = DRUPAL_ROOT . '/' . dirname($filename) . '/lib';
     }
     return $namespaces;
   }
 
   /**
-   * Registers a list of namespaces.
+   * Registers a list of namespaces with PSR-4 directories for class loading.
+   *
+   * @param array $namespaces
+   *   Array where each key is a namespace like 'Drupal\system', and each value
+   *   is either a PSR-4 base directory, or an array of PSR-4 base directories
+   *   associated with this namespace.
+   */
+  protected function registerNamespacesPsr4(array $namespaces = array()) {
+    foreach ($namespaces as $prefix => $paths) {
+      $this->classLoader->addPsr4($prefix . '\\', $paths);
+    }
+  }
+
+  /**
+   * Registers a list of namespaces with PSR-0 directories for class loading.
+   *
+   * @param array $namespaces
+   *   Array where each key is a namespace like 'Drupal\system', and each value
+   *   is either a PSR-0 base directory, or an array of PSR-0 base directories
+   *   associated with this namespace.
    */
   protected function registerNamespaces(array $namespaces = array()) {
     foreach ($namespaces as $prefix => $path) {

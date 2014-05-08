@@ -7,6 +7,7 @@
 
 namespace Drupal\config\Form;
 
+use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
@@ -151,8 +152,7 @@ class ConfigSingleExportForm extends FormBase {
       $name = $form_state['values']['config_name'];
     }
     // Read the raw data for this config name, encode it, and display it.
-    $data = $this->configStorage->read($name);
-    $form['export']['#value'] = $this->configStorage->encode($data);
+    $form['export']['#value'] = Yaml::encode($this->configStorage->read($name));
     $form['export']['#description'] = $this->t('The filename is %name.', array('%name' => $name . '.yml'));
     return $form['export'];
   }

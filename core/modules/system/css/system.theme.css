@@ -109,7 +109,7 @@ abbr.form-required, abbr.tabledrag-changed, abbr.ajax-changed {
   content: ':';
 }
 .form-type-radios .container-inline label:after {
-  content: none;
+  content: '';
 }
 .form-type-radios .container-inline .form-type-radio {
   margin: 0 1em;
@@ -266,7 +266,7 @@ body div.tabledrag-changed-warning {
  * TableSelect behavior.
  *
  * @see tableselect.js
-*/
+ */
 tr.selected td {
   background: #ffc;
 }

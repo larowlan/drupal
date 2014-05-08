@@ -27,9 +27,9 @@ use Drupal\user\UserInterface;
  *     "list_builder" = "Drupal\user\UserListBuilder",
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
  *     "form" = {
- *       "default" = "Drupal\user\ProfileFormController",
+ *       "default" = "Drupal\user\ProfileForm",
  *       "cancel" = "Drupal\user\Form\UserCancelForm",
- *       "register" = "Drupal\user\RegisterFormController"
+ *       "register" = "Drupal\user\RegisterForm"
  *     },
  *     "translation" = "Drupal\user\ProfileTranslationHandler"
  *   },
@@ -59,13 +59,6 @@ class User extends ContentEntityBase implements UserInterface {
    * @var string
    */
   protected $hostname;
-
-  /**
-   * {@inheritdoc}
-   */
-  public function id() {
-    return $this->get('uid')->value;
-  }
 
   /**
    * {@inheritdoc}
@@ -123,12 +116,13 @@ class User extends ContentEntityBase implements UserInterface {
     parent::postSave($storage, $update);
 
     if ($update) {
+      $session_manager = \Drupal::service('session_manager');
       // If the password has been changed, delete all open sessions for the
       // user and recreate the current one.
       if ($this->pass->value != $this->original->pass->value) {
-        drupal_session_destroy_uid($this->id());
+        $session_manager->delete($this->id());
         if ($this->id() == \Drupal::currentUser()->id()) {
-          drupal_session_regenerate();
+          $session_manager->regenerate();
         }
       }
 
@@ -140,7 +134,7 @@ class User extends ContentEntityBase implements UserInterface {
 
       // If the user was blocked, delete the user's sessions to force a logout.
       if ($this->original->status->value != $this->status->value && $this->status->value == 0) {
-        drupal_session_destroy_uid($this->id());
+        $session_manager->delete($this->id());
       }
 
       // Send emails after we have the new user object.

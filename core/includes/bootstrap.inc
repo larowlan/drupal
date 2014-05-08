@@ -1,8 +1,11 @@
 <?php
+/**
+ * @file
+ * Functions that need to be loaded on every Drupal request.
+ */
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\NestedArray;
-use Drupal\Component\Utility\Settings;
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Timer;
 use Drupal\Component\Utility\Unicode;
@@ -11,6 +14,7 @@ use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Extension\ExtensionDiscovery;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\Utility\Title;
 use Drupal\Core\Utility\Error;
 use Symfony\Component\ClassLoader\ApcClassLoader;
@@ -24,11 +28,6 @@ use Drupal\Core\Language\Language;
 use Drupal\Core\Lock\DatabaseLockBackend;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\Session\AnonymousUserSession;
-
-/**
- * @file
- * Functions that need to be loaded on every Drupal request.
- */
 
 /**
  * Minimum supported version of PHP.
@@ -344,9 +343,6 @@ function config_get_config_directory($type = CONFIG_ACTIVE_DIRECTORY) {
  * Initializes the PHP environment.
  */
 function drupal_environment_initialize() {
-  if (!isset($_SERVER['HTTP_REFERER'])) {
-    $_SERVER['HTTP_REFERER'] = '';
-  }
   if (!isset($_SERVER['SERVER_PROTOCOL']) || ($_SERVER['SERVER_PROTOCOL'] != 'HTTP/1.0' && $_SERVER['SERVER_PROTOCOL'] != 'HTTP/1.1')) {
     $_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.0';
   }
@@ -409,7 +405,8 @@ function drupal_valid_http_host($host) {
  */
 function drupal_settings_initialize() {
   // Export these settings.php variables to the global namespace.
-  global $base_url, $databases, $cookie_domain, $config_directories, $config;
+  global $base_url, $cookie_domain, $config_directories, $config;
+  $databases = array();
   $settings = array();
   $config = array();
 
@@ -418,6 +415,8 @@ function drupal_settings_initialize() {
   if (is_readable(DRUPAL_ROOT . '/' . $conf_path . '/settings.php')) {
     require DRUPAL_ROOT . '/' . $conf_path . '/settings.php';
   }
+  // Initialize Database.
+  Database::setMultipleConnectionInfo($databases);
   // Initialize Settings.
   new Settings($settings);
 }
@@ -1466,7 +1465,9 @@ function drupal_handle_request($test_only = FALSE) {
 
   // Create a request object from the HttpFoundation.
   $request = Request::createFromGlobals();
-  \Drupal::getContainer()->set('request', $request);
+  $container = \Drupal::getContainer();
+  $container->set('request', $request);
+  $container->get('request_stack')->push($request);
 
   drupal_bootstrap(DRUPAL_BOOTSTRAP_CODE);
 
@@ -1600,7 +1601,7 @@ function _drupal_bootstrap_configuration() {
   // Redirect the user to the installation script if Drupal has not been
   // installed yet (i.e., if no $databases array has been defined in the
   // settings.php file) and we are not already installing.
-  if (empty($GLOBALS['databases']) && !drupal_installation_attempted() && !drupal_is_cli()) {
+  if (!Database::getConnectionInfo() && !drupal_installation_attempted() && !drupal_is_cli()) {
     include_once __DIR__ . '/install.inc';
     install_goto('core/install.php');
   }
@@ -1616,7 +1617,9 @@ function _drupal_bootstrap_kernel() {
     $kernel = new DrupalKernel('prod', drupal_classloader());
     $kernel->boot();
     $request = Request::createFromGlobals();
-    \Drupal::getContainer()->set('request', $request);
+    $container = \Drupal::getContainer();
+    $container->set('request', $request);
+    $container->get('request_stack')->push($request);
   }
 }
 
@@ -2121,7 +2124,10 @@ function drupal_classloader($class_loader = NULL) {
  */
 function drupal_classloader_register($name, $path) {
   $loader = drupal_classloader();
-  $loader->add('Drupal\\' . $name, DRUPAL_ROOT . '/' . $path . '/lib');
+  $loader->addPsr4('Drupal\\' . $name . '\\', array(
+    DRUPAL_ROOT . '/' . $path . '/lib/Drupal/' . $name,
+    DRUPAL_ROOT . '/' . $path . '/src',
+  ));
 }
 
 /**
@@ -2173,12 +2179,12 @@ function drupal_classloader_register($name, $path) {
  *
  * Example:
  * @code
- * function drupal_session_started($set = NULL) {
- *   static $session_started = FALSE;
- *   if (isset($set)) {
- *     $session_started = $set;
+ * function mymodule_log_stream_handle($new_handle = NULL) {
+ *   static $handle;
+ *   if (isset($new_handle)) {
+ *     $handle = $new_handle;
  *   }
- *   return $session_started && session_id();
+ *   return $handle;
  * }
  * @endcode
  *

@@ -92,7 +92,7 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
   protected $initializing = FALSE;
 
   /**
-   * Rebuild the container to register services needed on multilingual sites.
+   * {@inheritdoc}
    */
   public static function rebuildServices() {
     PhpStorageFactory::get('service_container')->deleteAll();
@@ -296,7 +296,7 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
       // Add locked languages, they will be filtered later if needed.
       $this->languages += $this->getDefaultLockedLanguages($weight);
 
-      // Sort the language list by weight.
+      // Sort the language list by weight then title.
       Language::sort($this->languages);
     }
 
@@ -405,6 +405,23 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
    */
   public function getLanguageConfigOverride($langcode, $name) {
     return $this->configFactoryOverride->getOverride($langcode, $name);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getUnusedPredefinedList() {
+    $languages = $this->getLanguages();
+    $predefined = $this->getStandardLanguageList();
+    foreach ($predefined as $key => $value) {
+      if (isset($languages[$key])) {
+        unset($predefined[$key]);
+        continue;
+      }
+      $predefined[$key] = $this->t($value[0]);
+    }
+    asort($predefined);
+    return $predefined;
   }
 
 }

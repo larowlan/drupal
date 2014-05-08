@@ -8,8 +8,8 @@
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Language\Language;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\PublicStream;
-use Drupal\Component\Utility\Settings;
 
 /**
  * Implements hook_requirements().
@@ -567,13 +567,6 @@ function system_requirements($phase) {
  * Implements hook_install().
  */
 function system_install() {
-  // Enable and set the default theme. Can't use theme_enable() this early in
-  // installation.
-  \Drupal::service('config.installer')->installDefaultConfig('theme', 'stark');
-  \Drupal::config('system.theme')
-    ->set('default', 'stark')
-    ->save();
-
   // Populate the cron key state variable.
   $cron_key = Crypt::randomBytesBase64(55);
   \Drupal::state()->set('system.cron_key', $cron_key);
@@ -797,13 +790,6 @@ function system_schema() {
         'not null' => TRUE,
         'default' => '',
       ),
-      'provider' => array(
-        'description' => 'The provider grouping to which a route belongs.',
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'default' => '',
-      ),
       'fit' => array(
         'description' => 'A numeric representation of how specific the path is.',
         'type' => 'int',
@@ -825,7 +811,6 @@ function system_schema() {
     ),
     'indexes' => array(
       'pattern_outline_fit' => array('pattern_outline', 'fit'),
-      'provider' => array('provider'),
     ),
     'primary key' => array('name'),
   );

@@ -7,6 +7,7 @@
 
 namespace Drupal\config\Form;
 
+use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Form\ConfirmFormBase;
@@ -184,7 +185,7 @@ class ConfigSingleImportForm extends ConfirmFormBase {
     }
 
     // Decode the submitted import.
-    $data = $this->configStorage->decode($form_state['values']['import']);
+    $data = Yaml::decode($form_state['values']['import']);
 
     // Validate for config entities.
     if ($form_state['values']['config_type'] !== 'system.simple') {

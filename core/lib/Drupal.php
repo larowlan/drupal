@@ -336,7 +336,7 @@ class Drupal {
    * needs to be the same across development, production, etc. environments
    * (for example, the system maintenance message) should use \Drupal::config() instead.
    *
-   * @return \Drupal\Core\KeyValueStore\StateInterface
+   * @return \Drupal\Core\State\StateInterface
    */
   public static function state() {
     return static::$container->get('state');
@@ -345,11 +345,11 @@ class Drupal {
   /**
    * Returns the default http client.
    *
-   * @return \Guzzle\Http\ClientInterface
+   * @return \GuzzleHttp\ClientInterface
    *   A guzzle http client instance.
    */
   public static function httpClient() {
-    return static::$container->get('http_default_client');
+    return static::$container->get('http_client');
   }
 
   /**
@@ -586,7 +586,7 @@ class Drupal {
    * @return \Drupal\Core\Access\CsrfTokenGenerator
    *   The CSRF token manager.
    *
-   * @see drupal_session_start()
+   * @see \Drupal\Core\Session\SessionManager::start()
    */
   public static function csrfToken() {
     return static::$container->get('csrf_token');

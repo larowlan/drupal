@@ -216,12 +216,12 @@ class Page extends PathPluginBase {
           ),
         );
 
-        // Only display the menu selector if menu module is enabled.
-        if (\Drupal::moduleHandler()->moduleExists('menu')) {
+        // Only display the menu selector if Menu UI module is enabled.
+        if (\Drupal::moduleHandler()->moduleExists('menu_ui')) {
           $form['menu']['name'] = array(
             '#title' => t('Menu'),
             '#type' => 'select',
-            '#options' => menu_get_menus(),
+            '#options' => menu_ui_get_menus(),
             '#default_value' => $menu['name'],
             '#states' => array(
               'visible' => array(
@@ -241,7 +241,7 @@ class Page extends PathPluginBase {
             '#value' => $menu['name'],
           );
           $form['menu']['markup'] = array(
-            '#markup' => t('Menu selection requires the activation of menu module.'),
+            '#markup' => t('Menu selection requires the activation of Menu UI module.'),
           );
         }
         $form['menu']['weight'] = array(
@@ -333,12 +333,12 @@ class Page extends PathPluginBase {
             ),
           ),
         );
-        // Only display the menu selector if menu module is enabled.
-        if (\Drupal::moduleHandler()->moduleExists('menu')) {
+        // Only display the menu selector if Menu UI module is enabled.
+        if (\Drupal::moduleHandler()->moduleExists('menu_ui')) {
           $form['tab_options']['name'] = array(
             '#title' => t('Menu'),
             '#type' => 'select',
-            '#options' => menu_get_menus(),
+            '#options' => menu_ui_get_menus(),
             '#default_value' => $tab_options['name'],
             '#description' => t('Insert item into an available menu.'),
             '#states' => array(
@@ -354,7 +354,7 @@ class Page extends PathPluginBase {
             '#value' => $tab_options['name'],
           );
           $form['tab_options']['markup'] = array(
-            '#markup' => t('Menu selection requires the activation of menu module.'),
+            '#markup' => t('Menu selection requires the activation of Menu UI module.'),
           );
         }
         $form['tab_options']['weight'] = array(

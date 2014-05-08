@@ -7,6 +7,7 @@
 
 namespace Drupal\config\Tests;
 
+use Drupal\Component\Utility\String;
 use Drupal\Core\Config\InstallStorage;
 use Drupal\simpletest\WebTestBase;
 
@@ -151,8 +152,8 @@ class ConfigImportUITest extends WebTestBase {
     // Ensure installations and uninstallation occur as expected.
     $installed = \Drupal::state()->get('ConfigImportUITest.core.extension.modules_installed', array());
     $uninstalled = \Drupal::state()->get('ConfigImportUITest.core.extension.modules_uninstalled', array());
-    $expected = array('ban', 'action', 'text', 'options');
-    $this->assertIdentical($expected, $installed, 'Ban, Action, Text and Options modules installed in the correct order.');
+    $expected = array('action', 'ban', 'text', 'options');
+    $this->assertIdentical($expected, $installed, 'Action, Ban, Text and Options modules installed in the correct order.');
     $this->assertTrue(empty($uninstalled), 'No modules uninstalled during import');
 
     // Verify that the action.settings configuration object was only written
@@ -206,11 +207,11 @@ class ConfigImportUITest extends WebTestBase {
     $installed = \Drupal::state()->get('ConfigImportUITest.core.extension.modules_installed', array());
     $uninstalled = \Drupal::state()->get('ConfigImportUITest.core.extension.modules_uninstalled', array());
     $expected = array('options', 'text', 'ban', 'action');
-    $this->assertIdentical($expected, $uninstalled, 'Options, Text, Action and Ban modules uninstalled in the correct order.');
+    $this->assertIdentical($expected, $uninstalled, 'Options, Text, Ban and Action modules uninstalled in the correct order.');
     $this->assertTrue(empty($installed), 'No modules installed during import');
 
     $theme_info = \Drupal::service('theme_handler')->listInfo();
-    $this->assertTrue(isset($theme_info['bartik']) && !$theme_info['bartik']->status, 'Bartik theme disabled during import.');
+    $this->assertFalse(isset($theme_info['bartik']), 'Bartik theme disabled during import.');
 
     // Verify that the action.settings configuration object was only deleted
     // once during the import process.
@@ -305,6 +306,31 @@ class ConfigImportUITest extends WebTestBase {
     $this->drupalGet('admin/config/development/configuration/sync/diff/' . $config_name);
   }
 
+  /**
+   * Tests that mutliple validation errors are listed on the page.
+   */
+  public function testImportValidation() {
+    // Set state value so that
+    // \Drupal\config_import_test\EventSubscriber::onConfigImportValidate() logs
+    // validation errors.
+    \Drupal::state()->set('config_import_test.config_import_validate_fail', TRUE);
+    // Ensure there is something to import.
+    $new_site_name = 'Config import test ' . $this->randomString();
+    $this->prepareSiteNameUpdate($new_site_name);
+
+    $this->drupalGet('admin/config/development/configuration');
+    $this->assertNoText(t('There are no configuration changes.'));
+    $this->drupalPostForm(NULL, array(), t('Import all'));
+
+    // Verify that the validation messages appear.
+    $this->assertText('The configuration synchronization failed validation.');
+    $this->assertText('Config import validate error 1.');
+    $this->assertText('Config import validate error 2.');
+
+    // Verify site name has not changed.
+    $this->assertNotEqual($new_site_name, \Drupal::config('system.site')->get('name'));
+  }
+
   function prepareSiteNameUpdate($new_site_name) {
     $staging = $this->container->get('config.storage.staging');
     // Create updated configuration object.
@@ -312,4 +338,55 @@ class ConfigImportUITest extends WebTestBase {
     $config_data['name'] = $new_site_name;
     $staging->write('system.site', $config_data);
   }
+
+  /**
+   * Tests an import that results in an error.
+   */
+  function testImportErrorLog() {
+    $name_primary = 'config_test.dynamic.primary';
+    $name_secondary = 'config_test.dynamic.secondary';
+    $staging = $this->container->get('config.storage.staging');
+    $uuid = $this->container->get('uuid');
+
+    $values_primary = array(
+      'id' => 'primary',
+      'label' => 'Primary',
+      'weight' => 0,
+      'style' => NULL,
+      'test_dependencies' => array(),
+      'status' => TRUE,
+      'uuid' => $uuid->generate(),
+      'langcode' => 'en',
+      'dependencies' => array(),
+      'protected_property' => null,
+    );
+    $staging->write($name_primary, $values_primary);
+    $values_secondary = array(
+      'id' => 'secondary',
+      'label' => 'Secondary Sync',
+      'weight' => 0,
+      'style' => NULL,
+      'test_dependencies' => array(),
+      'status' => TRUE,
+      'uuid' => $uuid->generate(),
+      'langcode' => 'en',
+      // Add a dependency on primary, to ensure that is synced first.
+      'dependencies' => array(
+        'entity' => array($name_primary),
+      ),
+      'protected_property' => null,
+    );
+    $staging->write($name_secondary, $values_secondary);
+    // Verify that there are configuration differences to import.
+    $this->drupalGet('admin/config/development/configuration');
+    $this->assertNoText(t('There are no configuration changes.'));
+
+    // Attempt to import configuration and verify that an error message appears.
+    $this->drupalPostForm(NULL, array(), t('Import all'));
+    $this->assertText(String::format('Deleted and replaced configuration entity "@name"', array('@name' => $name_secondary)));
+    $this->assertText(t('The configuration was imported with errors.'));
+    $this->assertNoText(t('The configuration was imported successfully.'));
+    $this->assertText(t('There are no configuration changes.'));
+  }
+
 }

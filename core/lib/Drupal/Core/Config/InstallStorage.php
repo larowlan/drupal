@@ -10,7 +10,7 @@ namespace Drupal\Core\Config;
 use Drupal\Core\Extension\ExtensionDiscovery;
 
 /**
- * Storage controller used by the Drupal installer.
+ * Storage used by the Drupal installer.
  *
  * This storage performs a full filesystem scan to discover all available
  * extensions and reads from all default config directories that exist.
@@ -21,6 +21,16 @@ use Drupal\Core\Extension\ExtensionDiscovery;
  * @see \Drupal\Core\DependencyInjection\InstallServiceProvider
  */
 class InstallStorage extends FileStorage {
+
+  /**
+   * Extension sub-directory containing default configuration for installation.
+   */
+  const CONFIG_INSTALL_DIRECTORY = 'config/install';
+
+  /**
+   * Extension sub-directory containing configuration schema.
+   */
+  const CONFIG_SCHEMA_DIRECTORY = 'config/schema';
 
   /**
    * Folder map indexed by configuration name.
@@ -43,7 +53,7 @@ class InstallStorage extends FileStorage {
    *   The directory to scan in each extension to scan for files. Defaults to
    *   'config'.
    */
-  public function __construct($directory = 'config') {
+  public function __construct($directory = self::CONFIG_INSTALL_DIRECTORY) {
     $this->directory = $directory;
   }
 

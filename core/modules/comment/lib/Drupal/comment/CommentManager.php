@@ -14,6 +14,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\field\FieldInfo;
 
@@ -21,6 +22,7 @@ use Drupal\field\FieldInfo;
  * Comment manager contains common functions to manage comment fields.
  */
 class CommentManager implements CommentManagerInterface {
+  use StringTranslationTrait;
 
   /**
    * The field info service.
@@ -37,13 +39,6 @@ class CommentManager implements CommentManagerInterface {
   protected $entityManager;
 
   /**
-   * The current user.
-   *
-   * @var \Drupal\Core\Session\AccountInterface $current_user
-   */
-  protected $currentUser;
-
-  /**
    * Whether the DRUPAL_AUTHENTICATED_RID can post comments.
    *
    * @var bool
@@ -56,13 +51,6 @@ class CommentManager implements CommentManagerInterface {
    * @var \Drupal\Core\Config\Config
    */
   protected $userConfig;
-
-  /**
-   * The string translation service.
-   *
-   * @var \Drupal\Core\StringTranslation\TranslationInterface
-   */
-  protected $translationManager;
 
   /**
    * The url generator service.
@@ -78,32 +66,19 @@ class CommentManager implements CommentManagerInterface {
    *   The field info service.
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager service.
-   * @param \Drupal\Core\Session\AccountInterface $current_user
-   *   The current user.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
-   * @param \Drupal\Core\StringTranslation\TranslationInterface $translation_manager
+   * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    *   The string translation service.
    * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
    *   The url generator service.
    */
-  public function __construct(FieldInfo $field_info, EntityManagerInterface $entity_manager, AccountInterface $current_user, ConfigFactoryInterface $config_factory, TranslationInterface $translation_manager, UrlGeneratorInterface $url_generator) {
+  public function __construct(FieldInfo $field_info, EntityManagerInterface $entity_manager, ConfigFactoryInterface $config_factory, TranslationInterface $string_translation, UrlGeneratorInterface $url_generator) {
     $this->fieldInfo = $field_info;
     $this->entityManager = $entity_manager;
-    $this->currentUser = $current_user;
     $this->userConfig = $config_factory->get('user.settings');
-    $this->translationManager = $translation_manager;
+    $this->stringTranslation = $string_translation;
     $this->urlGenerator = $url_generator;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getParentEntityUri(CommentInterface $comment) {
-    return $this->entityManager
-      ->getStorage($comment->getCommentedEntityTypeId())
-      ->load($comment->getCommentedEntityId())
-      ->urlInfo();
   }
 
   /**
@@ -277,51 +252,40 @@ class CommentManager implements CommentManagerInterface {
    * {@inheritdoc}
    */
   public function forbiddenMessage(EntityInterface $entity, $field_name) {
-    if ($this->currentUser->isAnonymous()) {
-      if (!isset($this->authenticatedCanPostComments)) {
-        // We only output a link if we are certain that users will get the
-        // permission to post comments by logging in.
-        $this->authenticatedCanPostComments = $this->entityManager
-          ->getStorage('user_role')
-          ->load(DRUPAL_AUTHENTICATED_RID)
-          ->hasPermission('post comments');
+    if (!isset($this->authenticatedCanPostComments)) {
+      // We only output a link if we are certain that users will get the
+      // permission to post comments by logging in.
+      $this->authenticatedCanPostComments = $this->entityManager
+        ->getStorage('user_role')
+        ->load(DRUPAL_AUTHENTICATED_RID)
+        ->hasPermission('post comments');
+    }
+
+    if ($this->authenticatedCanPostComments) {
+      // We cannot use drupal_get_destination() because these links
+      // sometimes appear on /node and taxonomy listing pages.
+      if ($entity->get($field_name)->getFieldDefinition()->getSetting('form_location') == COMMENT_FORM_SEPARATE_PAGE) {
+        $destination = array('destination' => 'comment/reply/' . $entity->getEntityTypeId() . '/' . $entity->id() . '/' . $field_name . '#comment-form');
+      }
+      else {
+        $destination = array('destination' => $entity->getSystemPath() . '#comment-form');
       }
 
-      if ($this->authenticatedCanPostComments) {
-        // We cannot use drupal_get_destination() because these links
-        // sometimes appear on /node and taxonomy listing pages.
-        if ($entity->get($field_name)->getFieldDefinition()->getSetting('form_location') == COMMENT_FORM_SEPARATE_PAGE) {
-          $destination = array('destination' => 'comment/reply/' . $entity->getEntityTypeId() . '/' . $entity->id() . '/' . $field_name . '#comment-form');
-        }
-        else {
-          $destination = array('destination' => $entity->getSystemPath() . '#comment-form');
-        }
-
-        if ($this->userConfig->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY) {
-          // Users can register themselves.
-          return $this->t('<a href="@login">Log in</a> or <a href="@register">register</a> to post comments', array(
-            '@login' => $this->urlGenerator->generateFromRoute('user.login', array(), array('query' => $destination)),
-            '@register' => $this->urlGenerator->generateFromRoute('user.register', array(), array('query' => $destination)),
-          ));
-        }
-        else {
-          // Only admins can add new users, no public registration.
-          return $this->t('<a href="@login">Log in</a> to post comments', array(
-            '@login' => $this->urlGenerator->generateFromRoute('user.login', array(), array('query' => $destination)),
-          ));
-        }
+      if ($this->userConfig->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY) {
+        // Users can register themselves.
+        return $this->t('<a href="@login">Log in</a> or <a href="@register">register</a> to post comments', array(
+          '@login' => $this->urlGenerator->generateFromRoute('user.login', array(), array('query' => $destination)),
+          '@register' => $this->urlGenerator->generateFromRoute('user.register', array(), array('query' => $destination)),
+        ));
+      }
+      else {
+        // Only admins can add new users, no public registration.
+        return $this->t('<a href="@login">Log in</a> to post comments', array(
+          '@login' => $this->urlGenerator->generateFromRoute('user.login', array(), array('query' => $destination)),
+        ));
       }
     }
     return '';
-  }
-
-  /**
-   * Translates a string to the current language or to a given language.
-   *
-   * See the t() documentation for details.
-   */
-  protected function t($string, array $args = array(), array $options = array()) {
-    return $this->translationManager->translate($string, $args, $options);
   }
 
 }

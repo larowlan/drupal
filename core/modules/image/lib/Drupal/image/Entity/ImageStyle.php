@@ -7,9 +7,11 @@
 
 namespace Drupal\image\Entity;
 
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
 use Drupal\Core\Config\Entity\EntityWithPluginBagInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\Routing\RequestHelper;
 use Drupal\image\ImageEffectBag;
 use Drupal\image\ImageEffectInterface;
 use Drupal\image\ImageStyleInterface;
@@ -105,7 +107,9 @@ class ImageStyle extends ConfigEntityBase implements ImageStyleInterface, Entity
         // The old image style name needs flushing after a rename.
         $this->original->flush();
         // Update field instance settings if necessary.
-        static::replaceImageStyle($this);
+        if (!$this->isSyncing()) {
+          static::replaceImageStyle($this);
+        }
       }
       else {
         // Flush image style when updating without changing the name.
@@ -126,7 +130,7 @@ class ImageStyle extends ConfigEntityBase implements ImageStyleInterface, Entity
       // Check whether field instance settings need to be updated.
       // In case no replacement style was specified, all image fields that are
       // using the deleted style are left in a broken state.
-      if ($new_id = $style->getReplacementID()) {
+      if (!$style->isSyncing() && $new_id = $style->getReplacementID()) {
         // The deleted ID is still set as originalID.
         $style->setName($new_id);
         static::replaceImageStyle($style);
@@ -206,7 +210,7 @@ class ImageStyle extends ConfigEntityBase implements ImageStyleInterface, Entity
       $clean_urls = TRUE;
       try {
         $request = \Drupal::request();
-        $clean_urls = $request->attributes->get('clean_urls');
+        $clean_urls = RequestHelper::isCleanUrl($request);
       }
       catch (ServiceNotFoundException $e) {
       }
@@ -259,8 +263,7 @@ class ImageStyle extends ConfigEntityBase implements ImageStyleInterface, Entity
     field_info_cache_clear();
     drupal_theme_rebuild();
 
-    // Clear render cache when flushing.
-    \Drupal::cache('render')->deleteAll();
+    Cache::invalidateTags($this->getCacheTag());
 
     return $this;
   }
@@ -307,21 +310,11 @@ class ImageStyle extends ConfigEntityBase implements ImageStyleInterface, Entity
   }
 
   /**
-   * Generates a token to protect an image style derivative.
-   *
-   * This prevents unauthorized generation of an image style derivative,
-   * which can be costly both in CPU time and disk space.
-   *
-   * @param string $uri
-   *   The URI of the original image of this style.
-   *
-   * @return string
-   *   An eight-character token which can be used to protect image style
-   *   derivatives against denial-of-service attacks.
+   * {@inheritdoc}
    */
   public function getPathToken($uri) {
-    // Return the first eight characters.
-    return substr(Crypt::hmacBase64($this->id() . ':' . $uri, drupal_get_private_key() . drupal_get_hash_salt()), 0, 8);
+    // Return the first 8 characters.
+    return substr(Crypt::hmacBase64($this->id() . ':' . $uri, \Drupal::service('private_key')->get() . drupal_get_hash_salt()), 0, 8);
   }
 
   /**

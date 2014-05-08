@@ -110,9 +110,9 @@ function hook_ENTITY_TYPE_create_access(\Drupal\Core\Session\AccountInterface $a
  */
 function hook_entity_type_build(array &$entity_types) {
   /** @var $entity_types \Drupal\Core\Entity\EntityTypeInterface[] */
-  // Add a form controller for a custom node form without overriding the default
+  // Add a form for a custom node form without overriding the default
   // node form. To override the default node form, use hook_entity_type_alter().
-  $entity_types['node']->setFormClass('mymodule_foo', 'Drupal\mymodule\NodeFooFormController');
+  $entity_types['node']->setFormClass('mymodule_foo', 'Drupal\mymodule\NodeFooForm');
 }
 
 /**
@@ -436,6 +436,8 @@ function hook_entity_query_alter(\Drupal\Core\Entity\Query\QueryInterface $query
 /**
  * Act on entities being assembled before rendering.
  *
+ * @param &$build
+ *   A renderable array representing the entity content.
  * @param \Drupal\Core\Entity\EntityInterface $entity
  *   The entity object.
  * @param \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display
@@ -446,8 +448,8 @@ function hook_entity_query_alter(\Drupal\Core\Entity\Query\QueryInterface $query
  * @param $langcode
  *   The language code used for rendering.
  *
- * The module may add elements to $entity->content prior to rendering. The
- * structure of $entity->content is a renderable array as expected by
+ * The module may add elements to $build prior to rendering. The
+ * structure of $build is a renderable array as expected by
  * drupal_render().
  *
  * @see hook_entity_view_alter()
@@ -455,12 +457,12 @@ function hook_entity_query_alter(\Drupal\Core\Entity\Query\QueryInterface $query
  * @see hook_node_view()
  * @see hook_user_view()
  */
-function hook_entity_view(\Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display, $view_mode, $langcode) {
+function hook_entity_view(array &$build, \Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display, $view_mode, $langcode) {
   // Only do the extra work if the component is configured to be displayed.
   // This assumes a 'mymodule_addition' extra field has been defined for the
   // entity bundle in hook_entity_extra_field_info().
   if ($display->getComponent('mymodule_addition')) {
-    $entity->content['mymodule_addition'] = array(
+    $build['mymodule_addition'] = array(
       '#markup' => mymodule_addition($entity),
       '#theme' => 'mymodule_my_additional_field',
     );
@@ -480,7 +482,7 @@ function hook_entity_view(\Drupal\Core\Entity\EntityInterface $entity, \Drupal\C
  * the particular entity type template, if there is one (e.g., node.html.twig).
  * See drupal_render() and _theme() for details.
  *
- * @param $build
+ * @param array &$build
  *   A renderable array representing the entity content.
  * @param \Drupal\Core\Entity\EntityInterface $entity
  *   The entity object being rendered.
@@ -494,7 +496,7 @@ function hook_entity_view(\Drupal\Core\Entity\EntityInterface $entity, \Drupal\C
  * @see hook_taxonomy_term_view_alter()
  * @see hook_user_view_alter()
  */
-function hook_entity_view_alter(&$build, Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display) {
+function hook_entity_view_alter(array &$build, Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display) {
   if ($build['#view_mode'] == 'full' && isset($build['an_additional_field'])) {
     // Change its weight.
     $build['an_additional_field']['#weight'] = -10;
@@ -558,6 +560,54 @@ function hook_entity_view_mode_alter(&$view_mode, Drupal\Core\Entity\EntityInter
   if ($entity->getEntityTypeId() == 'node' && $view_mode == 'teaser') {
     $view_mode = 'my_custom_view_mode';
   }
+}
+
+/**
+ * Alters entity renderable values before cache checking in drupal_render().
+ *
+ * Invoked for a specific entity type.
+ *
+ * The values in the #cache key of the renderable array are used to determine if
+ * a cache entry exists for the entity's rendered output. Ideally only values
+ * that pertain to caching should be altered in this hook.
+ *
+ * @param array &$build
+ *   A renderable array containing the entity's caching and view mode values.
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity that is being viewed.
+ * @param string $view_mode
+ *   The view_mode that is to be used to display the entity.
+ * @param string $langcode
+ *   The code of the language $entity is accessed in.
+ *
+ * @see drupal_render()
+ * @see \Drupal\Core\Entity\EntityViewBuilder
+ */
+function hook_ENTITY_TYPE_build_defaults_alter(array &$build, \Drupal\Core\Entity\EntityInterface $entity, $view_mode, $langcode) {
+
+}
+
+/**
+ * Alters entity renderable values before cache checking in drupal_render().
+ *
+ * The values in the #cache key of the renderable array are used to determine if
+ * a cache entry exists for the entity's rendered output. Ideally only values
+ * that pertain to caching should be altered in this hook.
+ *
+ * @param array &$build
+ *   A renderable array containing the entity's caching and view mode values.
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity that is being viewed.
+ * @param string $view_mode
+ *   The view_mode that is to be used to display the entity.
+ * @param string $langcode
+ *   The code of the language $entity is accessed in.
+ *
+ * @see drupal_render()
+ * @see \Drupal\Core\Entity\EntityViewBuilder
+ */
+function hook_entity_build_defaults_alter(array &$build, \Drupal\Core\Entity\EntityInterface $entity, $view_mode, $langcode) {
+
 }
 
 /**
@@ -627,7 +677,7 @@ function hook_entity_display_build_alter(&$build, $context) {
  * @param array $form_state
  *   An associative array containing the current state of the form.
  *
- * @see \Drupal\Core\Entity\EntityFormController::prepareEntity()
+ * @see \Drupal\Core\Entity\EntityForm::prepareEntity()
  */
 function hook_entity_prepare_form(\Drupal\Core\Entity\EntityInterface $entity, $operation, array &$form_state) {
   if ($operation == 'edit') {
@@ -707,6 +757,10 @@ function hook_entity_base_field_info_alter(&$fields, \Drupal\Core\Entity\EntityT
 /**
  * Provides field definitions for a specific bundle within an entity type.
  *
+ * Bundle fields either have to override an existing base field, or need to
+ * provide a field storage definition via hook_entity_field_storage_info()
+ * unless they are computed.
+ *
  * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
  *   The entity type definition.
  * @param string $bundle
@@ -719,6 +773,8 @@ function hook_entity_base_field_info_alter(&$fields, \Drupal\Core\Entity\EntityT
  *
  * @see hook_entity_base_field_info()
  * @see hook_entity_base_field_info_alter()
+ * @see hook_entity_field_storage_info()
+ * @see hook_entity_field_storage_info_alter()
  * @see hook_entity_bundle_field_info_alter()
  * @see \Drupal\Core\Field\FieldDefinitionInterface
  * @see \Drupal\Core\Entity\EntityManagerInterface::getFieldDefinitions()
@@ -753,6 +809,55 @@ function hook_entity_bundle_field_info_alter(&$fields, \Drupal\Core\Entity\Entit
   if ($entity_type->id() == 'node' && $bundle == 'article' && !empty($fields['mymodule_text'])) {
     // Alter the mymodule_text field to use a custom class.
     $fields['mymodule_text']->setClass('\Drupal\anothermodule\EntityComputedText');
+  }
+}
+
+/**
+ * Provides field storage definitions for a content entity type.
+ *
+ * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
+ *   The entity type definition.
+ *
+ * @return \Drupal\Core\Field\FieldStorageDefinitionInterface[]
+ *   An array of field storage definitions, keyed by field name.
+ *
+ * @see hook_entity_field_storage_info_alter()
+ * @see \Drupal\Core\Field\FieldStorageDefinitionInterface
+ * @see \Drupal\Core\Entity\EntityManagerInterface::getFieldStorageDefinitions()
+ */
+function hook_entity_field_storage_info(\Drupal\Core\Entity\EntityTypeInterface $entity_type) {
+  // Expose storage definitions for all exposed bundle fields.
+  if ($entity_type->isFieldable()) {
+    // Query by filtering on the ID as this is more efficient than filtering
+    // on the entity_type property directly.
+    $ids = \Drupal::entityQuery('field_config')
+      ->condition('id', $entity_type->id() . '.', 'STARTS_WITH')
+      ->execute();
+
+    // Fetch all fields and key them by field name.
+    $field_configs = entity_load_multiple('field_config', $ids);
+    $result = array();
+    foreach ($field_configs as $field_config) {
+      $result[$field_config->getName()] = $field_config;
+    }
+    return $result;
+  }
+}
+
+/**
+ * Alters field storage definitions for a content entity type.
+ *
+ * @param \Drupal\Core\Field\FieldStorageDefinitionInterface[] $fields
+ *   The array of field storage definitions for the entity type.
+ * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
+ *   The entity type definition.
+ *
+ * @see hook_entity_field_storage_info()
+ */
+function hook_entity_field_storage_info_alter(&$fields, \Drupal\Core\Entity\EntityTypeInterface $entity_type) {
+  // Alter the max_length setting.
+  if ($entity_type->id() == 'node' && !empty($fields['mymodule_text'])) {
+    $fields['mymodule_text']->setSetting('max_length', 128);
   }
 }
 

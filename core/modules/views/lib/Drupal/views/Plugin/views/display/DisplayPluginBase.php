@@ -8,6 +8,7 @@
 namespace Drupal\views\Plugin\views\display;
 
 use Drupal\Component\Utility\String;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Theme\Registry;
@@ -165,7 +166,8 @@ abstract class DisplayPluginBase extends PluginBase {
         }
         else {
           $this->unpackOptions($this->options, $options);
-          \Drupal::cache('data')->set($cid, $this->options);
+          $id = $this->view->storage->id();
+          \Drupal::cache('data')->set($cid, $this->options, Cache::PERMANENT, array('extension' => array(TRUE, 'views'), 'view' => array($id => $id)));
         }
         static::$unpackOptions[$cid] = $this->options;
       }
@@ -1124,7 +1126,7 @@ abstract class DisplayPluginBase extends PluginBase {
     $options['title'] = array(
       'category' => 'title',
       'title' => t('Title'),
-      'value' => $title,
+      'value' => views_ui_truncate($title, 32),
       'desc' => t('Change the title that this display will use.'),
     );
 
@@ -1427,6 +1429,7 @@ abstract class DisplayPluginBase extends PluginBase {
           '#type' => 'textfield',
           '#description' => t('This title will be displayed with the view, wherever titles are normally displayed; i.e, as the page title, block title, etc.'),
           '#default_value' => $this->getOption('title'),
+          '#maxlength' => 255,
         );
         break;
       case 'css_class':
@@ -2343,33 +2346,33 @@ abstract class DisplayPluginBase extends PluginBase {
     return TRUE;
   }
 
- /**
-  * Is the output of the view empty.
-  *
-  * If a view has no result and neither the empty, nor the footer nor the header
-  * does show anything return FALSE.
-  *
-  * @return bool
-  *   Returns TRUE if the output is empty, else FALSE.
-  */
- public function outputIsEmpty() {
-   if (!empty($this->view->result)) {
-     return FALSE;
-   }
+  /**
+   * Is the output of the view empty.
+   *
+   * If a view has no result and neither the empty, nor the footer nor the header
+   * does show anything return FALSE.
+   *
+   * @return bool
+   *   Returns TRUE if the output is empty, else FALSE.
+   */
+  public function outputIsEmpty() {
+    if (!empty($this->view->result)) {
+      return FALSE;
+    }
 
-   // Check whether all of the area handlers are empty.
-   foreach (array('empty', 'footer', 'header') as $type) {
-     $handlers = $this->getHandlers($type);
-     foreach ($handlers as $handler) {
-       // If one is not empty, return FALSE now.
-       if (!$handler->isEmpty()) {
-         return FALSE;
-       }
-     }
-   }
+    // Check whether all of the area handlers are empty.
+    foreach (array('empty', 'footer', 'header') as $type) {
+      $handlers = $this->getHandlers($type);
+      foreach ($handlers as $handler) {
+        // If one is not empty, return FALSE now.
+        if (!$handler->isEmpty()) {
+          return FALSE;
+        }
+      }
+    }
 
-   return TRUE;
- }
+    return TRUE;
+  }
 
   /**
    * Provide the block system with any exposed widget blocks for this display.

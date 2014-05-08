@@ -69,6 +69,7 @@ class DateTimeFieldTest extends WebTestBase {
       'field_name' => $this->field->name,
       'entity_type' => 'entity_test',
       'bundle' => 'entity_test',
+      'required' => TRUE,
     ));
     $this->instance->save();
 
@@ -97,6 +98,7 @@ class DateTimeFieldTest extends WebTestBase {
     // Display creation form.
     $this->drupalGet('entity_test/add');
     $this->assertFieldByName("{$field_name}[0][value][date]", '', 'Date element found.');
+    $this->assertFieldByXPath('//*[@id="edit-' . $field_name . '-wrapper"]/h4/span', '*', 'Required markup found');
     $this->assertNoFieldByName("{$field_name}[0][value][time]", '', 'Time element not found.');
 
     // Submit a valid date and ensure it is accepted.
@@ -457,8 +459,8 @@ class DateTimeFieldTest extends WebTestBase {
     }
     $entity = entity_load('entity_test', $id);
     $display = EntityViewDisplay::collectRenderDisplay($entity, $view_mode);
-    $entity->content = $display->build($entity);
-    $output = drupal_render($entity->content);
+    $build = $display->build($entity);
+    $output = drupal_render($build);
     $this->drupalSetContent($output);
     $this->verbose($output);
   }

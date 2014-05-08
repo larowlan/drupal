@@ -14,8 +14,9 @@
  * back to its original state!
  */
 
-use Drupal\Component\Utility\Settings;
 use Drupal\Core\DrupalKernel;
+use Drupal\Core\Page\DefaultHtmlPageRenderer;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\Update\Form\UpdateScriptSelectionForm;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -57,8 +58,6 @@ function update_selection_page() {
   $build = \Drupal::formBuilder()->getForm('Drupal\Core\Update\Form\UpdateScriptSelectionForm');
   $build['#title'] = 'Drupal database update';
 
-  update_task_list('select');
-
   return $build;
 }
 
@@ -97,8 +96,6 @@ function update_flush_all_caches() {
  * Displays results of the update script with any accompanying errors.
  */
 function update_results_page() {
-
-  update_task_list();
   // Report end result.
   if (\Drupal::moduleHandler()->moduleExists('dblog') && user_access('access site reports')) {
     $log_message = ' All errors have been <a href="' . base_path() . '?q=admin/reports/dblog">logged</a>.';
@@ -200,7 +197,6 @@ function update_info_page() {
   $keyvalue->get('update')->deleteAll();
   $keyvalue->get('update_available_release')->deleteAll();
 
-  update_task_list('info');
   $token = drupal_get_token('update');
   $output = '<p>Use this utility to update your database whenever a new release of Drupal or a module is installed.</p><p>For more detailed information, see the <a href="http://drupal.org/upgrade">upgrading handbook</a>. If you are unsure what these terms mean you should probably contact your hosting provider.</p>';
   $output .= "<ol>\n";
@@ -292,8 +288,7 @@ function update_task_list($active = NULL) {
     '#items' => $tasks,
     '#active' => $active,
   );
-
-  drupal_add_region_content('sidebar_first', drupal_render($task_list));
+  return $task_list;
 }
 
 // Some unavoidable errors happen because the database is not yet up-to-date.
@@ -347,8 +342,7 @@ $container->get('request_stack')->push($request);
 // Determine if the current user has access to run update.php.
 drupal_bootstrap(DRUPAL_BOOTSTRAP_PAGE_CACHE);
 
-require_once DRUPAL_ROOT . '/' . Settings::get('session_inc', 'core/includes/session.inc');
-drupal_session_initialize();
+\Drupal::service('session_manager')->initialize();
 
 // Ensure that URLs generated for the home and admin pages don't have 'update.php'
 // in them.
@@ -391,6 +385,7 @@ drupal_maintenance_theme();
 // not passed through the error handler) will cause a message to be printed.
 ini_set('display_errors', TRUE);
 
+$regions = array();
 
 // Only proceed with updates if the user is allowed to run them.
 if (update_access_allowed()) {
@@ -415,6 +410,7 @@ if (update_access_allowed()) {
     case 'selection':
       $token = $request->query->get('token');
       if (isset($token) && drupal_valid_token($token, 'update')) {
+        $regions['sidebar_first'] = update_task_list('select');
         $output = update_selection_page();
         break;
       }
@@ -422,6 +418,7 @@ if (update_access_allowed()) {
     case 'Apply pending updates':
       $token = $request->query->get('token');
       if (isset($token) && drupal_valid_token($token, 'update')) {
+        $regions['sidebar_first'] = update_task_list('run');
         // Generate absolute URLs for the batch processing (using $base_root),
         // since the batch API will pass them to url() which does not handle
         // update.php correctly by default.
@@ -432,16 +429,18 @@ if (update_access_allowed()) {
       }
 
     case 'info':
+      $regions['sidebar_first'] = update_task_list('info');
       $output = update_info_page();
       break;
 
     case 'results':
+      $regions['sidebar_first'] = update_task_list();
       $output = update_results_page();
       break;
 
     // Regular batch ops : defer to batch processing API.
     default:
-      update_task_list('run');
+      $regions['sidebar_first'] = update_task_list('run');
       $output = _batch_page($request);
       break;
   }
@@ -451,7 +450,7 @@ else {
 }
 if (isset($output) && $output) {
   // Explicitly start a session so that the update.php token will be accepted.
-  drupal_session_start();
+  \Drupal::service('session_manager')->start();
   // We defer the display of messages until all updates are done.
   $progress_page = ($batch = batch_get()) && isset($batch['running']);
   if ($output instanceof Response) {
@@ -459,18 +458,8 @@ if (isset($output) && $output) {
   }
   else {
     drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
-    $maintenance_page = array(
-      '#theme' => 'maintenance_page',
-      // $output has to be rendered here, because the maintenance page template
-      // is not wrapped into the html template, which means that any #attached
-      // libraries in $output will not be loaded, because the wrapping HTML has
-      // been printed already.
-      '#content' => drupal_render($output),
+    print DefaultHtmlPageRenderer::renderPage($output, $output['#title'], 'maintenance', $regions + array(
       '#show_messages' => !$progress_page,
-    );
-    if (isset($output['#title'])) {
-      $maintenance_page['#page']['#title'] = $output['#title'];
-    }
-    print drupal_render($maintenance_page);
+    ));
   }
 }

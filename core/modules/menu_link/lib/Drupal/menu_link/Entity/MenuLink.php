@@ -7,6 +7,7 @@
 
 namespace Drupal\menu_link\Entity;
 
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\Entity;
 use Drupal\Core\Entity\EntityStorageInterface;
@@ -24,7 +25,7 @@ use Symfony\Component\Routing\Route;
  *     "storage" = "Drupal\menu_link\MenuLinkStorage",
  *     "access" = "Drupal\menu_link\MenuLinkAccessController",
  *     "form" = {
- *       "default" = "Drupal\menu_link\MenuLinkFormController"
+ *       "default" = "Drupal\menu_link\MenuLinkForm"
  *     }
  *   },
  *   admin_permission = "administer menu",
@@ -111,7 +112,7 @@ class MenuLink extends Entity implements \ArrayAccess, MenuLinkInterface {
    *
    * @var string
    */
-  public $module = 'menu';
+  public $module = 'menu_ui';
 
   /**
    * A flag for whether the link should be rendered in menus.
@@ -368,7 +369,10 @@ class MenuLink extends Entity implements \ArrayAccess, MenuLinkInterface {
     $original['machine_name'] = $this->machine_name;
     /** @var \Drupal\menu_link\MenuLinkStorageInterface $storage */
     $storage = \Drupal::entityManager()->getStorage($this->entityTypeId);
+    // @todo Do not create a new entity in order to update it, see
+    //   https://drupal.org/node/2241865
     $new_link = $storage->createFromDefaultLink($original);
+    $new_link->setOriginalId($this->id());
     // Allow the menu to be determined by the parent
     if (!empty($new_link['parent']) && !empty($all_links[$new_link['parent']])) {
       // Walk up the tree to find the menu name.
@@ -476,7 +480,7 @@ class MenuLink extends Entity implements \ArrayAccess, MenuLinkInterface {
 
     // This is the easiest way to handle the unique internal path '<front>',
     // since a path marked as external does not need to match a route.
-    $this->external = (url_is_external($this->link_path) || $this->link_path == '<front>') ? 1 : 0;
+    $this->external = (UrlHelper::isExternal($this->link_path) || $this->link_path == '<front>') ? 1 : 0;
 
     // Try to find a parent link. If found, assign it and derive its menu.
     $parent = $this->findParent($storage);
@@ -520,7 +524,7 @@ class MenuLink extends Entity implements \ArrayAccess, MenuLinkInterface {
     }
 
     // Find the route_name.
-    if (!isset($this->route_name)) {
+    if (!$this->external && !isset($this->route_name)) {
       $url = Url::createFromPath($this->link_path);
       $this->route_name = $url->getRouteName();
       $this->route_parameters = $url->getRouteParameters();

@@ -185,32 +185,11 @@ function callback_queue_worker($queue_item_data) {
  * specify their default values. The values returned by this hook will be
  * merged with the elements returned by form constructor implementations and so
  * can return defaults for any Form APIs keys in addition to those explicitly
- * mentioned below.
+ * documented by \Drupal\Core\Render\ElementInfoInterface::getInfo().
  *
- * Each of the form element types defined by this hook is assumed to have
- * a matching theme function, e.g. theme_elementtype(), which should be
- * registered with hook_theme() as normal.
- *
- * For more information about custom element types see the explanation at
- * http://drupal.org/node/169815.
- *
- * @return
- *  An associative array describing the element types being defined. The array
- *  contains a sub-array for each element type, with the machine-readable type
- *  name as the key. Each sub-array has a number of possible attributes:
- *  - "#input": boolean indicating whether or not this element carries a value
- *    (even if it's hidden).
- *  - "#process": array of callback functions taking $element, $form_state,
- *    and $complete_form.
- *  - "#after_build": array of callables taking $element and $form_state.
- *  - "#validate": array of callback functions taking $form and $form_state.
- *  - "#element_validate": array of callback functions taking $element and
- *    $form_state.
- *  - "#pre_render": array of callables taking $element.
- *  - "#post_render": array of callables taking $children and $element.
- *  - "#submit": array of callback functions taking $form and $form_state.
- *  - "#title_display": optional string indicating if and how #title should be
- *    displayed, see the form-element template and theme_form_element_label().
+ * @return array
+ *   An associative array with structure identical to that of the return value
+ *   of \Drupal\Core\Render\ElementInfoInterface::getInfo().
  *
  * @see hook_element_info_alter()
  * @see system_element_info()
@@ -228,15 +207,16 @@ function hook_element_info() {
  * A module may implement this hook in order to alter the element type defaults
  * defined by a module.
  *
- * @param $type
- *   All element type defaults as collected by hook_element_info().
+ * @param array $types
+ *   An associative array with structure identical to that of the return value
+ *   of \Drupal\Core\Render\ElementInfoInterface::getInfo().
  *
  * @see hook_element_info()
  */
-function hook_element_info_alter(&$type) {
+function hook_element_info_alter(array &$types) {
   // Decrease the default size of textfields.
-  if (isset($type['textfield']['#size'])) {
-    $type['textfield']['#size'] = 40;
+  if (isset($types['textfield']['#size'])) {
+    $types['textfield']['#size'] = 40;
   }
 }
 
@@ -2440,36 +2420,6 @@ function hook_system_themes_page_alter(&$theme_groups) {
 }
 
 /**
- * Alters outbound URLs.
- *
- * @param $path
- *   The outbound path to alter, not adjusted for path aliases yet. It won't be
- *   adjusted for path aliases until all modules are finished altering it. This
- *   may have been altered by other modules before this one.
- * @param $options
- *   A set of URL options for the URL so elements such as a fragment or a query
- *   string can be added to the URL.
- * @param $original_path
- *   The original path, before being altered by any modules.
- *
- * @see url()
- */
-function hook_url_outbound_alter(&$path, &$options, $original_path) {
-  // Use an external RSS feed rather than the Drupal one.
-  if ($path == 'rss.xml') {
-    $path = 'http://example.com/rss.xml';
-    $options['external'] = TRUE;
-  }
-
-  // Instead of pointing to user/[uid]/edit, point to user/me/edit.
-  if (preg_match('|^user/([0-9]*)/edit(/.*)?|', $path, $matches)) {
-    if (\Drupal::currentUser()->id() == $matches[1]) {
-      $path = 'user/me/edit' . $matches[2];
-    }
-  }
-}
-
-/**
  * Provide replacement values for placeholder tokens.
  *
  * This hook is invoked when someone calls
@@ -2905,6 +2855,34 @@ function hook_link_alter(&$variables) {
   // Add a warning to the end of route links to the admin section.
   if (isset($variables['route_name']) && strpos($variables['route_name'], 'admin') !== FALSE) {
     $variables['text'] .= ' (Warning!)';
+  }
+}
+
+/**
+ * Alter the configuration synchronization steps.
+ *
+ * @param array $sync_steps
+ *   A one-dimensional array of \Drupal\Core\Config\ConfigImporter method names
+ *   or callables that are invoked to complete the import, in the order that
+ *   they will be processed. Each callable item defined in $sync_steps should
+ *   either be a global function or a public static method. The callable should
+ *   accept a $context array by reference. For example:
+ *   <code>
+ *     function _additional_configuration_step(&$context) {
+ *       // Do stuff.
+ *       // If finished set $context['finished'] = 1.
+ *     }
+ *   </code>
+ *   For more information on creating batches, see the
+ *   @link batch Batch operations @endlink documentation.
+ *
+ * @see callback_batch_operation()
+ * @see \Drupal\Core\Config\ConfigImporter::initialize()
+ */
+function hook_config_import_steps_alter(&$sync_steps, \Drupal\Core\Config\ConfigImporter $config_importer) {
+  $deletes = $config_importer->getUnprocessedConfiguration('delete');
+  if (isset($deletes['field.field.node.body'])) {
+    $sync_steps[] = '_additional_configuration_step';
   }
 }
 

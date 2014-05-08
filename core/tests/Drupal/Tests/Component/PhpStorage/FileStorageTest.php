@@ -16,8 +16,7 @@ use Drupal\Component\PhpStorage\FileReadOnlyStorage;
  * @group Drupal
  * @group PhpStorage
  *
- * @coversDefaultClass \Drupal\Component\PhpStorage\FileStorage
- * @coversDefaultClass \Drupal\Component\PhpStorage\FileReadOnlyStorage
+ * @coversDefaultClass \Drupal\Component\PhpStorage\FileStorage|\Drupal\Component\PhpStorage\FileReadOnlyStorage
  */
 class FileStorageTest extends PhpStorageTestBase {
 
@@ -132,7 +131,7 @@ class FileStorageTest extends PhpStorageTestBase {
     $this->assertFalse($php_read->deleteAll());
 
     // Make sure directory exists prior to removal.
-    $this->assertTrue(file_exists(sys_get_temp_dir() . '/php/simpletest'), 'File storage directory does not exist.');
+    $this->assertTrue(file_exists(sys_get_temp_dir() . '/php/test'), 'File storage directory does not exist.');
 
     // Write out some files.
     $php = new FileStorage($this->standardSettings);

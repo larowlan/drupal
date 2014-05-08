@@ -7,7 +7,6 @@
 
 namespace Drupal\filter\Entity;
 
-use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
 use Drupal\Core\Config\Entity\EntityWithPluginBagInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
@@ -23,12 +22,12 @@ use Drupal\filter\Plugin\FilterInterface;
  *   label = @Translation("Text format"),
  *   controllers = {
  *     "form" = {
- *       "add" = "Drupal\filter\FilterFormatAddFormController",
- *       "edit" = "Drupal\filter\FilterFormatEditFormController",
+ *       "add" = "Drupal\filter\FilterFormatAddForm",
+ *       "edit" = "Drupal\filter\FilterFormatEditForm",
  *       "disable" = "Drupal\filter\Form\FilterDisableForm"
  *     },
  *     "list_builder" = "Drupal\filter\FilterFormatListBuilder",
- *     "access" = "Drupal\filter\FilterFormatAccessController",
+ *     "access" = "Drupal\filter\FilterFormatAccess",
  *   },
  *   config_prefix = "format",
  *   admin_permission = "administer filters",
@@ -197,7 +196,6 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface, En
 
     // Clear the filter cache whenever a text format is disabled.
     filter_formats_reset();
-    Cache::deleteTags(array('filter_format' => $this->format));
 
     return $this;
   }
@@ -235,11 +233,7 @@ class FilterFormat extends ConfigEntityBase implements FilterFormatInterface, En
     // Clear the static caches of filter_formats() and others.
     filter_formats_reset();
 
-    if ($update) {
-      // Clear the filter cache whenever a text format is updated.
-      Cache::deleteTags(array('filter_format' => $this->id()));
-    }
-    else {
+    if (!$update && !$this->isSyncing()) {
       // Default configuration of modules and installation profiles is allowed
       // to specify a list of user roles to grant access to for the new format;
       // apply the defined user role permissions when a new format is inserted

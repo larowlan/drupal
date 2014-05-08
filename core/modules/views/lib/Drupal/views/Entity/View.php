@@ -7,13 +7,11 @@
 
 namespace Drupal\views\Entity;
 
-use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\views\Views;
 use Drupal\views_ui\ViewUI;
 use Drupal\views\ViewStorageInterface;
-use Drupal\views\ViewExecutable;
 
 /**
  * Defines a View configuration entity class.
@@ -274,28 +272,43 @@ class View extends ConfigEntityBase implements ViewStorageInterface {
 
     // Ensure that the view is dependant on the module that implements the view.
     $this->addDependency('module', $this->module);
-    // Ensure that the view is dependant on the module that provides the schema
+    // Ensure that the view is dependent on the module that provides the schema
     // for the base table.
-    $schema = drupal_get_schema($this->base_table);
+    $schema = $this->drupalGetSchema($this->base_table);
     if ($this->module != $schema['module']) {
       $this->addDependency('module', $schema['module']);
     }
 
     $handler_types = array();
-    foreach (ViewExecutable::getHandlerTypes() as $type) {
+    foreach (Views::getHandlerTypes() as $type) {
       $handler_types[] = $type['plural'];
     }
+
     foreach ($this->get('display') as $display) {
+      // Collect all dependencies of all handlers.
       foreach ($handler_types as $handler_type) {
         if (!empty($display['display_options'][$handler_type])) {
           foreach ($display['display_options'][$handler_type] as $handler) {
+            // Add the provider as dependency.
             if (isset($handler['provider']) && empty($handler['optional'])) {
               $this->addDependency('module', $handler['provider']);
+            }
+            // Add the additional dependencies from the handler configuration.
+            if (!empty($handler['dependencies'])) {
+              $this->addDependencies($handler['dependencies']);
             }
           }
         }
       }
+
+      // Collect all dependencies of plugins.
+      foreach (Views::getPluginTypes('plugin') as $plugin_type) {
+        if (!empty($display['display_options'][$plugin_type]['options']['dependencies'])) {
+          $this->addDependencies($display['display_options'][$plugin_type]['options']['dependencies']);
+        }
+      }
     }
+
     return $this->dependencies;
   }
 
@@ -305,10 +318,7 @@ class View extends ConfigEntityBase implements ViewStorageInterface {
   public function postSave(EntityStorageInterface $storage, $update = TRUE) {
     parent::postSave($storage, $update);
 
-    // Clear cache tags for this view.
     // @todo Remove if views implements a view_builder controller.
-    $id = $this->id();
-    Cache::deleteTags(array('view' => array($id => $id)));
     views_invalidate_cache();
   }
 
@@ -359,17 +369,9 @@ class View extends ConfigEntityBase implements ViewStorageInterface {
     parent::postDelete($storage, $entities);
 
     $tempstore = \Drupal::service('user.tempstore')->get('views');
-    $tags = array();
-
     foreach ($entities as $entity) {
-      $id = $entity->id();
-      $tempstore->delete($id);
-      $tags['view'][$id] = $id;
+      $tempstore->delete($entity->id());
     }
-
-    // Clear cache tags for these views.
-    // @todo Remove if views implements a view_builder controller.
-    Cache::deleteTags($tags);
   }
 
   /**
@@ -396,6 +398,13 @@ class View extends ConfigEntityBase implements ViewStorageInterface {
       return 0;
     });
     $this->set('display', $displays);
+  }
+
+  /**
+   * Wraps drupal_get_schema().
+   */
+  protected function drupalGetSchema($table = NULL, $rebuild = FALSE) {
+    return drupal_get_schema($table, $rebuild);
   }
 
 }

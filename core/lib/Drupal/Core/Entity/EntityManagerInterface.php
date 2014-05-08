@@ -57,6 +57,26 @@ interface EntityManagerInterface extends PluginManagerInterface {
   public function getFieldDefinitions($entity_type_id, $bundle);
 
   /**
+   * Gets the field storage definitions for a content entity type.
+   *
+   * This returns all field storage definitions for base fields and bundle
+   * fields of an entity type. Note that field storage definitions of a base
+   * field equal the full base field definition (i.e. they implement
+   * FieldDefinitionInterface), while the storage definitions for bundle fields
+   * may implement FieldStorageDefinitionInterface only.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID. Only content entities are supported.
+   *
+   * @return \Drupal\Core\Field\FieldStorageDefinitionInterface[]
+   *   The array of field storage definitions for the entity type, keyed by
+   *   field name.
+   *
+   * @see \Drupal\Core\Field\FieldStorageDefinitionInterface
+   */
+  public function getFieldStorageDefinitions($entity_type_id);
+
+  /**
    * Creates a new access controller instance.
    *
    * @param string $entity_type
@@ -130,17 +150,17 @@ interface EntityManagerInterface extends PluginManagerInterface {
   public function getListBuilder($entity_type);
 
   /**
-   * Creates a new form controller instance.
+   * Creates a new form instance.
    *
    * @param string $entity_type
-   *   The entity type for this form controller.
+   *   The entity type for this form.
    * @param string $operation
    *   The name of the operation to use, e.g., 'default'.
    *
-   * @return \Drupal\Core\Entity\EntityFormControllerInterface
-   *   A form controller instance.
+   * @return \Drupal\Core\Entity\EntityFormInterface
+   *   A form instance.
    */
-  public function getFormController($entity_type, $operation);
+  public function getFormObject($entity_type, $operation);
 
   /**
    * Clears static and persistent field definition caches.

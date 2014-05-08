@@ -28,10 +28,10 @@ interface LanguageManagerInterface {
   public function init();
 
   /**
-   * Returns whether or not the site has more than one language enabled.
+   * Returns whether or not the site has more than one language added.
    *
    * @return bool
-   *   TRUE if more than one language is enabled, FALSE otherwise.
+   *   TRUE if more than one language is added, FALSE otherwise.
    */
   public function isMultilingual();
 
@@ -85,8 +85,7 @@ interface LanguageManagerInterface {
    *   Language::STATE_LOCKED, Language::STATE_ALL.
    *
    * @return array
-   *   An associative array of languages, keyed by the language code, ordered
-   *   by weight ascending and name ascending.
+   *   An associative array of languages, keyed by the language code.
    */
   public function getLanguages($flags = Language::STATE_CONFIGURABLE);
 

@@ -7,11 +7,11 @@
 
 namespace Drupal\Core\Config;
 
+use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Config\Entity\ConfigDependencyManager;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\StringTranslation\TranslationManager;
-use Symfony\Component\Yaml\Dumper;
 
 /**
  * The ConfigManager provides helper functions for the configuration system.
@@ -100,7 +100,10 @@ class ConfigManager implements ConfigManagerInterface {
   /**
    * {@inheritdoc}
    */
-  public function diff(StorageInterface $source_storage, StorageInterface $target_storage, $name) {
+  public function diff(StorageInterface $source_storage, StorageInterface $target_storage, $source_name, $target_name = NULL) {
+    if (!isset($target_name)) {
+      $target_name = $source_name;
+    }
     // @todo Replace with code that can be autoloaded.
     //   https://drupal.org/node/1848266
     require_once __DIR__ . '/../../Component/Diff/DiffEngine.php';
@@ -108,11 +111,8 @@ class ConfigManager implements ConfigManagerInterface {
     // The output should show configuration object differences formatted as YAML.
     // But the configuration is not necessarily stored in files. Therefore, they
     // need to be read and parsed, and lastly, dumped into YAML strings.
-    $dumper = new Dumper();
-    $dumper->setIndentation(2);
-
-    $source_data = explode("\n", $dumper->dump($source_storage->read($name), PHP_INT_MAX));
-    $target_data = explode("\n", $dumper->dump($target_storage->read($name), PHP_INT_MAX));
+    $source_data = explode("\n", Yaml::encode($source_storage->read($source_name)));
+    $target_data = explode("\n", Yaml::encode($target_storage->read($target_name)));
 
     // Check for new or removed files.
     if ($source_data === array('false')) {
@@ -156,7 +156,7 @@ class ConfigManager implements ConfigManagerInterface {
     foreach ($config_names as $config_name) {
       $this->configFactory->get($config_name)->delete();
     }
-    $schema_dir = drupal_get_path($type, $name) . '/config/schema';
+    $schema_dir = drupal_get_path($type, $name) . '/' . InstallStorage::CONFIG_SCHEMA_DIRECTORY;
     if (is_dir($schema_dir)) {
       // Refresh the schema cache if uninstalling an extension that provides
       // configuration schema.
