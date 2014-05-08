@@ -11,31 +11,27 @@
 
 namespace Goutte;
 
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\ClientInterface as GuzzleClientInterface;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Message\RequestInterface;
+use GuzzleHttp\Message\Response as GuzzleResponse;
+use GuzzleHttp\Post\PostFile;
 use Symfony\Component\BrowserKit\Client as BaseClient;
 use Symfony\Component\BrowserKit\Response;
-
-use Guzzle\Http\Exception\CurlException;
-use Guzzle\Http\Exception\BadResponseException;
-use Guzzle\Http\Message\Response as GuzzleResponse;
-use Guzzle\Http\Message\Header as GuzzleHeader;
-use Guzzle\Http\ClientInterface as GuzzleClientInterface;
-use Guzzle\Http\Client as GuzzleClient;
-use Guzzle\Http\Message\EntityEnclosingRequestInterface;
 
 /**
  * Client.
  *
- * @package Goutte
- * @author  Fabien Potencier <fabien.potencier@symfony-project.com>
- * @author  Michael Dowling <michael@guzzlephp.org>
+ * @author Fabien Potencier <fabien.potencier@symfony-project.com>
+ * @author Michael Dowling <michael@guzzlephp.org>
  */
 class Client extends BaseClient
 {
-    const VERSION = '0.2';
-
-    protected $headers = array();
-    protected $auth = null;
     protected $client;
+
+    private $headers = array();
+    private $auth = null;
 
     public function setClient(GuzzleClientInterface $client)
     {
@@ -47,7 +43,7 @@ class Client extends BaseClient
     public function getClient()
     {
         if (!$this->client) {
-            $this->client = new GuzzleClient('', array(GuzzleClient::DISABLE_REDIRECTS => true));
+            $this->client = new GuzzleClient(array('defaults' => array('allow_redirects' => false, 'cookies' => true)));
         }
 
         return $this->client;
@@ -65,13 +61,9 @@ class Client extends BaseClient
         unset($this->headers[$name]);
     }
 
-    public function setAuth($user, $password = '', $type = CURLAUTH_BASIC)
+    public function setAuth($user, $password = '', $type = 'basic')
     {
-        $this->auth = array(
-            'user' => $user,
-            'password' => $password,
-            'type'     => $type
-        );
+        $this->auth = array($user, $password, $type);
 
         return $this;
     }
@@ -88,7 +80,7 @@ class Client extends BaseClient
         $headers = array();
         foreach ($request->getServer() as $key => $val) {
             $key = implode('-', array_map('ucfirst', explode('-', strtolower(str_replace(array('_', 'HTTP-'), array('-', ''), $key)))));
-            if (!isset($headers[$key])) {
+            if (!isset($headers[$key]) && !empty($val)) {
                 $headers[$key] = $val;
             }
         }
@@ -102,71 +94,54 @@ class Client extends BaseClient
             }
         }
 
+        $this->getClient()->setDefaultOption('auth', $this->auth);
+
+        $requestOptions = array(
+            'body' => $body,
+            'cookies' => $this->getCookieJar()->allRawValues($request->getUri()),
+            'allow_redirects' => false,
+            'timeout' => 30,
+        );
+
+        if (!empty($headers)) {
+            $requestOptions['headers'] = $headers;
+        }
+
         $guzzleRequest = $this->getClient()->createRequest(
             $request->getMethod(),
             $request->getUri(),
-            $headers,
-            $body
+            $requestOptions
         );
 
         foreach ($this->headers as $name => $value) {
             $guzzleRequest->setHeader($name, $value);
         }
 
-        if ($this->auth !== null) {
-            $guzzleRequest->setAuth(
-                $this->auth['user'],
-                $this->auth['password'],
-                $this->auth['type']
-            );
-        }
-
-        foreach ($this->getCookieJar()->allRawValues($request->getUri()) as $name => $value) {
-            $guzzleRequest->addCookie($name, $value);
-        }
-
-        if ('POST' == $request->getMethod()) {
+        if ('POST' == $request->getMethod() || 'PUT' == $request->getMethod()) {
             $this->addPostFiles($guzzleRequest, $request->getFiles());
-        }
-
-        $guzzleRequest->getParams()->set('redirect.disable', true);
-        $curlOptions = $guzzleRequest->getCurlOptions();
-
-        if (!$curlOptions->hasKey(CURLOPT_TIMEOUT)) {
-            $curlOptions->set(CURLOPT_TIMEOUT, 30);
         }
 
         // Let BrowserKit handle redirects
         try {
-            $response = $guzzleRequest->send();
-        } catch (CurlException $e) {
-            if (!strpos($e->getMessage(), 'redirects')) {
-                throw $e;
-            }
-
-            $response = $e->getResponse();
-        } catch (BadResponseException $e) {
+            $response = $this->getClient()->send($guzzleRequest);
+        } catch (RequestException $e) {
             $response = $e->getResponse();
         }
 
         return $this->createResponse($response);
     }
 
-    protected function addPostFiles($request, array $files, $arrayName = '')
+    protected function addPostFiles(RequestInterface $request, array $files, $arrayName = '')
     {
-        if (!$request instanceof EntityEnclosingRequestInterface) {
-            return;
-        }
-
         foreach ($files as $name => $info) {
             if (!empty($arrayName)) {
-                $name = $arrayName . '[' . $name . ']';
+                $name = $arrayName.'['.$name.']';
             }
 
             if (is_array($info)) {
                 if (isset($info['tmp_name'])) {
                     if ('' !== $info['tmp_name']) {
-                        $request->addPostFile($name, $info['tmp_name']);
+                        $request->getBody()->addFile(new PostFile($name, fopen($info['tmp_name'], 'r')));
                     } else {
                         continue;
                     }
@@ -174,21 +149,14 @@ class Client extends BaseClient
                     $this->addPostFiles($request, $info, $name);
                 }
             } else {
-                $request->addPostFile($name, $info);
+                $request->getBody()->addFile(new PostFile($name, fopen($info, 'r')));
             }
         }
     }
 
     protected function createResponse(GuzzleResponse $response)
     {
-        $headers = $response->getHeaders()->getAll();
-        $headers = array_map(function ($header) {
-            if ($header instanceof GuzzleHeader) {
-                return $header->toArray();
-            }
-
-            return $header;
-        }, $headers);
+        $headers = $response->getHeaders();
 
         return new Response($response->getBody(true), $response->getStatusCode(), $headers);
     }

@@ -234,28 +234,23 @@ abstract class WebTestBase extends TestBase {
    */
   protected function initMink() {
     global $base_url;
-    $curl_options = array(
-      'curl.CURLOPT_TIMEOUT' => 30,
-      'curl.CURLOPT_MAXREDIRS' => 3,
-      'curl.CURPOT_URL' => $base_url,
-      'curl.CURLOPT_FOLLOWLOCATION' => FALSE,
-      'curl.CURLOPT_RETURNTRANSFER' => TRUE,
-      // Required to make the tests run on HTTPS.
-      'curl.CURLOPT_SSL_VERIFYPEER' => FALSE,
-      // Required to make the tests run on HTTPS.
-      'curl.CURLOPT_SSL_VERIFYHOST' => FALSE,
-      'curl.CURLOPT_HEADERFUNCTION' => array(&$this, 'curlHeaderCallback'),
-      'curl.CURLOPT_USERAGENT' => $this->databasePrefix,
+    $defaults = array(
+      'timeout' => 30,
+      'verify' => FALSE,
+      // @todo remove/replace
+      'headers' => array(
+        'User-Agent' => $this->databasePrefix,
+      ),
     );
-    if (isset($this->httpauth_credentials)) {
-      $curl_options['curl.CURLOPT_HTTPAUTH'] = $this->httpauth_method;
-      $curl_options['curl.CURLOPT_USERPWD'] = $this->httpauth_credentials;
-    }
-    $guzzle = new GuzzleClient($base_url, $curl_options);
+    $guzzle = new GuzzleClient(array('base_url' => $base_url, 'defaults' => $defaults));
     $client = new Client();
     $client->setClient($guzzle);
-    $guzzle->setUserAgent($this->databasePrefix);
+    $client->setHeader('User-Agent', $this->databasePrefix);
     $client->setMaxRedirects($this->maximumRedirects);
+    if (isset($this->httpauth_credentials)) {
+      list($username, $password) = explode(':', $this->httpauth_credentials);
+      $client->setAuth($username, $password, $this->httpauth_method);
+    }
     $this->mink = new Mink(array(
       'goutte' => new Session(new GoutteDriver($client)),
     ));
@@ -293,6 +288,7 @@ abstract class WebTestBase extends TestBase {
    *   Array of curl options to be set on the Guzzle client.
    */
   protected function setClientOptions($options) {
+    return;
     /** @var \Guzzle\Http\ClientInterface $guzzle_client */
     $guzzle_client = $this->getMink()->getSession()->getDriver()->getClient()->getClient();
     $existing_config = $guzzle_client->getConfig();

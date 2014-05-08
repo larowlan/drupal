@@ -3,10 +3,16 @@
   "description": "Drupal is an open source content management platform powering millions of websites and applications.",
   "type": "drupal-core",
   "license": "GPL-2.0+",
+  "repositories": [
+    {
+      "type":"git",
+      "url": "https://github.com/larowlan/MinkGoutteDriver.git"
+    }
+  ],
   "require": {
     "php": ">=5.4.2",
     "behat/mink": "~1.5",
-    "behat/mink-goutte-driver": "*",
+    "behat/mink-goutte-driver": "dev-master",
     "sdboyer/gliph": "0.1.*",
     "symfony/class-loader": "2.4.*",
     "symfony/dependency-injection": "2.4.*",

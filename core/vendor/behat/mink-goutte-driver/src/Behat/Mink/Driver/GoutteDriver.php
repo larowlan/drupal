@@ -1,9 +1,5 @@
 <?php
 
-namespace Behat\Mink\Driver;
-
-use Behat\Mink\Driver\Goutte\Client;
-
 /*
  * This file is part of the Behat\Mink.
  * (c) Konstantin Kudryashov <ever.zet@gmail.com>
@@ -11,6 +7,10 @@ use Behat\Mink\Driver\Goutte\Client;
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
+namespace Behat\Mink\Driver;
+
+use Behat\Mink\Driver\Goutte\Client;
 
 /**
  * Goutte driver.
@@ -37,7 +37,11 @@ class GoutteDriver extends BrowserKitDriver
      */
     public function setBasicAuth($user, $password)
     {
-        $this->getClient()->setAuth($user, $password);
+        if ($user) {
+            $this->getClient()->setAuth($user, $password);
+        } else {
+            $this->getClient()->resetAuth();
+        }
     }
 
     /**
@@ -48,7 +52,11 @@ class GoutteDriver extends BrowserKitDriver
      */
     public function setRequestHeader($name, $value)
     {
-        $this->getClient()->setHeader($name, $value);
+        if ($value) {
+            $this->getClient()->setHeader($name, $value);
+        } else {
+            $this->getClient()->removeHeader($name);
+        }
     }
 
     /**

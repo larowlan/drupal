@@ -9,22 +9,31 @@ responses.
 Requirements
 ------------
 
-Goutte works with PHP 5.3.3 or later.
+Goutte depends on PHP 5.4+ and Guzzle 4+.
+
+.. tip::
+
+    If you need support for PHP 5.3 or Guzzle 3, use Goutte 1.0.6.
 
 Installation
 ------------
 
-Installing Goutte is as easy as it can get. Download the `Goutte.phar`_ file
-and you're done!
+Add ``fabpot/goutte`` as a require dependency in your ``composer.json`` file:
+
+.. code-block:: bash
+
+    php composer.phar require fabpot/goutte:~2.0
+
+.. tip::
+
+    You can also download the `Goutte.phar`_ file:
+
+    .. code-block:: php
+
+        require_once '/path/to/goutte.phar';
 
 Usage
 -----
-
-Require the Goutte phar file to use Goutte in a script:
-
-.. code-block:: php
-
-    require_once '/path/to/goutte.phar';
 
 Create a Goutte Client instance (which extends
 ``Symfony\Component\BrowserKit\Client``):
@@ -95,5 +104,6 @@ License
 
 Goutte is licensed under the MIT license.
 
+.. _`Composer`:    http://getcomposer.org
 .. _`Goutte.phar`: http://get.sensiolabs.org/goutte.phar
 .. _`Guzzle`:      http://docs.guzzlephp.org
