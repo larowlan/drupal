@@ -123,7 +123,7 @@ class BulkFormTest extends WebTestBase {
     // Check the default title.
     $this->drupalGet('test_bulk_form');
     $result = $this->xpath('//label[@for="edit-action"]');
-    $this->assertEqual('With selection', (string) $result[0]);
+    $this->assertEqual('With selection', $result[0]->getText());
 
     // Setup up a different bulk form title.
     $view = Views::getView('test_bulk_form');
@@ -133,7 +133,7 @@ class BulkFormTest extends WebTestBase {
 
     $this->drupalGet('test_bulk_form');
     $result = $this->xpath('//label[@for="edit-action"]');
-    $this->assertEqual('Test title', (string) $result[0]);
+    $this->assertEqual('Test title', (string) $result[0]->getText());
   }
 
 }

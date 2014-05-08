@@ -3183,24 +3183,6 @@ abstract class WebTestBase extends TestBase {
             // Input element with correct value.
             $found = TRUE;
           }
-          elseif (isset($field->option)) {
-            // Select element found.
-            $selected = $this->getSelectedItem($field);
-            if ($selected === FALSE) {
-              // No item selected so use first item.
-              $items = $this->getAllOptions($field);
-              if (!empty($items) && $items[0]['value'] == $value) {
-                $found = TRUE;
-              }
-            }
-            elseif ($selected == $value) {
-              $found = TRUE;
-            }
-          }
-          elseif ((string) $field == $value) {
-            // Text area with correct text.
-            $found = TRUE;
-          }
         }
       }
     }
