@@ -345,44 +345,6 @@ function drupal_get_feeds($delimiter = "\n") {
  */
 
 /**
- * Processes a URL query parameter array to remove unwanted elements.
- *
- * @param $query
- *   (optional) An array to be processed. Defaults to \Drupal::request()->query
- *   parameters.
- * @param $exclude
- *   (optional) A list of $query array keys to remove. Use "parent[child]" to
- *   exclude nested items.
- * @param $parent
- *   Internal use only. Used to build the $query array key for nested items.
- *
- * @return
- *   An array containing query parameters, which can be used for url().
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal\Component\Utility\UrlHelper::filterQueryParameters().
- */
-function drupal_get_query_parameters(array $query = NULL, array $exclude = array(), $parent = '') {
-  if (!isset($query)) {
-    $query = \Drupal::request()->query->all();
-  }
-  return UrlHelper::filterQueryParameters($query, $exclude, $parent);
-}
-
-/**
- * Parses an array into a valid, rawurlencoded query string.
- *
- * @see drupal_get_query_parameters()
- * @ingroup php_wrappers
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal\Component\Utility\UrlHelper::buildQuery().
- */
-function drupal_http_build_query(array $query, $parent = '') {
-  return UrlHelper::buildQuery($query, $parent);
-}
-
-/**
  * Prepares a 'destination' URL query parameter for use with url().
  *
  * Used to direct the user back to the referring page after completing a form.
@@ -846,23 +808,6 @@ function url($path = NULL, array $options = array()) {
     $url = $generator->generateFromPath($path, $options);
   }
   return $url;
-}
-
-/**
- * Returns TRUE if a path is external to Drupal (e.g. http://example.com).
- *
- * If a path cannot be assessed by Drupal's menu handler, then we must
- * treat it as potentially insecure.
- *
- * @param $path
- *   The internal path or external URL being linked to, such as "node/34" or
- *   "http://example.com/foo".
- *
- * @return
- *   Boolean TRUE or FALSE, where TRUE indicates an external path.
- */
-function url_is_external($path) {
-  return UrlHelper::isExternal($path);
 }
 
 /**
@@ -2805,55 +2750,37 @@ function _drupal_bootstrap_full($skip = FALSE) {
  * Page compression requires the PHP zlib extension
  * (http://php.net/manual/ref.zlib.php).
  *
- * @param $body
- *   The response body.
- * @return
- *   The cached object or NULL if the page cache was not set.
+ * @param \Symfony\Component\HttpFoundation\Response $response
+ *   The fully populated response.
+ * @param \Symfony\Component\HttpFoundation\Request $request
+ *   The request for this page.
  *
  * @see drupal_page_header()
  */
 function drupal_page_set_cache(Response $response, Request $request) {
-  if (drupal_page_is_cacheable()) {
+  // Check if the current page may be compressed.
+  if (\Drupal::config('system.performance')->get('response.gzip') &&
+    !$response->headers->get('Content-Encoding') && extension_loaded('zlib')) {
 
-    // Check if the current page may be compressed.
-    $page_compressed = \Drupal::config('system.performance')->get('response.gzip') && extension_loaded('zlib');
-
-    $cache = (object) array(
-      'cid' => drupal_page_cache_get_cid($request),
-      'data' => array(
-        'body' => $response->getContent(),
-        'headers' => array(),
-        // We need to store whether page was compressed or not,
-        // because by the time it is read, the configuration might change.
-        'page_compressed' => $page_compressed,
-      ),
-      'tags' => HtmlViewSubscriber::convertHeaderToCacheTags($response->headers->get('X-Drupal-Cache-Tags')),
-      'expire' => Cache::PERMANENT,
-      'created' => REQUEST_TIME,
-    );
-
-    $cache->data['headers'] = $response->headers->all();
-
-    // Hack: exclude the x-drupal-cache header; it may make it in here because
-    // of awkwardness in how we defer sending it over in _drupal_page_get_cache.
-    if (isset($cache->data['headers']['x-drupal-cache'])) {
-      unset($cache->data['headers']['x-drupal-cache']);
+    $content = $response->getContent();
+    if ($content) {
+      $response->setContent(gzencode($content, 9, FORCE_GZIP));
+      $response->headers->set('Content-Encoding', 'gzip');
     }
 
-     // Use the actual timestamp from an Expires header, if available.
-    if ($date = $response->getExpires()) {
-      $date = DrupalDateTime::createFromDateTime($date);
-      $cache->expire = $date->getTimestamp();
-    }
-
-    if ($cache->data['body']) {
-      if ($page_compressed) {
-        $cache->data['body'] = gzencode($cache->data['body'], 9, FORCE_GZIP);
-      }
-      \Drupal::cache('render')->set($cache->cid, $cache->data, $cache->expire, $cache->tags);
-    }
-    return $cache;
+    // When page compression is enabled, ensure that proxy caches will record
+    // and deliver different versions of a page depending on whether the
+    // client supports gzip or not.
+    $response->setVary('Accept-Encoding', FALSE);
   }
+
+  // Use the actual timestamp from an Expires header, if available.
+  $date = $response->getExpires();
+  $expire = ($date > (new DateTime())) ? $date->getTimestamp() : Cache::PERMANENT;
+
+  $cid = drupal_page_cache_get_cid($request);
+  $tags = HtmlViewSubscriber::convertHeaderToCacheTags($response->headers->get('X-Drupal-Cache-Tags'));
+  \Drupal::cache('render')->set($cid, $response, $expire, $tags);
 }
 
 /**

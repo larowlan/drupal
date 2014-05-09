@@ -161,6 +161,26 @@ abstract class GenericCacheBackendUnitTestBase extends DrupalUnitTestBase {
     $this->assertFalse($cached->valid, 'Item is marked as valid.');
     $this->assertEqual($cached->created, REQUEST_TIME, 'Created time is correct.');
     $this->assertEqual($cached->expire, REQUEST_TIME - 3, 'Expire time is correct.');
+
+    $this->assertIdentical(FALSE, $backend->get('test4'), "Backend does not contain data for cache id test4.");
+    $with_eof = array('foo' => "\nEOF\ndata");
+    $backend->set('test4', $with_eof);
+    $cached = $backend->get('test4');
+    $this->assert(is_object($cached), "Backend returned an object for cache id test4.");
+    $this->assertIdentical($with_eof, $cached->data);
+    $this->assertTrue($cached->valid, 'Item is marked as valid.');
+    $this->assertEqual($cached->created, REQUEST_TIME, 'Created time is correct.');
+    $this->assertEqual($cached->expire, Cache::PERMANENT, 'Expire time is correct.');
+
+    $this->assertIdentical(FALSE, $backend->get('test5'), "Backend does not contain data for cache id test5.");
+    $with_eof_and_semicolon = array('foo' => "\nEOF;\ndata");
+    $backend->set('test5', $with_eof_and_semicolon);
+    $cached = $backend->get('test5');
+    $this->assert(is_object($cached), "Backend returned an object for cache id test5.");
+    $this->assertIdentical($with_eof_and_semicolon, $cached->data);
+    $this->assertTrue($cached->valid, 'Item is marked as valid.');
+    $this->assertEqual($cached->created, REQUEST_TIME, 'Created time is correct.');
+    $this->assertEqual($cached->expire, Cache::PERMANENT, 'Expire time is correct.');
   }
 
   /**
@@ -335,21 +355,6 @@ abstract class GenericCacheBackendUnitTestBase extends DrupalUnitTestBase {
   }
 
   /**
-   * Tests Drupal\Core\Cache\CacheBackendInterface::isEmpty().
-   */
-  public function testIsEmpty() {
-    $backend = $this->getCacheBackend();
-
-    $this->assertTrue($backend->isEmpty(), "Backend is empty.");
-
-    $backend->set('pony', "Shetland");
-    $this->assertFalse($backend->isEmpty(), "Backend is not empty.");
-
-    $backend->delete('pony');
-    $this->assertTrue($backend->isEmpty(), "Backend is empty.");
-  }
-
-  /**
    * Test Drupal\Core\Cache\CacheBackendInterface::delete() and
    * Drupal\Core\Cache\CacheBackendInterface::deleteMultiple().
    */
@@ -456,17 +461,18 @@ abstract class GenericCacheBackendUnitTestBase extends DrupalUnitTestBase {
    */
   public function testDeleteAll() {
     $backend = $this->getCacheBackend();
+    $unrelated = $this->getCacheBackend('bootstrap');
 
     // Set both expiring and permanent keys.
     $backend->set('test1', 1, Cache::PERMANENT);
     $backend->set('test2', 3, time() + 1000);
+    $unrelated->set('test3', 4, Cache::PERMANENT);
 
     $backend->deleteAll();
 
-    $this->assertTrue($backend->isEmpty(), "Backend is empty after deleteAll().");
-
     $this->assertFalse($backend->get('test1'), 'First key has been deleted.');
     $this->assertFalse($backend->get('test2'), 'Second key has been deleted.');
+    $this->assertTrue($unrelated->get('test3'), 'Item in other bin is preserved.');
   }
 
   /**
@@ -563,15 +569,18 @@ abstract class GenericCacheBackendUnitTestBase extends DrupalUnitTestBase {
    */
   public function testInvalidateAll() {
     $backend = $this->getCacheBackend();
+    $unrelated = $this->getCacheBackend('bootstrap');
 
     // Set both expiring and permanent keys.
     $backend->set('test1', 1, Cache::PERMANENT);
     $backend->set('test2', 3, time() + 1000);
+    $unrelated->set('test3', 4, Cache::PERMANENT);
 
     $backend->invalidateAll();
 
     $this->assertFalse($backend->get('test1'), 'First key has been invalidated.');
     $this->assertFalse($backend->get('test2'), 'Second key has been invalidated.');
+    $this->assertTrue($unrelated->get('test3'), 'Item in other bin is preserved.');
     $this->assertTrue($backend->get('test1', TRUE), 'First key has not been deleted.');
     $this->assertTrue($backend->get('test2', TRUE), 'Second key has not been deleted.');
   }

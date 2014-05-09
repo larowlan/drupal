@@ -179,10 +179,6 @@ services:
     class: Drupal\Core\Http\Client
     tags:
       - { name: service_collector, tag: http_client_subscriber, call: attach }
-  http_client_simpletest_subscriber:
-    class: Drupal\Core\Http\Plugin\SimpletestHttpRequestSubscriber
-    tags:
-      - { name: http_client_subscriber }
   theme.negotiator:
     class: Drupal\Core\Theme\ThemeNegotiator
     arguments: ['@access_check.theme', '@request_stack']
@@ -585,7 +581,7 @@ services:
     class: Drupal\Core\EventSubscriber\FinishResponseSubscriber
     tags:
       - { name: event_subscriber }
-    arguments: ['@language_manager']
+    arguments: ['@language_manager', '@config.factory']
     scope: request
   redirect_response_subscriber:
     class: Drupal\Core\EventSubscriber\RedirectResponseSubscriber
@@ -771,9 +767,12 @@ services:
     arguments: ['@authentication', '@request']
   session_manager:
     class: Drupal\Core\Session\SessionManager
-    arguments: ['@request_stack', '@database']
+    arguments: ['@request_stack', '@database', '@session_manager.metadata_bag', '@settings']
     tags:
       - { name: persist }
+  session_manager.metadata_bag:
+    class: Drupal\Core\Session\MetadataBag
+    arguments: ['@settings']
   asset.css.collection_renderer:
     class: Drupal\Core\Asset\CssCollectionRenderer
     arguments: [ '@state' ]
