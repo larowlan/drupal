@@ -2261,7 +2261,7 @@ abstract class WebTestBase extends TestBase {
             break;
           case 'radio':
             if ($element->getAttribute('name') == $name && $element->getAttribute('value') == $edit[$name]) {
-              $element->setValue($value);
+              $element->setValue($edit[$name]);
               unset($edit[$name]);
             }
             break;
