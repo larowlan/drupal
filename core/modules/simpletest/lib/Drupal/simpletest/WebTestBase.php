@@ -2271,6 +2271,7 @@ abstract class WebTestBase extends TestBase {
             // of $edit.
             if ($edit[$name] === FALSE) {
               $element->uncheck();
+              unset($edit[$name]);
               continue 2;
             }
             else {
