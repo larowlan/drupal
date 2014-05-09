@@ -2295,7 +2295,7 @@ abstract class WebTestBase extends TestBase {
               }
             }
             else {
-              $element->selectOption($edit[$name]);
+              $element->setValue($edit[$name]);
               unset($edit[$name]);
             }
             break;
