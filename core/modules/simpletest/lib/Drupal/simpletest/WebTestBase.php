@@ -1883,7 +1883,7 @@ abstract class WebTestBase extends TestBase {
         $xpath = '//form[@id="' . $form_html_id . '"]' . $xpath;
       }
       $element = $this->xpath($xpath);
-      $element_id = (string) $element[0]->getAttribute('id');
+      $element_id = $element[0]->getAttribute('id');
       $ajax_settings = $drupal_settings['ajax'][$element_id];
     }
 
@@ -1896,7 +1896,7 @@ abstract class WebTestBase extends TestBase {
     }
     $ajax_html_ids = array();
     foreach ($this->xpath('//*[@id]') as $element) {
-      $ajax_html_ids[] = (string) $element->getAttribute('id');
+      $ajax_html_ids[] = $element->getAttribute('id');
     }
     if (!empty($ajax_html_ids)) {
       $extra_post['ajax_html_ids'] = implode(' ', $ajax_html_ids);
@@ -2233,10 +2233,10 @@ abstract class WebTestBase extends TestBase {
     $submit_matches = FALSE;
     foreach ($elements as $element) {
       // SimpleXML objects need string casting all the time.
-      $name = (string) $element->getAttribute('name');
+      $name = $element->getAttribute('name');
       // This can either be the type of <input> or the name of the tag itself
       // for <select> or <textarea>.
-      $type = $element->getAttribute('type') ? (string) $element->getAttribute('type') : $element->getTagName();
+      $type = $element->getAttribute('type') ? $element->getAttribute('type') : $element->getTagName();
       $value = $element->getValue();
       $done = FALSE;
       if (isset($edit[$name])) {
@@ -3070,7 +3070,8 @@ abstract class WebTestBase extends TestBase {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertTitle($title, $message = '', $group = 'Other') {
-    $actual = (string) current($this->xpath('//title'));
+    $element = current($this->xpath('//title'));
+    $actual = $element->getText();
     if (!$message) {
       $message = String::format('Page title @actual is equal to @expected.', array(
         '@actual' => var_export($actual, TRUE),
@@ -3099,7 +3100,8 @@ abstract class WebTestBase extends TestBase {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertNoTitle($title, $message = '', $group = 'Other') {
-    $actual = (string) current($this->xpath('//title'));
+    $element = current($this->xpath('//title'));
+    $actual = $element->getText();
     if (!$message) {
       $message = String::format('Page title @actual is not equal to @unexpected.', array(
         '@actual' => var_export($actual, TRUE),
@@ -3582,7 +3584,7 @@ abstract class WebTestBase extends TestBase {
   protected function assertNoDuplicateIds($message = '', $group = 'Other', $ids_to_skip = array()) {
     $status = TRUE;
     foreach ($this->xpath('//*[@id]') as $element) {
-      $id = (string) $element['id'];
+      $id = $element->getAttribute('id');
       if (isset($seen_ids[$id]) && !in_array($id, $ids_to_skip)) {
         $this->fail(String::format('The HTML ID %id is unique.', array('%id' => $id)), $group);
         $status = FALSE;
