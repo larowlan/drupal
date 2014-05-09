@@ -1806,6 +1806,7 @@ abstract class WebTestBase extends TestBase {
           $verbose .= '<hr />' . $out;
 
           $this->verbose($verbose);
+          $this->drupalSetContent($out, $this->getUrl());
           return $out;
         }
       }
