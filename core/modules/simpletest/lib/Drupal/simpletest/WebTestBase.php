@@ -1255,7 +1255,6 @@ abstract class WebTestBase extends TestBase {
 
     // Reset static variables and reload permissions.
     $this->refreshVariables();
-    $this->resetMink();
   }
 
   /**
@@ -2261,7 +2260,7 @@ abstract class WebTestBase extends TestBase {
             unset($edit[$name]);
             break;
           case 'radio':
-            if ($edit[$name] == $value) {
+            if ($element->getAttribute('name') == $name && $element->getAttribute('value') == $edit[$name]) {
               $element->setValue($value);
               unset($edit[$name]);
             }
@@ -3176,7 +3175,13 @@ abstract class WebTestBase extends TestBase {
       $found = FALSE;
       if ($fields) {
         foreach ($fields as $field) {
-          if ($field->getValue() == $value) {
+          $type = $field->getAttribute('type');
+          if ($type == 'radio' || $type == 'checkbox') {
+            if ($field->getAttribute('value') == $value && ($field->getAttribute('checked') || $field->isChecked())) {
+              $found = TRUE;
+            }
+          }
+          elseif ($field->getValue() == $value) {
             // Input element with correct value.
             $found = TRUE;
           }
