@@ -2636,8 +2636,7 @@ abstract class WebTestBase extends TestBase {
    *   Values for duplicate headers are stored as a single comma-separated list.
    */
   protected function drupalGetHeaders($all_requests = FALSE) {
-    /** @var \Symfony\Component\BrowserKit\Response $headers */
-    $headers = $this->getSession()->getDriver()->getClient()->getInternalResponse()->getHeaders();
+    $headers = $this->getSession()->getResponseHeaders();
     return $headers;
   }
 
@@ -2660,7 +2659,11 @@ abstract class WebTestBase extends TestBase {
    *   The HTTP header value or FALSE if not found.
    */
   protected function drupalGetHeader($name, $all_requests = FALSE) {
-    return $this->drupalGetHeaders()->getHeader($name);
+    $headers = $this->drupalGetHeaders();
+    if (isset($headers[$name])) {
+      return reset($headers[$name]);
+    }
+    return FALSE;
   }
 
   /**
