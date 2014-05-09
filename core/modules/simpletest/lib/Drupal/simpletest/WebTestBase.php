@@ -1777,10 +1777,6 @@ abstract class WebTestBase extends TestBase {
               }
             }
           }
-          else {
-            $post = $this->serializePostValues($post) . $extra_post;
-          }
-          // $out = $this->curlExec(array(CURLOPT_URL => $action, CURLOPT_POST => TRUE, CURLOPT_POSTFIELDS => $post, CURLOPT_HTTPHEADER => $headers));
           $submit_element->press();
           $out = $this->getSession()->getPage()->getContent();
           // Ensure that any changes to variables in the other thread are picked
@@ -2266,7 +2262,7 @@ abstract class WebTestBase extends TestBase {
             break;
           case 'radio':
             if ($edit[$name] == $value) {
-              $element->check();
+              $element->setValue($value);
               unset($edit[$name]);
             }
             break;
