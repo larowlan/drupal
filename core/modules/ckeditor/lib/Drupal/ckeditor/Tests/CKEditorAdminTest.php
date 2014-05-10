@@ -63,9 +63,9 @@ class CKEditorAdminTest extends WebTestBase {
     $this->assertTrue(count($select) === 1, 'The Text Editor select exists.');
     $this->assertTrue(count($select_is_disabled) === 0, 'The Text Editor select is not disabled.');
     $this->assertTrue(count($options) === 2, 'The Text Editor select has two options.');
-    $this->assertTrue(((string) $options[0]) === 'None', 'Option 1 in the Text Editor select is "None".');
-    $this->assertTrue(((string) $options[1]) === 'CKEditor', 'Option 2 in the Text Editor select is "CKEditor".');
-    $this->assertTrue(((string) $options[0]['selected']) === 'selected', 'Option 1 ("None") is selected.');
+    $this->assertTrue(($options[0]->getText()) === 'None', 'Option 1 in the Text Editor select is "None".');
+    $this->assertTrue(($options[1]->getText()) === 'CKEditor', 'Option 2 in the Text Editor select is "CKEditor".');
+    $this->assertTrue(($options[0]->getAttribute('selected')) === 'selected', 'Option 1 ("None") is selected.');
 
     // Select the "CKEditor" editor and click the "Save configuration" button.
     $edit = array(
