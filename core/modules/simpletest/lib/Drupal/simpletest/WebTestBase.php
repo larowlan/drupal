@@ -3388,7 +3388,12 @@ abstract class WebTestBase extends TestBase {
    */
   protected function assertFieldChecked($id, $message = '', $group = 'Browser') {
     $elements = $this->xpath('//input[@id=:id]', array(':id' => $id));
-    return $this->assertTrue(isset($elements[0]) && $elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
+    if ($elements[0]->getAttribute('type') == 'radio') {
+      return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() == $elements[0]->getAttribute('value'), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
+    }
+    else {
+      return $this->assertTrue(isset($elements[0]) && $elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
+    }
   }
 
   /**
@@ -3412,7 +3417,12 @@ abstract class WebTestBase extends TestBase {
   protected function assertNoFieldChecked($id, $message = '', $group = 'Browser') {
     /** @var \Behat\Mink\Element\NodeElement[] $elements */
     $elements = $this->xpath('//input[@id=:id]', array(':id' => $id));
-    return $this->assertTrue(isset($elements[0]) && !$elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
+    if ($elements[0]->getAttribute('type') == 'radio') {
+      return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() != $elements[0]->getAttribute('value'), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
+    }
+    else {
+      return $this->assertTrue(isset($elements[0]) && !$elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
+    }
   }
 
   /**
