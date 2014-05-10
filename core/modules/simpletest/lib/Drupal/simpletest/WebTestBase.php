@@ -2220,13 +2220,13 @@ abstract class WebTestBase extends TestBase {
    *   Array of file uploads
    * @param string $submit
    *   Form submit button value.
-   * @param \Behat\Mink\Element\NodeElement $form
+   * @param \Behat\Mink\Element\NodeElement|\Drupal\simpletest\MinkNodeElementDecorator $form
    *   Array of form elements.
    *
-   * @return \Behat\Mink\Element\NodeElement|bool
+   * @return \Behat\Mink\Element\NodeElement|\Drupal\simpletest\MinkNodeElementDecorator|bool
    *   The submit button for the form to trigger the POST.
    */
-  protected function handleForm(&$post, &$edit, &$upload, $submit, NodeElement $form) {
+  protected function handleForm(&$post, &$edit, &$upload, $submit, $form) {
     // Retrieve the form elements.
     /** @var \Behat\Mink\Element\NodeElement[] $elements */
     $elements = $form->findAll('xpath', './/input[not(@disabled)]|.//textarea[not(@disabled)]|.//select[not(@disabled)]');
@@ -2408,7 +2408,12 @@ abstract class WebTestBase extends TestBase {
    */
   protected function xpath($xpath, array $arguments = array()) {
     $xpath = $this->buildXPathQuery($xpath, $arguments);
-    return $this->getSession()->getPage()->findAll('xpath', $xpath);
+    $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
+    $decorated = array();
+    foreach ($elements as $element) {
+      $decorated[] = MinkNodeElementDecorator::decorate($element);
+    }
+    return $decorated;
   }
 
   /**
@@ -3181,15 +3186,23 @@ abstract class WebTestBase extends TestBase {
       $found = FALSE;
       if ($fields) {
         foreach ($fields as $field) {
-          $type = $field->getAttribute('type');
-          if ($type == 'radio' || $type == 'checkbox') {
-            if ($field->getAttribute('value') == $value && ($field->getAttribute('checked') || $field->isChecked())) {
+          try {
+            $type = $field->getAttribute('type');
+            if ($type == 'radio' || $type == 'checkbox') {
+              if ($field->getAttribute('value') == $value && ($field->getAttribute('checked') || $field->isChecked())) {
+                $found = TRUE;
+              }
+            }
+            elseif ($field->getValue() == $value) {
+              // Input element with correct value.
               $found = TRUE;
             }
           }
-          elseif ($field->getValue() == $value) {
-            // Input element with correct value.
-            $found = TRUE;
+          catch (\LogicException $e) {
+            // Method called on a non-form field, fallback to text value.
+            if ($field->getText() == $value) {
+              $found = TRUE;
+            }
           }
         }
       }
@@ -3250,8 +3263,23 @@ abstract class WebTestBase extends TestBase {
       $found = FALSE;
       if ($fields) {
         foreach ($fields as $field) {
-          if ($field->getValue() == $value) {
-            $found = TRUE;
+          try {
+            $type = $field->getAttribute('type');
+            if ($type == 'radio' || $type == 'checkbox') {
+              if ($field->getAttribute('value') == $value && ($field->getAttribute('checked') || $field->isChecked())) {
+                $found = TRUE;
+              }
+            }
+            elseif ($field->getValue() == $value) {
+              // Input element with correct value.
+              $found = TRUE;
+            }
+          }
+          catch (\LogicException $e) {
+            // Method called on a non-form field, fallback to text value.
+            if ($field->getText() == $value) {
+              $found = TRUE;
+            }
           }
         }
       }
