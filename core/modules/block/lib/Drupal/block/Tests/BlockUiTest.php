@@ -106,8 +106,8 @@ class BlockUiTest extends WebTestBase {
     foreach ($this->blockValues as $delta => $values) {
       $block = $this->blocks[$delta];
       $label = $block->label();
-      $element = $this->xpath('//*[@id="blocks"]/tbody/tr[' . $values['tr'] . ']/td[1]/text()');
-      $this->assertTrue((string) $element[0] == $label, 'The "' . $label . '" block title is set inside the ' . $values['settings']['region'] . ' region.');
+      $element = $this->xpath('//*[@id="blocks"]/tbody/tr[' . $values['tr'] . ']/td[1]');
+      $this->assertTrue($element[0]->getText() == $label, 'The "' . $label . '" block title is set inside the ' . $values['settings']['region'] . ' region.');
       // Look for a test block region select form element.
       $this->assertField('blocks[' . $values['settings']['id'] . '][region]', 'The block "' . $values['label'] . '" has a region assignment field.');
       // Move the test block to the header region.
