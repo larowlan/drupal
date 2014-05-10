@@ -215,7 +215,7 @@ class BookTest extends WebTestBase {
     $links = $this->xpath('//nav[@class="breadcrumb"]/ol/li/a');
     $got_breadcrumb = array();
     foreach ($links as $link) {
-      $got_breadcrumb[] = (string) $link['href'];
+      $got_breadcrumb[] = $link->getAttribute('href');
     }
 
     // Compare expected and got breadcrumbs.
