@@ -1776,7 +1776,14 @@ abstract class WebTestBase extends TestBase {
               }
             }
           }
-          $submit_element->press();
+          if (!$ajax) {
+            $submit_element->press();
+          }
+          elseif (!empty($options['triggering_element'])) {
+            // @todo this is to accomodate ::drupalPostAjaxForm() which should
+            //   be refactored into a JavaScriptTestBase.
+            $form->find('css', "input[name='{$options['triggering_element']}']")->press();
+          }
           $out = $this->getSession()->getPage()->getContent();
           // Ensure that any changes to variables in the other thread are picked
           // up.
@@ -2252,6 +2259,7 @@ abstract class WebTestBase extends TestBase {
           case 'password':
           case 'email':
           case 'search':
+          case 'select':
           case 'date':
           case 'time':
           case 'datetime':
@@ -2277,27 +2285,6 @@ abstract class WebTestBase extends TestBase {
             else {
               unset($edit[$name]);
               $element->check();
-            }
-            break;
-          case 'select':
-            $new_value = $edit[$name];
-            if (is_array($new_value)) {
-              // Multiple select box.
-              if (!empty($new_value)) {
-                foreach ($new_value as $value) {
-                  $element->selectOption($value, TRUE);
-                }
-              }
-              else {
-                // No options selected: do not include any POST data for the
-                // element.
-                $done = TRUE;
-                unset($edit[$name]);
-              }
-            }
-            else {
-              $element->setValue($edit[$name]);
-              unset($edit[$name]);
             }
             break;
           case 'file':
@@ -3420,7 +3407,7 @@ abstract class WebTestBase extends TestBase {
       return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() == $elements[0]->getAttribute('value'), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
     }
     else {
-      return $this->assertTrue(isset($elements[0]) && $elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
+      return $this->assertTrue(isset($elements[0]) && $elements[0]->getAttribute('checked') == 'checked', $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
     }
   }
 
@@ -3449,7 +3436,7 @@ abstract class WebTestBase extends TestBase {
       return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() != $elements[0]->getAttribute('value'), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
     }
     else {
-      return $this->assertTrue(isset($elements[0]) && !$elements[0]->isChecked(), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
+      return $this->assertTrue(isset($elements[0]) && $elements[0]->getAttribute('checked') != 'checked', $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
     }
   }
 
@@ -3527,8 +3514,8 @@ abstract class WebTestBase extends TestBase {
    * @todo $id is unusable. Replace with $name.
    */
   protected function assertOptionSelected($id, $option, $message = '', $group = 'Browser') {
-    $elements = $this->xpath('//select[@id=:id]', array(':id' => $id));
-    return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() == $option, $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
+    $elements = $this->getSession()->getPage()->find('css', "#$id option[value=$option]");
+    return $this->assertTrue($elements && $elements->getAttribute('selected') == 'selected', $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
   }
 
   /**
@@ -3552,8 +3539,8 @@ abstract class WebTestBase extends TestBase {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertNoOptionSelected($id, $option, $message = '', $group = 'Browser') {
-    $elements = $this->xpath('//select[@id=:id]', array(':id' => $id));
-    return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() != $option, $message ? $message : String::format('Option @option for field @id is not selected.', array('@option' => $option, '@id' => $id)), $group);
+    $elements = $this->getSession()->getPage()->find('css', "#$id option[value=$option]");
+    return $this->assertTrue($elements && $elements->getAttribute('selected') != 'selected', $message ? $message : String::format('Option @option for field @id is not selected.', array('@option' => $option, '@id' => $id)), $group);
   }
 
   /**
@@ -3861,4 +3848,5 @@ abstract class WebTestBase extends TestBase {
     $generator->setRequest($request);
     return $request;
   }
+
 }
