@@ -8,7 +8,9 @@
 namespace Drupal\Core\Controller;
 
 use Drupal\Core\Page\DefaultHtmlPageRenderer;
+use Drupal\Core\Page\HtmlFragmentRendererInterface;
 use Drupal\Core\Page\HtmlPageRendererInterface;
+use Drupal\Core\Routing\UrlGeneratorInterface;
 use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -68,9 +70,12 @@ class ExceptionController extends HtmlControllerBase implements ContainerAwareIn
    *   The page renderer.
    * @param \Drupal\Core\Page\HtmlFragmentRendererInterface $fragment_renderer
    *   The fragment rendering service.
+   * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
+   *   The url generator.
+   * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
    */
-  public function __construct(ContentNegotiation $negotiation, TitleResolverInterface $title_resolver, HtmlPageRendererInterface $renderer, $fragment_renderer, TranslationInterface $string_translation) {
-    parent::__construct($title_resolver);
+  public function __construct(ContentNegotiation $negotiation, TitleResolverInterface $title_resolver, HtmlPageRendererInterface $renderer, HtmlFragmentRendererInterface $fragment_renderer, TranslationInterface $string_translation, UrlGeneratorInterface $url_generator) {
+    parent::__construct($title_resolver, $url_generator);
     $this->negotiation = $negotiation;
     $this->htmlPageRenderer = $renderer;
     $this->fragmentRenderer = $fragment_renderer;
@@ -138,7 +143,7 @@ class ExceptionController extends HtmlControllerBase implements ContainerAwareIn
    */
   public function on403Html(FlattenException $exception, Request $request) {
     $system_path = $request->attributes->get('_system_path');
-    watchdog('access denied', $system_path, NULL, WATCHDOG_WARNING);
+    watchdog('access denied', $system_path, array(), WATCHDOG_WARNING);
 
     $system_config = $this->container->get('config.factory')->get('system.site');
     $path = $this->container->get('path.alias_manager')->getPathByAlias($system_config->get('page.403'));
@@ -180,7 +185,7 @@ class ExceptionController extends HtmlControllerBase implements ContainerAwareIn
    *   A response object.
    */
   public function on404Html(FlattenException $exception, Request $request) {
-    watchdog('page not found', String::checkPlain($request->attributes->get('_system_path')), NULL, WATCHDOG_WARNING);
+    watchdog('page not found', String::checkPlain($request->attributes->get('_system_path')), array(), WATCHDOG_WARNING);
 
     // Check for and return a fast 404 page if configured.
     $config = \Drupal::config('system.performance');

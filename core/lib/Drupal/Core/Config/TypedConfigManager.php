@@ -91,13 +91,8 @@ class TypedConfigManager extends PluginManagerBase implements TypedConfigManager
    */
   public function create(array $definition, $value = NULL, $name = NULL, $parent = NULL) {
     if (!isset($definition['type'])) {
-      // Set default type 'string' if possible. If not it will be 'undefined'.
-      if (is_string($value)) {
-        $definition['type'] = 'string';
-      }
-      else {
-        $definition['type'] = 'undefined';
-      }
+      // By default elements without a type are undefined.
+      $definition['type'] = 'undefined';
     }
     elseif (strpos($definition['type'], ']')) {
       // Replace variable names in definition.
@@ -145,9 +140,9 @@ class TypedConfigManager extends PluginManagerBase implements TypedConfigManager
   }
 
   /**
-   * Implements Drupal\Component\Plugin\Discovery\DiscoveryInterface::getDefinition().
+   * {@inheritdoc}
    */
-  public function getDefinition($base_plugin_id) {
+  public function getDefinition($base_plugin_id, $exception_on_invalid = TRUE) {
     $definitions = $this->getDefinitions();
     if (isset($definitions[$base_plugin_id])) {
       $type = $base_plugin_id;
@@ -157,14 +152,13 @@ class TypedConfigManager extends PluginManagerBase implements TypedConfigManager
       $type = $name;
     }
     else {
-      // If we don't have definition, return the 'default' element.
-      // This should map to 'undefined' type by default, unless overridden.
-      $type = 'default';
+      // If we don't have definition, return the 'undefined' element.
+      $type = 'undefined';
     }
     $definition = $definitions[$type];
     // Check whether this type is an extension of another one and compile it.
     if (isset($definition['type'])) {
-      $merge = $this->getDefinition($definition['type']);
+      $merge = $this->getDefinition($definition['type'], $exception_on_invalid);
       $definition = NestedArray::mergeDeep($merge, $definition);
       // Unset type so we try the merge only once per type.
       unset($definition['type']);
@@ -331,10 +325,9 @@ class TypedConfigManager extends PluginManagerBase implements TypedConfigManager
    * {@inheritdoc}
    */
   public function hasConfigSchema($name) {
-    // The schema system falls back on the Property class for unknown types.
-    // See http://drupal.org/node/1905230
+    // The schema system falls back on the Undefined class for unknown types.
     $definition = $this->getDefinition($name);
-    return is_array($definition) && ($definition['class'] != '\Drupal\Core\Config\Schema\Property');
+    return is_array($definition) && ($definition['class'] != '\Drupal\Core\Config\Schema\Undefined');
   }
 
 }

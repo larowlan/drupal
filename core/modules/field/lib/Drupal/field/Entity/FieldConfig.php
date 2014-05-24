@@ -311,7 +311,7 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
     }
 
     // Check that the field type is known.
-    $field_type = $field_type_manager->getDefinition($this->type);
+    $field_type = $field_type_manager->getDefinition($this->type, FALSE);
     if (!$field_type) {
       throw new FieldException(format_string('Attempt to create a field of unknown type %type.', array('%type' => $this->type)));
     }
@@ -796,6 +796,22 @@ class FieldConfig extends ConfigEntityBase implements FieldConfigInterface {
     $type_definition = \Drupal::typedDataManager()
       ->getDefinition('field_item:' . $this->getType());
     return $type_definition['class'];
+  }
+
+  /**
+   * Loads a field config entity based on the entity type and field name.
+   *
+   * @param string $entity_type_id
+   *   ID of the entity type.
+   * @param string $field_name
+   *   Name of the field.
+   *
+   * @return static
+   *   The field config entity if one exists for the provided field name,
+   *   otherwise NULL.
+   */
+  public static function loadByName($entity_type_id, $field_name) {
+    return \Drupal::entityManager()->getStorage('field_config')->load($entity_type_id . '.' . $field_name);
   }
 
 }

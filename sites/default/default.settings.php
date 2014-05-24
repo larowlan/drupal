@@ -49,6 +49,11 @@
  *
  * @see example.sites.php
  * @see conf_path()
+ *
+ * In addition to customizing application settings through variables in
+ * settings.php, you can create a services.yml file in the same directory to
+ * register custom, site-specific service definitions and/or swap out default
+ * implementations with custom ones.
  */
 
 /**
@@ -548,7 +553,7 @@ ini_set('session.cookie_lifetime', 2000000);
  * The 'bootstrap_config_storage' setting needs to be a callable that returns
  * core.services.yml.
  */
- # $settings['bootstrap_config_storage'] = array('Drupal\Core\Config\BootstrapConfigStorageFactory', 'getFileStorage');
+# $settings['bootstrap_config_storage'] = array('Drupal\Core\Config\BootstrapConfigStorageFactory', 'getFileStorage');
 
 /**
  * Configuration overrides.

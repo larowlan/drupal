@@ -91,17 +91,29 @@ interface ConfigurableLanguageManagerInterface extends LanguageManagerInterface 
    * @param string $name
    *   The language configuration object name.
    *
-   * @return \Drupal\Core\Config\Config
+   * @return \Drupal\language\Config\LanguageConfigOverride
    *   The language config override object.
    */
   public function getLanguageConfigOverride($langcode, $name);
 
   /**
-   * Prepare a language code list for unused predefined languages.
+   * Gets a language configuration override storage object.
+   *
+   * @param string $langcode
+   *   The language code for the override.
+   *
+   * @return \Drupal\Core\Config\StorageInterface $storage
+   *   A storage object to use for reading and writing the
+   *   configuration override.
+   */
+  public function getLanguageConfigOverrideStorage($langcode);
+
+  /**
+   * Returns the standard language list excluding already configured languages.
    *
    * @return array
-   *   List of predefined language names keyed by langcode.
+   *   A list of standard language names keyed by langcode.
    */
-  public function getUnusedPredefinedList();
+  public function getStandardLanguageListWithoutConfigured();
 
 }

@@ -10,6 +10,8 @@ use Drupal\Core\Database\Query\AlterableInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Render\Element;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldInstanceConfig;
 use Drupal\field\FieldConfigInterface;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -92,7 +94,7 @@ function entity_reference_field_config_update(FieldConfigInterface $field) {
 
   foreach ($field->bundles() as $entity_type => $bundles) {
     foreach ($bundles as $bundle) {
-      $instance = field_info_instance($entity_type, $field_name, $bundle);
+      $instance = FieldInstanceConfig::loadByName($entity_type, $bundle, $field_name);
       $instance->settings['handler_settings'] = array();
       $instance->save();
     }
@@ -205,13 +207,13 @@ function entity_reference_query_entity_reference_alter(AlterableInterface $query
  */
 function entity_reference_create_instance($entity_type, $bundle, $field_name, $field_label, $target_entity_type, $selection_handler = 'default', $selection_handler_settings = array(), $cardinality = 1) {
   // If a field type we know should exist isn't found, clear the field cache.
-  if (!\Drupal::service('plugin.manager.field.field_type')->getDefinition('entity_reference')) {
+  if (!\Drupal::service('plugin.manager.field.field_type')->hasDefinition('entity_reference')) {
     field_cache_clear();
   }
 
   // Look for or add the specified field to the requested entity bundle.
-  $field = field_info_field($entity_type, $field_name);
-  $instance = field_info_instance($entity_type, $field_name, $bundle);
+  $field = FieldConfig::loadByName($entity_type, $field_name);
+  $instance = FieldInstanceConfig::loadByName($entity_type, $bundle, $field_name);
 
   if (empty($field)) {
     $field = array(

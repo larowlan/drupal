@@ -9,10 +9,12 @@ source:
 
 process:
   vid: vid
+  type: type
   # The actual field name is dynamic and will be added by the load plugin.
 
 destination:
   plugin: entity_revision:node
 migration_dependencies:
-  - d6_term_node
-  - d6_node_revision
+  required:
+    - d6_term_node
+    - d6_node_revision

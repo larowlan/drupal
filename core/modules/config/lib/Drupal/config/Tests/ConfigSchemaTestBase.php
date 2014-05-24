@@ -2,12 +2,12 @@
 
 /**
  * @file
- * Contains Drupal\config\Tests\DefaultConfigTest.
+ * Contains Drupal\config\Tests\ConfigSchemaTestBase.
  */
 
 namespace Drupal\config\Tests;
 
-use Drupal\Core\Config\Schema\Property;
+use Drupal\Core\Config\Schema\ArrayElement;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\TypedData\Type\BooleanInterface;
 use Drupal\Core\TypedData\Type\StringInterface;
@@ -38,20 +38,11 @@ abstract class ConfigSchemaTestBase extends WebTestBase {
   protected $configName;
 
   /**
+   * Global state for whether the config has a valid schema.
+   *
    * @var boolean
    */
   protected $configPass;
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function getInfo() {
-    return array(
-      'name' => 'Default configuration',
-      'description' => 'Tests that default configuration provided by all modules matches schema.',
-      'group' => 'Configuration',
-    );
-  }
 
   /**
    * Asserts the TypedConfigManager has a valid schema for the configuration.
@@ -92,44 +83,44 @@ abstract class ConfigSchemaTestBase extends WebTestBase {
    *   Returns mixed value.
    */
   protected function checkValue($key, $value) {
-    if (is_scalar($value) || $value === NULL) {
-      try {
-        $success = FALSE;
-        $type = gettype($value);
-        $element = $this->schema->get($key);
-        if ($element instanceof PrimitiveInterface) {
-          if ($type == 'integer' && $element instanceof IntegerInterface) {
-            $success = TRUE;
-          }
-          if ($type == 'double' && $element instanceof FloatInterface) {
-            $success = TRUE;
-          }
-          if ($type == 'boolean' && $element instanceof BooleanInterface) {
-            $success = TRUE;
-          }
-          if ($type == 'string' && ($element instanceof StringInterface || $element instanceof Property)) {
-            $success = TRUE;
-          }
-          // Null values are allowed for all types.
-          if ($value === NULL) {
-            $success = TRUE;
-          }
-        }
-        else {
-          // @todo throw an exception due to an incomplete schema. Only possible
-          //   once https://drupal.org/node/1910624 is complete.
-        }
-        $class = get_class($element);
-        if (!$success) {
-          $this->fail("{$this->configName}:$key has the wrong schema. Variable type is $type and schema class is $class.");
-        }
-      }
-      catch (SchemaIncompleteException $e) {
+    $element = FALSE;
+    try {
+      $element = $this->schema->get($key);
+    }
+    catch (SchemaIncompleteException $e) {
+      if (is_scalar($value) || $value === NULL) {
         $this->fail("{$this->configName}:$key has no schema.");
       }
     }
+    // Do not check value if it is defined to be ignored.
+    if ($element && $element instanceof Ignore) {
+      return $value;
+    }
+
+    if (is_scalar($value) || $value === NULL) {
+      $success = FALSE;
+      $type = gettype($value);
+      if ($element instanceof PrimitiveInterface) {
+        $success =
+          ($type == 'integer' && $element instanceof IntegerInterface) ||
+          ($type == 'double' && $element instanceof FloatInterface) ||
+          ($type == 'boolean' && $element instanceof BooleanInterface) ||
+          ($type == 'string' && $element instanceof StringInterface) ||
+          // Null values are allowed for all types.
+          ($value === NULL);
+      }
+      $class = get_class($element);
+      if (!$success) {
+        $this->fail("{$this->configName}:$key has the wrong schema. Variable type is $type and schema class is $class.");
+      }
+    }
     else {
-      // Any non-scalar value must be an array.
+      if (!$element instanceof ArrayElement) {
+        $this->fail("Non-scalar {$this->configName}:$key is not defined as an array type (such as mapping or sequence).");
+      }
+
+      // Go on processing so we can get errors on all levels. Any non-scalar
+      // value must be an array so cast to an array.
       if (!is_array($value)) {
         $value = (array) $value;
       }

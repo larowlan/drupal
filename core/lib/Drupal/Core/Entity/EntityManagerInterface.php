@@ -81,6 +81,17 @@ interface EntityManagerInterface extends PluginManagerInterface {
   public function getFieldStorageDefinitions($entity_type_id);
 
   /**
+   * Collects a lightweight map of fields across bundles.
+   *
+   * @return array
+   *   An array keyed by entity type. Each value is an array which keys are
+   *   field names and value is an array with two entries:
+   *   - type: The field type.
+   *   - bundles: The bundles in which the field appears.
+   */
+  public function getFieldMap();
+
+  /**
    * Creates a new access controller instance.
    *
    * @param string $entity_type
@@ -263,28 +274,16 @@ interface EntityManagerInterface extends PluginManagerInterface {
   public function getTranslationFromContext(EntityInterface $entity, $langcode = NULL, $context = array());
 
   /**
-   * Returns the entity type info for a specific entity type.
-   *
-   * @param string $entity_type_id
-   *   The ID of the entity type.
-   * @param bool $exception_on_invalid
-   *   (optional) If TRUE, an invalid entity type ID will throw an exception.
-   *   Defaults to FALSE.
+   * {@inheritdoc}
    *
    * @return \Drupal\Core\Entity\EntityTypeInterface|null
-   *   Returns the entity type object, or NULL if the entity type ID is invalid
-   *   and $exception_on_invalid is TRUE.
-   *
-   * @throws \InvalidArgumentException
-   *   Thrown if $entity_type_id is invalid and $exception_on_invalid is TRUE.
    */
-  public function getDefinition($entity_type_id, $exception_on_invalid = FALSE);
+  public function getDefinition($entity_type_id, $exception_on_invalid = TRUE);
 
   /**
-   * Returns an array of entity type info, keyed by entity type name.
+   * {@inheritdoc}
    *
    * @return \Drupal\Core\Entity\EntityTypeInterface[]
-   *   An array of entity type objects.
    */
   public function getDefinitions();
 

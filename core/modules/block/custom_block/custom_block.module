@@ -5,9 +5,9 @@
  * Allows the creation of custom blocks through the user interface.
  */
 
-use Drupal\custom_block\Entity\CustomBlockType;
-use Drupal\custom_block\Entity\CustomBlock;
 use Symfony\Component\HttpFoundation\Request;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldInstanceConfig;
 
 /**
  * Implements hook_help().
@@ -52,32 +52,6 @@ function custom_block_theme($existing, $type, $theme, $path) {
 }
 
 /**
- * Loads a custom block type.
- *
- * @param int $id
- *   The ID of the custom block type to load.
- *
- * @return \Drupal\custom_block\Entity\CustomBlockType|null
- *   A CustomBlockType object or NULL if the requested $id does not exist.
- */
-function custom_block_type_load($id) {
-  return entity_load('custom_block_type', $id);
-}
-
-/**
- * Loads a custom block.
- *
- * @param int $id
- *   The id of the custom block.
- *
- * @return \Drupal\custom_block\Entity\CustomBlock|null
- *   A CustomBlock object or NULL if the requested $id does not exist.
- */
-function custom_block_load($id) {
-  return entity_load('custom_block', $id);
-}
-
-/**
  * Implements hook_entity_type_alter().
  */
 function custom_block_entity_type_alter(array &$entity_types) {
@@ -88,18 +62,6 @@ function custom_block_entity_type_alter(array &$entity_types) {
     $translation['custom_block'] = TRUE;
     $entity_types['custom_block']->set('translation', $translation);
   }
-}
-
-/**
- * Implements hook_entity_bundle_info().
- */
-function custom_block_entity_bundle_info() {
-  $bundles = array();
-  foreach (\Drupal::configFactory()->listAll('custom_block.type.') as $config_name) {
-    $config = \Drupal::config($config_name);
-    $bundles['custom_block'][$config->get('id')]['label'] = $config->get('label');
-  }
-  return $bundles;
 }
 
 /**
@@ -115,8 +77,8 @@ function custom_block_entity_bundle_info() {
  */
 function custom_block_add_body_field($block_type_id, $label = 'Body') {
   // Add or remove the body field, as needed.
-  $field = field_info_field('custom_block', 'body');
-  $instance = field_info_instance('custom_block', 'body', $block_type_id);
+  $field = FieldConfig::loadByName('custom_block', 'body');
+  $instance = FieldInstanceConfig::loadByName('custom_block', $block_type_id, 'body');
   if (empty($field)) {
     $field = entity_create('field_config', array(
       'name' => 'body',

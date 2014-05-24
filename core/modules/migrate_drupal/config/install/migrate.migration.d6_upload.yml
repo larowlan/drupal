@@ -6,6 +6,7 @@ source:
 process:
   nid: nid
   vid: vid
+  type: type
   upload:
     plugin: iterator
     source: upload
@@ -19,5 +20,6 @@ process:
 destination:
   plugin: entity:node
 migration_dependencies:
-  - d6_file
-  - d6_node
+  required:
+    - d6_file
+    - d6_node
