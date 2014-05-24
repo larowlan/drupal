@@ -1,0 +1,6 @@
+mink_test.1:
+  path: '/mink-test-1'
+  defaults:
+    _content: '\Drupal\mink_test\Controller\MinkTestController::minkTest1'
+  requirements:
+    _access: 'TRUE'
