@@ -20,16 +20,25 @@ class MinkTestController {
    */
   public function minkTest1() {
     return array(
-      'test-lists' => array(
+      'test-lists-1' => array(
         '#type' => 'container',
         '#attributes' => array(
-          'id' => 'test-lists',
+          'id' => 'test-lists-1',
         ),
         'list1' => array(
           '#markup' => '<ul><li>item1</li></ul>',
         ),
         'list2' => array(
           '#markup' => '<ul><li>item1</li><li>item2</li></ul>',
+        ),
+      ),
+      'test-lists-2' => array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'id' => 'test-lists-2',
+        ),
+        'list1' => array(
+          '#markup' => '<ul><li>item1</li></ul>',
         ),
       ),
     );
