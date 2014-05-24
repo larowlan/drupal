@@ -45,6 +45,11 @@ class MinkNodeElementDecoratorTest extends WebTestBase {
     $container = $element->find("css", "#test-lists");
     $container = new MinkNodeElementDecorator($container);
 
+    // Ensure we are not working all the way down the tree every time we do a
+    // find. We want to make sure it's working in a jQuery like fashion so we
+    // don't end up with weird results.
+
+
     // Look for a multiple lists on the page. Should return an array of objects
     // since that list has children (list items).
     $this->assertTrue(is_array($container->ul), "Array of objects found.");
