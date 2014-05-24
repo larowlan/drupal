@@ -96,22 +96,13 @@ class MinkNodeElementDecorator implements \ArrayAccess {
    */
   public function __get($name) {
     $elements = $this->nodeElement->findAll('css', "*> " . $name);
-
     $children = array();
     foreach ($elements as $element) {
-      if ($element->has('css', '* > *')) {
-        $children[] = static::decorate($element);
-      }
-      else {
-        $children[] = $element->getText();
-      }
+      $children[] = static::decorate($element);
     }
-
     if (count($children) === 1) {
       $children = $children[0];
     }
-
-    // @todo, decorate this as well.
     return $children;
   }
 

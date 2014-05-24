@@ -56,20 +56,20 @@ class MinkNodeElementDecoratorTest extends WebTestBase {
 
     // Look for list with single list item. Should be a text value return.
     $list = $container->ul[0];
-    $this->assertText($list->li, "item1", "Found the single item in the list.");
+    $this->assertTrue($list->li == "item1", "Found the single item in the list.");
 
     // Look for a list with multiple list items. Should return an array of
     // strings.
     $list = $container->ul[1];
     $this->assertTrue(is_array($list->li));
-    $this->assertText($list->li[0], "item1", "Found the first item in the list.");
-    $this->assertText($list->li[1], "item2", "Found the second item in the list.");
+    $this->assertTrue($list->li[0] == "item1", "Found the first item in the list.");
+    $this->assertTrue($list->li[1] == "item2", "Found the second item in the list.");
 
     // Ensure a single child gets decorated. So we can get it's children.
     $container = $element->find("css", "#test-lists-2");
     $container = new MinkNodeElementDecorator($container);
     $this->assertTrue(!is_array($container->ul), "Our child is an object.");
-    $this->assertText($container->ul->li, "item1", "We found the child of the child.");
+    $this->assertTrue($container->ul->li == "item1", "We found the child of the child.");
   }
 
 }
