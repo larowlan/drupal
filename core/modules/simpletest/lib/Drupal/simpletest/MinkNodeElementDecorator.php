@@ -9,14 +9,19 @@ namespace Drupal\simpletest;
 
 use Behat\Mink\Element\NodeElement;
 
-class MinkNodeElementDecorator implements \ArrayAccess {
+class MinkNodeElementDecorator implements \ArrayAccess, \Iterator {
 
   /**
    * The decorated node element.
    *
-   * @var \Behat\Mink\Element\NodeElement
+   * @var \Behat\Mink\Element\NodeElement[]
    */
-  protected $nodeElement;
+  protected $nodeElements = [];
+
+  /**
+   * The position of the iterator.
+   */
+  protected $position = 0;
 
   /**
    * Decorates an existing node element.
@@ -38,7 +43,7 @@ class MinkNodeElementDecorator implements \ArrayAccess {
    *   The node element to decorate.
    */
   public function __construct(NodeElement $node_element) {
-    $this->nodeElement = $node_element;
+    $this->nodeElements[] = $node_element;
   }
 
   /**
@@ -46,13 +51,13 @@ class MinkNodeElementDecorator implements \ArrayAccess {
    */
   public function offsetExists($offset) {
     if (is_int($offset)) {
-      // Attempt to access child.
-      $children = $this->nodeElement->findAll('css', '*');
+      // Attempt to access first child.
+      $children = $this->nodeElements[0]->findAll('css', '*');
       return isset($children[$offset]);
     }
     else {
       // Property access.
-      return (bool) $this->nodeElement->getAttribute($offset);
+      return (bool) $this->nodeElements[0]->getAttribute($offset);
     }
   }
 
@@ -61,8 +66,8 @@ class MinkNodeElementDecorator implements \ArrayAccess {
    */
   public function offsetGet($offset) {
     if (is_int($offset)) {
-      // Attempt to access child.
-      $children = $this->nodeElement->findAll('css', '*');
+      // Attempt to access first child.
+      $children = $this->nodeElements[0]->findAll('css', '*');
       if (isset($children[$offset])) {
         return static::decorate($children[$offset]);
       }
@@ -70,7 +75,7 @@ class MinkNodeElementDecorator implements \ArrayAccess {
     }
     else {
       // Property access.
-      return $this->nodeElement->getAttribute($offset);
+      return $this->nodeElements[0]->getAttribute($offset);
     }
   }
 
@@ -88,7 +93,7 @@ class MinkNodeElementDecorator implements \ArrayAccess {
    * {@inheritdoc}
    */
   public function __call($method, $arguments) {
-    return call_user_func_array(array($this->nodeElement, $method), $arguments);
+    return call_user_func_array(array($this->nodeElements[0], $method), $arguments);
   }
 
   /**
@@ -110,7 +115,76 @@ class MinkNodeElementDecorator implements \ArrayAccess {
    * {@inheritdoc}
    */
   public function __toString() {
-    return $this->nodeElement->getText();
+    return $this->nodeElements[0]->getText();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __get($name) {
+    $elements = [];
+    foreach ($this->nodeElements as $node_element) {
+      $elements += $node_element->findAll('css', $name);
+    }
+    $children = FALSE;
+    foreach ($elements as $element) {
+      if (!$children) {
+        $children = static::decorate($element);
+      }
+      else {
+        $children->addDecorated($element);
+      }
+    }
+
+    return $children;
+  }
+
+  /**
+   * Adds an additional \Behat\Mink\Element\NodeElement to be decorated.
+   *
+   * @param \Behat\Mink\Element\NodeElement $element
+   *   The element to decorate.
+   *
+   * @return self
+   */
+  public function addDecorated(NodeElement $element) {
+    $this->nodeElements[] = $element;
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function current() {
+    return static::decorate($this->nodeElements[$this->position]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function next() {
+    $this->position++;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function key() {
+    return $this->position;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function valid() {
+    return isset($this->nodeElements[$this->position]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function rewind() {
+    $this->position = 0;
   }
 
 }
