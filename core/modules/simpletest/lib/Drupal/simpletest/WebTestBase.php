@@ -25,6 +25,7 @@ use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\block\Entity\Block;
 use Behat\Mink\Driver\Goutte\Client;
+use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\HttpFoundation\Request;
 use Behat\Mink\Mink;
 use Behat\Mink\Session;
@@ -103,6 +104,13 @@ abstract class WebTestBase extends TestBase {
    * @var \SimpleXMLElement
    */
   protected $elements = NULL;
+
+  /**
+   * The response code for the last request.
+   *
+   * @var int
+   */
+  protected $responseCode = NULL;
 
   /**
    * The current user logged in using the internal browser.
@@ -1314,6 +1322,7 @@ abstract class WebTestBase extends TestBase {
    */
   protected function curlInitialize() {
     global $base_url;
+    $this->responseCode = NULL;
 
     if (!isset($this->mink)) {
       $this->initMink();
@@ -1423,6 +1432,7 @@ abstract class WebTestBase extends TestBase {
 
     $content = $this->getSession()->getPage()->getContent();
     $status = $this->getSession()->getStatusCode();
+    $this->responseCode = $status;
 
     /**
      * May not be needed. @todo larowlan confirm
@@ -2075,15 +2085,33 @@ abstract class WebTestBase extends TestBase {
    * @see url()
    */
   protected function drupalPost($path, $accept, array $post, $options = array()) {
-    return $this->curlExec(array(
-      CURLOPT_URL => url($path, $options + array('absolute' => TRUE)),
-      CURLOPT_POST => TRUE,
-      CURLOPT_POSTFIELDS => $this->serializePostValues($post),
-      CURLOPT_HTTPHEADER => array(
-        'Accept: ' . $accept,
-        'Content-Type: application/x-www-form-urlencoded',
-      ),
-    ));
+    /** @var \GuzzleHttp\Client $guzzle */
+    $options['query']['XDEBUG_SESSION_START'] = 1;
+    $guzzle = $this->getSession()->getDriver()->getClient()->getClient();
+    $cookies = $this->getSession()->getCookie($this->session_name);
+    $request = $guzzle->createRequest('POST', url($path, $options + array('absolute' => TRUE)), array('body' => $post, 'cookies' => array(
+      $this->session_name => $this->session_id,
+    )));
+    $request->addHeader('Accept', $accept);
+    $request->addHeader('Content-Type', 'application/x-www-form-urlencoded');
+    if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
+      $request->addHeader('User-Agent', drupal_generate_test_ua($matches[0]));
+    }
+    try {
+      $response = $guzzle->send($request);
+      $this->drupalSetContent($response->getBody()->getContents());
+      debug($response->getBody()->getContents());
+      $this->responseCode = $response->getStatusCode();
+    }
+    catch (RequestException $e) {
+      $response = $e->getResponse();
+      debug($e->getMessage());
+      $this->drupalSetContent($response->getBody()->getContents());
+      $this->responseCode = $response->getStatusCode();
+    }
+    $this->verbose('POST request to: ' . $path .
+      '<hr />' . $this->content);
+    return $this->content;
   }
 
   /**
@@ -3659,7 +3687,9 @@ abstract class WebTestBase extends TestBase {
    *   Assertion result.
    */
   protected function assertResponse($code, $message = '', $group = 'Browser') {
-    $curl_code = $this->getSession()->getStatusCode();
+    if (!($curl_code = $this->responseCode)) {
+      $curl_code = $this->getSession()->getStatusCode();
+    }
     $match = is_array($code) ? in_array($curl_code, $code) : $curl_code == $code;
     return $this->assertTrue($match, $message ? $message : String::format('HTTP response expected !code, actual !curl_code', array('!code' => $code, '!curl_code' => $curl_code)), $group);
   }
