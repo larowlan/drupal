@@ -2086,28 +2086,36 @@ abstract class WebTestBase extends TestBase {
    */
   protected function drupalPost($path, $accept, array $post, $options = array()) {
     /** @var \GuzzleHttp\Client $guzzle */
-    $options['query']['XDEBUG_SESSION_START'] = 1;
     $guzzle = $this->getSession()->getDriver()->getClient()->getClient();
-    $cookies = $this->getSession()->getCookie($this->session_name);
-    $request = $guzzle->createRequest('POST', url($path, $options + array('absolute' => TRUE)), array('body' => $post, 'cookies' => array(
-      $this->session_name => $this->session_id,
-    )));
+    $cookies = [];
+    if ($session_id = $this->getSession()->getCookie($this->session_name)) {
+      $cookies[$this->session_name] = $session_id;
+    }
+    $request = $guzzle->createRequest('POST', url($path, $options + array('absolute' => TRUE)), array(
+      'body' => $post,
+      'cookies' => $cookies,
+      'allow_redirects' => FALSE,
+      'timeout' => 30
+    ));
     $request->addHeader('Accept', $accept);
     $request->addHeader('Content-Type', 'application/x-www-form-urlencoded');
     if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
-      $request->addHeader('User-Agent', drupal_generate_test_ua($matches[0]));
+      $request->setHeader('User-Agent', drupal_generate_test_ua($matches[0]));
     }
     try {
       $response = $guzzle->send($request);
-      $this->drupalSetContent($response->getBody()->getContents());
-      debug($response->getBody()->getContents());
+      $this->drupalSetContent($response->getBody());
       $this->responseCode = $response->getStatusCode();
     }
     catch (RequestException $e) {
       $response = $e->getResponse();
-      debug($e->getMessage());
-      $this->drupalSetContent($response->getBody()->getContents());
-      $this->responseCode = $response->getStatusCode();
+      if ($response == NULL) {
+        $this->fail($e->getMessage());
+      }
+      else {
+        $this->drupalSetContent($response->getBody());
+        $this->responseCode = $response->getStatusCode();
+      }
     }
     $this->verbose('POST request to: ' . $path .
       '<hr />' . $this->content);

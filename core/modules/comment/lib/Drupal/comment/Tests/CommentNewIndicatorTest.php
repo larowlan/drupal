@@ -50,25 +50,8 @@ class CommentNewIndicatorTest extends CommentTestBase {
     }
     $post['field_name'] = 'comment';
 
-    // Serialize POST values.
-    foreach ($post as $key => $value) {
-      // Encode according to application/x-www-form-urlencoded
-      // Both names and values needs to be urlencoded, according to
-      // http://www.w3.org/TR/html4/interact/forms.html#h-17.13.4.1
-      $post[$key] = urlencode($key) . '=' . urlencode($value);
-    }
-    $post = implode('&', $post);
-
     // Perform HTTP request.
-    return $this->curlExec(array(
-      CURLOPT_URL => url('comments/render_new_comments_node_links', array('absolute' => TRUE)),
-      CURLOPT_POST => TRUE,
-      CURLOPT_POSTFIELDS => $post,
-      CURLOPT_HTTPHEADER => array(
-        'Accept: application/json',
-        'Content-Type: application/x-www-form-urlencoded',
-      ),
-    ));
+    return $this->drupalPost('comments/render_new_comments_node_links', 'application/json', $post);
   }
 
   /**
