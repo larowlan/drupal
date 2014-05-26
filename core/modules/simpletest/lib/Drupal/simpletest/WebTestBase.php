@@ -2295,12 +2295,22 @@ abstract class WebTestBase extends TestBase {
           case 'password':
           case 'email':
           case 'search':
-          case 'select':
           case 'date':
           case 'time':
           case 'datetime':
           case 'datetime-local';
             $element->setValue($edit[$name]);
+            unset($edit[$name]);
+            break;
+          case 'select':
+            if (!$element->getAttribute('multiple') && is_array($edit[$name])) {
+              // Handle faulty edit values that pass an array to a single value
+              // select field.
+              $element->setValue(reset($edit[$name]));
+            }
+            else {
+              $element->setValue($edit[$name]);
+            }
             unset($edit[$name]);
             break;
           case 'radio':

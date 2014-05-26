@@ -88,6 +88,43 @@ class MinkNodeElementDecorator implements \ArrayAccess {
    * {@inheritdoc}
    */
   public function __call($method, $arguments) {
+    // @see SimpleXMLElement::children()
+    if ($method == 'children') {
+      $child_nodes = $this->nodeElement->findAll('css', '*');
+      $children = [];
+      foreach ($child_nodes as $child_node) {
+        $children[] = static::decorate($child_node);
+      }
+      return MinkNodeElementCollectionDecorator::decorate($children);
+    }
+    // @see SimpleXMLElement::attributes()
+    if ($method == 'attributes') {
+      // This limits us to the Goutte driver here, but this whole class is a BC
+      // shim and so it will be removed in its entirety.
+      $xpath = $this->nodeElement->getXpath();
+      $reflection = new \ReflectionClass($this->nodeElement->getSession()->getDriver());
+      $method = $reflection->getMethod('getCrawler');
+      $method->setAccessible(TRUE);
+      $crawler = $method->invoke($this->nodeElement->getSession()->getDriver());
+      $element = $crawler->filterXPath($xpath)->eq(0)->getNode(0);
+      $attributes = array();
+      foreach ($element->attributes as $name => $attribute) {
+        $attributes[$name] = $attribute->value;
+      }
+      return $attributes;
+    }
+    // @see SimpleXMLElement::getName()
+    if ($method == 'getName') {
+      $method = 'getTagName';
+    }
+    // @see SimpleXMLElement::asXML()
+    if ($method == 'asXML') {
+      $method = 'getHtml';
+    }
+    // @see SimpleXMLElement::xpath()
+    if ($method == 'xpath') {
+      $method = 'getXpath';
+    }
     return call_user_func_array(array($this->nodeElement, $method), $arguments);
   }
 

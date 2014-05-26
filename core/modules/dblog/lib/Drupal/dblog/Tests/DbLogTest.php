@@ -10,6 +10,7 @@ namespace Drupal\dblog\Tests;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Language\Language;
 use Drupal\dblog\Controller\DbLogController;
+use Drupal\simpletest\MinkNodeElementDecorator;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -271,16 +272,12 @@ class DbLogTest extends WebTestBase {
     if ($links = $this->xpath('//a[text()="' . html_entity_decode($message_text) . '"]')) {
       // Found link with the message text.
       $links = array_shift($links);
-      foreach ($links->attributes() as $attr => $value) {
-        if ($attr == 'href') {
-          // Extract link to details page.
-          $link = drupal_substr($value, strpos($value, 'admin/reports/event/'));
-          $this->drupalGet($link);
-          // Check for full message text on the details page.
-          $this->assertRaw($message, 'DBLog event details was found: [delete user]');
-          break;
-        }
-      }
+      $value = $links->getAttribute('href');
+      // Extract link to details page.
+      $link = drupal_substr($value, strpos($value, 'admin/reports/event/'));
+      $this->drupalGet($link);
+      // Check for full message text on the details page.
+      $this->assertRaw($message, 'DBLog event details was found: [delete user]');
     }
     $this->assertTrue($link, 'DBLog event was recorded: [delete user]');
     // Visit random URL (to generate page not found event).
@@ -594,11 +591,11 @@ class DbLogTest extends WebTestBase {
    * @return string
    *   Extracted text.
    */
-  protected function asText(\SimpleXMLElement $element) {
+  protected function asText(MinkNodeElementDecorator $element) {
     if (!is_object($element)) {
       return $this->fail('The element is not an element.');
     }
-    return trim(html_entity_decode(strip_tags($element->asXML())));
+    return trim(html_entity_decode(strip_tags($element->getHtml())));
   }
 
   /**
