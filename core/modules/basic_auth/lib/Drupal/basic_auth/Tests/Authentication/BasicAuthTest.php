@@ -36,7 +36,7 @@ class BasicAuthTest extends WebTestBase {
     $account = $this->drupalCreateUser();
 
     $this->basicAuthGet('router_test/test11', $account->getUsername(), $account->pass_raw);
-    $this->assertText($account->getUsername(), 'Account name is displayed.');
+    $this->assertText($account->getUsername());
     $this->assertResponse('200', 'HTTP response is OK');
     $this->curlClose();
 
@@ -137,19 +137,16 @@ class BasicAuthTest extends WebTestBase {
    *   Curl output.
    */
   protected function basicAuthGet($path, $username, $password) {
-    $out = $this->curlExec(
-      array(
-        CURLOPT_HTTPGET => TRUE,
-        CURLOPT_URL => url($path, array('absolute' => TRUE)),
-        CURLOPT_NOBODY => FALSE,
-        CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
-        CURLOPT_USERPWD => $username . ':' . $password,
-      )
-    );
+    $this->curlInitialize();
+    $this->getSession()->setBasicAuth($username, $password);
+    $this->getSession()->visit(url($path, array('absolute' => TRUE)));
 
+    $out = $this->getSession()->getPage()->getContent();
+    $this->drupalSetContent($out);
     $this->verbose('GET request to: ' . $path .
       '<hr />' . $out);
 
+    $this->getSession()->setBasicAuth(FALSE);
     return $out;
   }
 
