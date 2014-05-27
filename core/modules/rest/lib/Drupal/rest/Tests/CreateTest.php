@@ -54,11 +54,11 @@ class CreateTest extends RESTTestBase {
 
       // Get the new entity ID from the location header and try to read it from
       // the database.
-      $location_url = $this->drupalGetHeader('location');
+      $location_url = $this->drupalGetHeader('Location');
       $url_parts = explode('/', $location_url);
       $id = end($url_parts);
       $loaded_entity = entity_load($entity_type, $id);
-      $this->assertNotIdentical(FALSE, $loaded_entity, 'The new ' . $entity_type . ' was found in the database.');
+      $this->assertNotIdentical(NULL, $loaded_entity, 'The new ' . $entity_type . ' was found in the database.');
       $this->assertEqual($entity->uuid(), $loaded_entity->uuid(), 'UUID of created entity is correct.');
       // @todo Remove the user reference field for now until deserialization for
       // entity references is implemented.

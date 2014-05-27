@@ -53,7 +53,7 @@ class DBLogTest extends RESTTestBase {
 
     $response = $this->httpRequest("dblog/$id", 'GET', NULL, $this->defaultMimeType);
     $this->assertResponse(200);
-    $this->assertHeader('content-type', $this->defaultMimeType);
+    $this->assertHeader('Content-Type', $this->defaultMimeType);
     $log = Json::decode($response);
     $this->assertEqual($log['wid'], $id, 'Log ID is correct.');
     $this->assertEqual($log['type'], 'rest', 'Type of log message is correct.');

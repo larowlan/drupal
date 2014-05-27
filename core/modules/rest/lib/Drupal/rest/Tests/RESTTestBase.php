@@ -9,6 +9,7 @@ namespace Drupal\rest\Tests;
 
 use Drupal\Core\Session\AccountInterface;
 use Drupal\simpletest\WebTestBase;
+use GuzzleHttp\Exception\RequestException;
 
 /**
  * Test helper class that provides a REST client method to send HTTP requests.
@@ -60,7 +61,7 @@ abstract class RESTTestBase extends WebTestBase {
   }
 
   /**
-   * Helper function to issue a HTTP request with simpletest's cURL.
+   * Helper function to issue a HTTP request with Guzzle.
    *
    * @param string $url
    *   The relative URL, e.g. "entity/node/1"
@@ -70,91 +71,111 @@ abstract class RESTTestBase extends WebTestBase {
    *   Either the body for POST and PUT or additional URL parameters for GET.
    * @param string $mime_type
    *   The MIME type of the transmitted content.
+   * @param array $auth
+   *   (optional) Authentication details - array containing username, password
+   *   and type. Defaults to NULL.
+   * @param string|bool $token
+   *   (optional) CSRF Token for authenticating request. Defaults to NULL. Pass
+   *   FALSE to skip auto-generation.
+   *
+   * @return string
+   *   Response body.
    */
-  protected function httpRequest($url, $method, $body = NULL, $mime_type = NULL) {
+  protected function httpRequest($url, $method, $body = NULL, $mime_type = NULL, $auth = NULL, $token = NULL) {
     if (!isset($mime_type)) {
       $mime_type = $this->defaultMimeType;
     }
-    if (!in_array($method, array('GET', 'HEAD', 'OPTIONS', 'TRACE'))) {
+    if (!isset($token) && !in_array($method, array('GET', 'HEAD', 'OPTIONS', 'TRACE'))) {
       // GET the CSRF token first for writing requests.
       $token = $this->drupalGet('rest/session/token');
     }
+    /** @var \GuzzleHttp\Client $guzzle */
+    $guzzle = $this->getSession()->getDriver()->getClient()->getClient();
+    $guzzle->setDefaultOption('auth', $auth);
+    $cookies = [];
+    $headers = [];
+    if ($session_id = $this->getSession()->getCookie($this->session_name)) {
+      $cookies[$this->session_name] = $session_id;
+    }
+
     switch ($method) {
       case 'GET':
         // Set query if there are additional GET parameters.
         $options = isset($body) ? array('absolute' => TRUE, 'query' => $body) : array('absolute' => TRUE);
-        $curl_options = array(
-          CURLOPT_HTTPGET => TRUE,
-          CURLOPT_CUSTOMREQUEST => 'GET',
-          CURLOPT_URL => url($url, $options),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array('Accept: ' . $mime_type),
+        $url = url($url, $options);
+        $headers = array(
+          'Accept' => $mime_type,
         );
         break;
 
       case 'POST':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_POST => TRUE,
-          CURLOPT_POSTFIELDS => $body,
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array(
-            'Content-Type: ' . $mime_type,
-            'X-CSRF-Token: ' . $token,
-          ),
-        );
-        break;
-
       case 'PUT':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_CUSTOMREQUEST => 'PUT',
-          CURLOPT_POSTFIELDS => $body,
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array(
-            'Content-Type: ' . $mime_type,
-            'X-CSRF-Token: ' . $token,
-          ),
-        );
-        break;
-
       case 'PATCH':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_CUSTOMREQUEST => 'PATCH',
-          CURLOPT_POSTFIELDS => $body,
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array(
-            'Content-Type: ' . $mime_type,
-            'X-CSRF-Token: ' . $token,
-          ),
+        $url = url($url, array('absolute' => TRUE));
+        $headers = array(
+          'Content-Type' => $mime_type,
+          'X-CSRF-Token' => $token,
         );
         break;
 
       case 'DELETE':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_CUSTOMREQUEST => 'DELETE',
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array('X-CSRF-Token: ' . $token),
+        $url = url($url, array('absolute' => TRUE));
+        $headers = array(
+          'X-CSRF-Token' => $token,
         );
         break;
     }
 
-    $response = $this->curlExec($curl_options);
-    $headers = $this->drupalGetHeaders();
-    $headers = implode("\n", $headers);
+    $request_options = array(
+      'cookies' => $cookies,
+      'allow_redirects' => FALSE,
+      'timeout' => 30,
+    );
+
+    if ($body) {
+      $request_options['body'] = $body;
+    }
+    $request = $guzzle->createRequest($method, $url, $request_options);
+    foreach ($headers as $key => $value) {
+      if ($value) {
+        $request->addHeader($key, $value);
+      }
+    }
+    if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
+      $request->setHeader('User-Agent', drupal_generate_test_ua($matches[0]));
+    }
+    try {
+      $response = $guzzle->send($request);
+      $this->drupalSetContent($response->getBody());
+      $this->responseCode = $response->getStatusCode();
+      $headers = $response->getHeaders();
+    }
+    catch (RequestException $e) {
+      $response = $e->getResponse();
+      if ($response == NULL) {
+        $this->fail($e->getMessage());
+      }
+      else {
+        $this->drupalSetContent($response->getBody());
+        $this->responseCode = $response->getStatusCode();
+        $headers = $response->getHeaders();
+      }
+    }
+
+    $this->headers = $headers;
+
+    $header_string = '';
+    foreach ($headers as $name => $values) {
+      $header_string .= $name . ": " . implode(", ", $values) . "\n";
+    }
 
     $this->verbose($method . ' request to: ' . $url .
-      '<hr />Code: ' . curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE) .
-      '<hr />Response headers: ' . $headers .
-      '<hr />Response body: ' . $response);
+      '<hr />Code: ' . $this->responseCode .
+      '<hr />Response headers: ' . $header_string .
+      '<hr />Response body: ' . $this->content);
 
-    return $response;
+    return $this->content;
+
   }
 
   /**
