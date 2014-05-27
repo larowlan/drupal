@@ -1735,7 +1735,7 @@ abstract class WebTestBase extends TestBase {
    *   POST data, so it must already be urlencoded and contain a leading "&"
    *   (e.g., "&extra_var1=hello+world&extra_var2=you%26me").
    */
-  protected function drupalPostForm($path, $edit, $submit, array $options = array(), array $headers = array(), $form_html_id = NULL, $extra_post = NULL) {
+  protected function drupalPostForm($path, $edit, $submit, array $options = array(), array $headers = array(), $form_html_id = NULL, $extra_post = array()) {
     // @todo larowlan refactor around Mink
     $submit_matches = FALSE;
     $ajax = is_array($submit);
@@ -1788,13 +1788,19 @@ abstract class WebTestBase extends TestBase {
           }
           if (!$ajax) {
             $submit_element->press();
+            $out = $this->getSession()->getPage()->getContent();
           }
-          elseif (!empty($options['triggering_element'])) {
-            // @todo this is to accomodate ::drupalPostAjaxForm() which should
-            //   be refactored into a JavaScriptTestBase.
-            $form->find('css', "input[name='{$options['triggering_element']}']")->press();
+          else {
+            // @todo - we need to be able to attach a Guzzle emit handler here.
+            // Guzzle only supports strings for submitted values.
+            $post = $post + ($extra_post ?: array());
+            foreach ($post as $key => $value) {
+              if (is_bool($value)) {
+                $post[$key] = '1';
+              }
+            }
+            $out = $this->drupalPost($action, 'application/vnd.drupal-ajax', $post, $options);
           }
-          $out = $this->getSession()->getPage()->getContent();
           // Ensure that any changes to variables in the other thread are picked
           // up.
           $this->refreshVariables();
@@ -1919,8 +1925,6 @@ abstract class WebTestBase extends TestBase {
       $extra_post['ajax_html_ids'] = implode(' ', $ajax_html_ids);
     }
     $extra_post += $this->getAjaxPageStatePostData();
-    // Now serialize all the $extra_post values, and prepend it with an '&'.
-    $extra_post = '&' . $this->serializePostValues($extra_post);
 
     // Unless a particular path is specified, use the one specified by the
     // Ajax settings, or else 'system/ajax'.
@@ -2058,6 +2062,13 @@ abstract class WebTestBase extends TestBase {
     $content = $dom->saveHTML();
     $this->drupalSetContent($content);
     $this->drupalSetSettings($drupal_settings);
+    // Hack this into the mink session. When we use a real JavaScript driver we
+    // can remove this nastiness.
+    $reflection = new \ReflectionClass($this->getSession()->getDriver());
+    $method = $reflection->getMethod('getCrawler');
+    $method->setAccessible(TRUE);
+    $crawler = $method->invoke($this->getSession()->getDriver());
+    $crawler->addContent($content, 'text/html');
   }
 
   /**
@@ -2136,10 +2147,10 @@ abstract class WebTestBase extends TestBase {
       $post['ajax_page_state[theme]'] = $drupal_settings['ajaxPageState']['theme'];
       $post['ajax_page_state[theme_token]'] = $drupal_settings['ajaxPageState']['theme_token'];
       foreach ($drupal_settings['ajaxPageState']['css'] as $key => $value) {
-        $post["ajax_page_state[css][$key]"] = 1;
+        $post["ajax_page_state[css][$key]"] = '1';
       }
       foreach ($drupal_settings['ajaxPageState']['js'] as $key => $value) {
-        $post["ajax_page_state[js][$key]"] = 1;
+        $post["ajax_page_state[js][$key]"] = '1';
       }
     }
     return $post;
