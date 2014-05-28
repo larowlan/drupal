@@ -2064,6 +2064,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     $method = $reflection->getMethod('getCrawler');
     $method->setAccessible(TRUE);
     $crawler = $method->invoke($this->getSession()->getDriver());
+    $crawler->clear();
     $crawler->addContent($content, 'text/html');
   }
 
