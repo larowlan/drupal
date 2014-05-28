@@ -2709,7 +2709,12 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   protected function drupalGetHeader($name, $all_requests = FALSE) {
     $headers = $this->drupalGetHeaders();
     if (isset($headers[$name])) {
-      return reset($headers[$name]);
+      if (is_array($headers[$name])) {
+        return reset($headers[$name]);
+      }
+      else {
+        return $headers[$name];
+      }
     }
     return FALSE;
   }
