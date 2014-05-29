@@ -1732,7 +1732,6 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   (e.g., "&extra_var1=hello+world&extra_var2=you%26me").
    */
   protected function drupalPostForm($path, $edit, $submit, array $options = array(), array $headers = array(), $form_html_id = NULL, $extra_post = array()) {
-    // @todo larowlan refactor around Mink
     $submit_matches = FALSE;
     $ajax = is_array($submit);
     if (isset($path)) {
@@ -1787,7 +1786,6 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
             $out = $this->getSession()->getPage()->getContent();
           }
           else {
-            // @todo - we need to be able to attach a Guzzle emit handler here.
             // Guzzle only supports strings for submitted values.
             $post = $post + ($extra_post ?: array());
             foreach ($post as $key => $value) {
