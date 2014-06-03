@@ -651,14 +651,16 @@ function system_element_info() {
  * Implements hook_theme_suggestions_HOOK().
  */
 function system_theme_suggestions_html(array $variables) {
-  return theme_get_suggestions(arg(), 'html');
+  $path_args = explode('/', current_path());
+  return theme_get_suggestions($path_args, 'html');
 }
 
 /**
  * Implements hook_theme_suggestions_HOOK().
  */
 function system_theme_suggestions_page(array $variables) {
-  return theme_get_suggestions(arg(), 'page');
+  $path_args = explode('/', current_path());
+  return theme_get_suggestions($path_args, 'page');
 }
 
 /**
@@ -1370,7 +1372,12 @@ function system_sort_modules_by_info_name($a, $b) {
 }
 
 /**
- * Array sorting callback; sorts modules or themes by their name.
+ * Sorts themes by their name.
+ *
+ * Callback for uasort() within
+ * \Drupal\system\Controller\SystemController::themesPage().
+ *
+ * @see system_sort_modules_by_info_name().
  */
 function system_sort_themes($a, $b) {
   if ($a->is_default) {
@@ -1717,19 +1724,19 @@ function theme_system_config_form($variables) {
  * Implements hook_path_update().
  */
 function system_path_update() {
-  \Drupal::service('path.alias_manager.cached')->cacheClear();
+  \Drupal::service('path.alias_manager')->cacheClear();
 }
 
 /**
  * Implements hook_path_insert().
  */
 function system_path_insert() {
-  \Drupal::service('path.alias_manager.cached')->cacheClear();
+  \Drupal::service('path.alias_manager')->cacheClear();
 }
 
 /**
  * Implements hook_path_delete().
  */
 function system_path_delete($path) {
-  \Drupal::service('path.alias_manager.cached')->cacheClear();
+  \Drupal::service('path.alias_manager')->cacheClear();
 }

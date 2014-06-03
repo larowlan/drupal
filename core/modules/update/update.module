@@ -12,6 +12,7 @@
  */
 
 use Drupal\Core\Site\Settings;
+use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 // These are internally used constants for this code, do not modify.
@@ -97,8 +98,11 @@ function update_help($route_name, Request $request) {
  * Implements hook_page_build().
  */
 function update_page_build() {
-  if (arg(0) == 'admin' && user_access('administer site configuration')) {
-    switch (current_path()) {
+  /** @var \Drupal\Core\Routing\AdminContext $admin_context */
+  $admin_context = \Drupal::service('router.admin_context');
+  if ($admin_context->isAdminRoute(\Drupal::request()->attributes->get(RouteObjectInterface::ROUTE_OBJECT)) && \Drupal::currentUser()->hasPermission('administer site configuration')) {
+    $current_path = current_path();
+    switch ($current_path) {
       // These pages don't need additional nagging.
       case 'admin/appearance/update':
       case 'admin/appearance/install':
@@ -744,7 +748,9 @@ function update_clear_update_disk_cache() {
 function update_delete_file_if_stale($path) {
   if (file_exists($path)) {
     $filectime = filectime($path);
-    if (REQUEST_TIME - $filectime > DRUPAL_MAXIMUM_TEMP_FILE_AGE || (preg_match('/.*-dev\.(tar\.gz|zip)/i', $path) && REQUEST_TIME - $filectime > 300)) {
+    $max_age = \Drupal::config('system.file')->get('temporary_maximum_age');
+
+    if (REQUEST_TIME - $filectime > $max_age || (preg_match('/.*-dev\.(tar\.gz|zip)/i', $path) && REQUEST_TIME - $filectime > 300)) {
       file_unmanaged_delete_recursive($path);
     }
   }

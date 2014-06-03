@@ -3,7 +3,7 @@
         "This file locks the dependencies of your project to a known state",
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file"
     ],
-    "hash": "be007893de0ec3d9ea5604cff96a0eb3",
+    "hash": "194805fa85347b58137c173ec3a76bae",
     "packages": [
         {
             "name": "behat/mink",
@@ -613,27 +613,24 @@
         },
         {
             "name": "fabpot/goutte",
-            "version": "v2.0.0",
+            "version": "v2.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/fabpot/Goutte.git",
-                "reference": "268a8d77e176d33816030cb89235b6e5dfc9cc2d"
+                "reference": "104ef44a9fc8a8dfe66fef5f8e8deb4567f3dc7c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/fabpot/Goutte/zipball/268a8d77e176d33816030cb89235b6e5dfc9cc2d",
-                "reference": "268a8d77e176d33816030cb89235b6e5dfc9cc2d",
+                "url": "https://api.github.com/repos/fabpot/Goutte/zipball/104ef44a9fc8a8dfe66fef5f8e8deb4567f3dc7c",
+                "reference": "104ef44a9fc8a8dfe66fef5f8e8deb4567f3dc7c",
                 "shasum": ""
             },
             "require": {
-                "ext-curl": "*",
                 "guzzlehttp/guzzle": "4.*",
                 "php": ">=5.4.0",
                 "symfony/browser-kit": "~2.1",
                 "symfony/css-selector": "~2.1",
-                "symfony/dom-crawler": "~2.1",
-                "symfony/finder": "~2.1",
-                "symfony/process": "~2.1"
+                "symfony/dom-crawler": "~2.1"
             },
             "type": "application",
             "extra": {
@@ -663,7 +660,7 @@
             "keywords": [
                 "scraper"
             ],
-            "time": "2014-05-08 06:57:32"
+            "time": "2014-05-13 05:05:35"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -1349,17 +1346,17 @@
         },
         {
             "name": "symfony/browser-kit",
-            "version": "v2.4.4",
+            "version": "v2.5.0",
             "target-dir": "Symfony/Component/BrowserKit",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/BrowserKit.git",
-                "reference": "90a4d3536598f8a372df8d0730daf0874fec6e5b"
+                "reference": "cc1716dafa04277a0c987aee5bce8c3cf8939de3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/BrowserKit/zipball/90a4d3536598f8a372df8d0730daf0874fec6e5b",
-                "reference": "90a4d3536598f8a372df8d0730daf0874fec6e5b",
+                "url": "https://api.github.com/repos/symfony/BrowserKit/zipball/cc1716dafa04277a0c987aee5bce8c3cf8939de3",
+                "reference": "cc1716dafa04277a0c987aee5bce8c3cf8939de3",
                 "shasum": ""
             },
             "require": {
@@ -1376,7 +1373,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "2.4-dev"
+                    "dev-master": "2.5-dev"
                 }
             },
             "autoload": {
@@ -1402,7 +1399,7 @@
             ],
             "description": "Symfony BrowserKit Component",
             "homepage": "http://symfony.com",
-            "time": "2014-04-18 20:37:09"
+            "time": "2014-05-12 09:28:39"
         },
         {
             "name": "symfony/class-loader",
@@ -1622,17 +1619,17 @@
         },
         {
             "name": "symfony/dom-crawler",
-            "version": "v2.4.4",
+            "version": "v2.5.0",
             "target-dir": "Symfony/Component/DomCrawler",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/DomCrawler.git",
-                "reference": "e94b29c7cac964e58c406408d238ceeaa3604e78"
+                "reference": "6cda499120860286fe3d3d2fd631dacb7ae17f92"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/DomCrawler/zipball/e94b29c7cac964e58c406408d238ceeaa3604e78",
-                "reference": "e94b29c7cac964e58c406408d238ceeaa3604e78",
+                "url": "https://api.github.com/repos/symfony/DomCrawler/zipball/6cda499120860286fe3d3d2fd631dacb7ae17f92",
+                "reference": "6cda499120860286fe3d3d2fd631dacb7ae17f92",
                 "shasum": ""
             },
             "require": {
@@ -1647,7 +1644,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "2.4-dev"
+                    "dev-master": "2.5-dev"
                 }
             },
             "autoload": {
@@ -1673,7 +1670,7 @@
             ],
             "description": "Symfony DomCrawler Component",
             "homepage": "http://symfony.com",
-            "time": "2014-04-18 20:37:09"
+            "time": "2014-05-31 02:02:56"
         },
         {
             "name": "symfony/event-dispatcher",
@@ -1728,55 +1725,6 @@
             "description": "Symfony EventDispatcher Component",
             "homepage": "http://symfony.com",
             "time": "2013-12-28 08:12:03"
-        },
-        {
-            "name": "symfony/finder",
-            "version": "v2.4.4",
-            "target-dir": "Symfony/Component/Finder",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/Finder.git",
-                "reference": "25e1e7d5e7376f8a92ae3b1d714d956edf33a730"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/Finder/zipball/25e1e7d5e7376f8a92ae3b1d714d956edf33a730",
-                "reference": "25e1e7d5e7376f8a92ae3b1d714d956edf33a730",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.3.3"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "2.4-dev"
-                }
-            },
-            "autoload": {
-                "psr-0": {
-                    "Symfony\\Component\\Finder\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Fabien Potencier",
-                    "email": "fabien@symfony.com",
-                    "homepage": "http://fabien.potencier.org",
-                    "role": "Lead Developer"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "http://symfony.com/contributors"
-                }
-            ],
-            "description": "Symfony Finder Component",
-            "homepage": "http://symfony.com",
-            "time": "2014-04-27 13:34:57"
         },
         {
             "name": "symfony/http-foundation",

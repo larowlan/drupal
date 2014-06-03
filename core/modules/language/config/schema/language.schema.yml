@@ -70,6 +70,9 @@ language.negotiation:
           sequence:
             - type: string
               label: 'Domain'
+    selected_langcode:
+      type: string
+      label: 'Selected language'
 
 language.mappings:
   type: sequence
@@ -79,18 +82,9 @@ language.mappings:
       label: 'Language'
 
 language.entity.*:
-  type: mapping
+  type: config_entity
   label: 'Language'
   mapping:
-    id:
-      type: string
-      label: 'ID'
-    uuid:
-      type: string
-      label: 'UUID'
-    label:
-      type: label
-      label: 'Language name'
     direction:
       type: integer
       label: 'Direction'
@@ -100,12 +94,6 @@ language.entity.*:
     locked:
       type: boolean
       label: 'Locked'
-    status:
-      type: boolean
-      label: 'Status'
-    langcode:
-      type: string
-      label: 'Default language'
 
 language.settings:
   type: mapping

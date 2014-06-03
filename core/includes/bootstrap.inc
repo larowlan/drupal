@@ -1943,6 +1943,8 @@ function _current_path($path = NULL) {
  *   The component specified by $index, or NULL if the specified component was
  *   not found. If called without arguments, it returns an array containing all
  *   the components of the current path.
+ *
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
  */
 function arg($index = NULL, $path = NULL) {
   // Even though $arguments doesn't need to be resettable for any functional
@@ -2026,10 +2028,7 @@ function drupal_classloader($class_loader = NULL) {
  */
 function drupal_classloader_register($name, $path) {
   $loader = drupal_classloader();
-  $loader->addPsr4('Drupal\\' . $name . '\\', array(
-    DRUPAL_ROOT . '/' . $path . '/lib/Drupal/' . $name,
-    DRUPAL_ROOT . '/' . $path . '/src',
-  ));
+  $loader->addPsr4('Drupal\\' . $name . '\\', DRUPAL_ROOT . '/' . $path . '/src');
 }
 
 /**

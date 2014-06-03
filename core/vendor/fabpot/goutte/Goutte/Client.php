@@ -79,8 +79,13 @@ class Client extends BaseClient
     {
         $headers = array();
         foreach ($request->getServer() as $key => $val) {
-            $key = implode('-', array_map('ucfirst', explode('-', strtolower(str_replace(array('_', 'HTTP-'), array('-', ''), $key)))));
-            if (!isset($headers[$key]) && !empty($val)) {
+            $key = implode('-', array_map('ucfirst', explode('-', strtolower(str_replace('_', '-', $key)))));
+            $contentHeaders = array('Content-length' => true, 'Content-md5' => true, 'Content-type' => true);
+            if (0 === strpos($key, 'Http-')) {
+                $headers[substr($key, 5)] = $val;
+            }
+            // CONTENT_* are not prefixed with HTTP_
+            elseif (isset($contentHeaders[$key])) {
                 $headers[$key] = $val;
             }
         }
@@ -126,6 +131,9 @@ class Client extends BaseClient
             $response = $this->getClient()->send($guzzleRequest);
         } catch (RequestException $e) {
             $response = $e->getResponse();
+            if (null === $response) {
+                throw $e;
+            }
         }
 
         return $this->createResponse($response);

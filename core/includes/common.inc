@@ -709,30 +709,6 @@ function _format_date_callback(array $matches = NULL, $new_langcode = NULL) {
 }
 
 /**
- * Retrieves the correct datetime format type for this system.
- *
- * This value is sometimes required when the format type needs to be determined
- * before a date can be created.
- *
- * @return string
- *   A string as defined in \DrupalComponent\Datetime\DateTimePlus.php: either
- *   'intl' or 'php', depending on whether IntlDateFormatter is available.
- */
-function datetime_default_format_type() {
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-    $drupal_static_fast['format_type'] = &drupal_static(__FUNCTION__);
-  }
-  $format_type = &$drupal_static_fast['format_type'];
-
-  if (!isset($format_type)) {
-    $date = new DrupalDateTime();
-    $format_type = $date->canUseIntl() ? DrupalDateTime::INTL : DrupalDateTime::PHP;
-  }
-  return $format_type;
-}
-
-/**
  * @} End of "defgroup format".
  */
 
@@ -887,7 +863,7 @@ function l($text, $path, array $options = array()) {
     // Add a "data-drupal-link-system-path" attribute to let the
     // drupal.active-link library know the path in a standardized manner.
     if (!isset($variables['options']['attributes']['data-drupal-link-system-path'])) {
-      $variables['options']['attributes']['data-drupal-link-system-path'] = \Drupal::service('path.alias_manager.cached')->getPathByAlias($path);
+      $variables['options']['attributes']['data-drupal-link-system-path'] = \Drupal::service('path.alias_manager')->getPathByAlias($path);
     }
   }
 
@@ -3690,29 +3666,22 @@ function drupal_render_cache_set(&$markup, array $elements) {
  *   The #post_render_cache callback that will replace the placeholder with its
  *   eventual markup.
  * @param array $context
- *   An array providing context for the #post_render_cache callback.
- * @param string $token
- *   A unique token to uniquely identify the placeholder.
+ *   An array providing context for the #post_render_cache callback. This array
+ *   will be altered to provide a 'token' key/value pair, if not already
+ *   provided, to uniquely identify the generated placeholder.
  *
  * @return string
  *   The generated placeholder HTML.
  *
  * @see drupal_render_cache_get()
  */
-function drupal_render_cache_generate_placeholder($callback, array $context, $token) {
-  // Serialize the context into a HTML attribute; unserializing is unnecessary.
-  $context_attribute = '';
-  foreach ($context as $key => $value) {
-    $context_attribute .= $key . ':' . $value . ';';
-  }
-  return '<drupal:render-cache-placeholder callback="' . $callback . '" context="' . $context_attribute . '" token="' . $token . '" />';
-}
+function drupal_render_cache_generate_placeholder($callback, array &$context) {
+  // Generate a unique token if one is not already provided.
+  $context += array(
+    'token' => \Drupal\Component\Utility\Crypt::randomBytesBase64(55),
+  );
 
-/**
- * Generates a unique token for use in a #post_render_cache placeholder.
- */
-function drupal_render_cache_generate_token() {
-  return \Drupal\Component\Utility\Crypt::randomBytesBase64(55);
+  return '<drupal:render-cache-placeholder callback="' . $callback . '" token="' . $context['token'] . '" />';
 }
 
 /**
@@ -3734,12 +3703,9 @@ function drupal_render_cache_generate_token() {
  */
 function _drupal_render_process_post_render_cache(array &$elements) {
   if (isset($elements['#post_render_cache'])) {
-    // Call all #post_render_cache callbacks, while passing the provided context
-    // and if keyed by a number, no token is passed, otherwise, the token string
-    // is passed to the callback as well. This token is used to uniquely
-    // identify the placeholder in the markup.
-    foreach ($elements['#post_render_cache'] as $callback => $options) {
-      foreach ($elements['#post_render_cache'][$callback] as $token => $context) {
+    // Call all #post_render_cache callbacks, passing the provided context.
+    foreach (array_keys($elements['#post_render_cache']) as $callback) {
+      foreach ($elements['#post_render_cache'][$callback] as $context) {
         $elements = call_user_func_array($callback, array($elements, $context));
       }
     }
