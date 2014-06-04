@@ -2104,7 +2104,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
       'allow_redirects' => FALSE,
       'timeout' => 30
     ));
-    $request->addHeader('Accept', $accept);
+    if ($accept) {
+      $request->addHeader('Accept', $accept);
+    }
     $request->addHeader('Content-Type', 'application/x-www-form-urlencoded');
     if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
       $request->setHeader('User-Agent', drupal_generate_test_ua($matches[0]));
@@ -3590,8 +3592,14 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @todo $id is unusable. Replace with $name.
    */
   protected function assertOptionSelected($id, $option, $message = '', $group = 'Browser') {
-    $elements = $this->getSession()->getPage()->find('css', "#$id option[value=$option]");
-    return $this->assertTrue($elements && $elements->getAttribute('selected') == 'selected', $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
+    if ($option) {
+      $elements = $this->getSession()->getPage()->find('css', "#$id option[value=$option]");
+      return $this->assertTrue($elements && $elements->getAttribute('selected') == 'selected', $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
+    }
+    else {
+      $elements = $this->getSession()->getPage()->find('css', "#$id");
+      return $this->assertTrue($elements && $option == $elements->getValue(), $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
+    }
   }
 
   /**

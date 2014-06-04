@@ -11,6 +11,7 @@ use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\String;
 use Drupal\Core\Render\Element;
 use Drupal\simpletest\WebTestBase;
+use GuzzleHttp\Event\BeforeEvent;
 
 /**
  * Tests form element validation.
@@ -23,6 +24,13 @@ class FormTest extends WebTestBase {
    * @var array
    */
   public static $modules = array('filter', 'form_test', 'file', 'datetime');
+
+  /**
+   * Array of form fields to forge.
+   *
+   * @var array
+   */
+  protected $forge;
 
   public static function getInfo() {
     return array(
@@ -499,11 +507,11 @@ class FormTest extends WebTestBase {
       if (isset($form[$key]['#test_hijack_value'])) {
         if (is_array($form[$key]['#test_hijack_value'])) {
           foreach ($form[$key]['#test_hijack_value'] as $subkey => $value) {
-            $edit[$key . '[' . $subkey . ']'] = $value;
+            $edit[$key . '[' . $subkey . ']'] = (string) $value;
           }
         }
         else {
-          $edit[$key] = $form[$key]['#test_hijack_value'];
+          $edit[$key] = (string) $form[$key]['#test_hijack_value'];
         }
       }
     }
@@ -532,7 +540,9 @@ class FormTest extends WebTestBase {
       '@expected' => $expected_count,
     )));
 
-    $this->drupalPostForm(NULL, $edit, t('Submit'));
+    $this->forge = $edit;
+    $this->drupalPostForm('form-test/disabled-elements', array(), t('Submit'));
+    $this->assertFalse($this->forge, 'Forged data was sent and reset');
     $returned_values['hijacked'] = Json::decode($this->content);
 
     // Ensure that the returned values match the form's default values in both
@@ -637,9 +647,9 @@ class FormTest extends WebTestBase {
    */
   function testInputForgery() {
     $this->drupalGet('form-test/input-forgery');
-    $checkbox = $this->xpath('//input[@name="checkboxes[two]"]');
-    $checkbox[0]['value'] = 'FORGERY';
+    $this->forge = array('checkboxes' => array('one' => 'one', 'two' => 'FORGERY'));
     $this->drupalPostForm(NULL, array('checkboxes[one]' => TRUE, 'checkboxes[two]' => TRUE), t('Submit'));
+    $this->forge = FALSE;
     $this->assertText('An illegal choice has been detected.', 'Input forgery was detected.');
   }
 
@@ -674,4 +684,19 @@ class FormTest extends WebTestBase {
     $this->drupalPostForm('form-test/form_state-database', array(), t('Submit'));
     $this->assertText('Database connection found');
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function onBefore(BeforeEvent $event) {
+    parent::onBefore($event);
+    // Forge fields.
+    if ($this->forge && ($request = $event->getRequest()) && ($body = $request->getBody())) {
+      foreach ($this->forge as $key => $value) {
+        $body->setField($key, $value);
+      }
+      $this->forge = FALSE;
+    }
+  }
+
 }
