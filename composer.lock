@@ -3,7 +3,7 @@
         "This file locks the dependencies of your project to a known state",
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file"
     ],
-    "hash": "194805fa85347b58137c173ec3a76bae",
+    "hash": "cc1a6bb5cac6f2a40e870c702af13949",
     "packages": [
         {
             "name": "behat/mink",
@@ -613,16 +613,16 @@
         },
         {
             "name": "fabpot/goutte",
-            "version": "v2.0.1",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/fabpot/Goutte.git",
-                "reference": "104ef44a9fc8a8dfe66fef5f8e8deb4567f3dc7c"
+                "reference": "48deddc85f95cd62cbe8af199c94d84d66e8d482"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/fabpot/Goutte/zipball/104ef44a9fc8a8dfe66fef5f8e8deb4567f3dc7c",
-                "reference": "104ef44a9fc8a8dfe66fef5f8e8deb4567f3dc7c",
+                "url": "https://api.github.com/repos/fabpot/Goutte/zipball/48deddc85f95cd62cbe8af199c94d84d66e8d482",
+                "reference": "48deddc85f95cd62cbe8af199c94d84d66e8d482",
                 "shasum": ""
             },
             "require": {
@@ -664,31 +664,29 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "4.0.0",
+            "version": "dev-master",
             "source": {
                 "type": "git",
-                "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "4063f08ca434efac12bf7a3db0d370b1c451345b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/4063f08ca434efac12bf7a3db0d370b1c451345b",
-                "reference": "4063f08ca434efac12bf7a3db0d370b1c451345b",
-                "shasum": ""
+                "url": "https://github.com/larowlan/guzzle.git",
+                "reference": "56458c2819e2fe67d175bc11e9b9e472b1b6035f"
             },
             "require": {
-                "guzzlehttp/streams": "1.*",
+                "ext-json": "*",
+                "guzzlehttp/streams": "~1.0",
                 "php": ">=5.4.0"
             },
             "require-dev": {
                 "ext-curl": "*",
-                "phpunit/phpunit": "4.*",
-                "psr/log": "~1"
+                "phpunit/phpunit": "~4.0",
+                "psr/log": "~1.0"
+            },
+            "suggest": {
+                "ext-curl": "Guzzle will use specific adapters if cURL is present"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "4.0.x-dev"
+                    "dev-master": "4.1.x-dev"
                 }
             },
             "autoload": {
@@ -699,7 +697,6 @@
                     "src/functions.php"
                 ]
             },
-            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -713,15 +710,15 @@
             "description": "Guzzle is a PHP HTTP client library and framework for building RESTful web service clients",
             "homepage": "http://guzzlephp.org/",
             "keywords": [
+                "HTTP client",
                 "client",
                 "curl",
                 "framework",
                 "http",
-                "http client",
                 "rest",
                 "web service"
             ],
-            "time": "2014-03-29 23:11:36"
+            "time": "2014-06-04 04:09:52"
         },
         {
             "name": "guzzlehttp/streams",
@@ -2425,9 +2422,11 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "behat/mink-goutte-driver": 20,
+        "fabpot/goutte": 20,
         "symfony/yaml": 20,
         "doctrine/common": 20,
         "doctrine/annotations": 20,
+        "guzzlehttp/guzzle": 20,
         "kriswallsmith/assetic": 15,
         "symfony-cmf/routing": 15
     },
