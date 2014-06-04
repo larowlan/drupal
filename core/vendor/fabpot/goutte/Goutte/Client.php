@@ -149,7 +149,7 @@ class Client extends BaseClient
             if (is_array($info)) {
                 if (isset($info['tmp_name'])) {
                     if ('' !== $info['tmp_name']) {
-                        $request->getBody()->addFile(new PostFile($name, fopen($info['tmp_name'], 'r'), $info['name']));
+                        $request->getBody()->addFile(new PostFile($name, fopen($info['tmp_name'], 'r')));
                     } else {
                         continue;
                     }

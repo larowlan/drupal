@@ -7,12 +7,17 @@
     {
       "type":"git",
       "url": "https://github.com/larowlan/MinkGoutteDriver.git"
+    },
+    {
+      "type":"git",
+      "url": "https://github.com/larowlan/guzzle.git"
     }
   ],
   "require": {
     "php": ">=5.4.2",
     "behat/mink": "~1.5",
     "behat/mink-goutte-driver": "dev-master",
+    "fabpot/goutte": "dev-master",
     "sdboyer/gliph": "0.1.*",
     "symfony/class-loader": "2.4.*",
     "symfony/css-selector": "2.4.*",

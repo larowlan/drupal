@@ -3,7 +3,7 @@
         "This file locks the dependencies of your project to a known state",
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file"
     ],
-    "hash": "0e5bda982430f921b7d592652160dc8f",
+    "hash": "cc1a6bb5cac6f2a40e870c702af13949",
     "packages": [
         {
             "name": "behat/mink",
@@ -613,7 +613,7 @@
         },
         {
             "name": "fabpot/goutte",
-            "version": "v2.0.1",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/fabpot/Goutte.git",
@@ -2429,6 +2429,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "behat/mink-goutte-driver": 20,
+        "fabpot/goutte": 20,
         "symfony/yaml": 20,
         "doctrine/common": 20,
         "doctrine/annotations": 20,
