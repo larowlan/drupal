@@ -3,7 +3,7 @@
         "This file locks the dependencies of your project to a known state",
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file"
     ],
-    "hash": "194805fa85347b58137c173ec3a76bae",
+    "hash": "0e5bda982430f921b7d592652160dc8f",
     "packages": [
         {
             "name": "behat/mink",
@@ -664,31 +664,35 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "4.0.0",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "4063f08ca434efac12bf7a3db0d370b1c451345b"
+                "reference": "3195ebbe24581086e17b333c7e6371ab2104b011"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/4063f08ca434efac12bf7a3db0d370b1c451345b",
-                "reference": "4063f08ca434efac12bf7a3db0d370b1c451345b",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/3195ebbe24581086e17b333c7e6371ab2104b011",
+                "reference": "3195ebbe24581086e17b333c7e6371ab2104b011",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/streams": "1.*",
+                "ext-json": "*",
+                "guzzlehttp/streams": "~1.0",
                 "php": ">=5.4.0"
             },
             "require-dev": {
                 "ext-curl": "*",
-                "phpunit/phpunit": "4.*",
-                "psr/log": "~1"
+                "phpunit/phpunit": "~4.0",
+                "psr/log": "~1.0"
+            },
+            "suggest": {
+                "ext-curl": "Guzzle will use specific adapters if cURL is present"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "4.0.x-dev"
+                    "dev-master": "4.1.x-dev"
                 }
             },
             "autoload": {
@@ -721,7 +725,7 @@
                 "rest",
                 "web service"
             ],
-            "time": "2014-03-29 23:11:36"
+            "time": "2014-06-04 18:17:31"
         },
         {
             "name": "guzzlehttp/streams",
@@ -2428,6 +2432,7 @@
         "symfony/yaml": 20,
         "doctrine/common": 20,
         "doctrine/annotations": 20,
+        "guzzlehttp/guzzle": 20,
         "kriswallsmith/assetic": 15,
         "symfony-cmf/routing": 15
     },
