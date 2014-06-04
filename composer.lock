@@ -121,12 +121,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/larowlan/MinkGoutteDriver.git",
-                "reference": "b114b9b9706fa880ede66081322f5a86bdf020d8"
+                "reference": "488f7f02b1e907888f4b156b635693daf51d760c"
             },
             "require": {
                 "behat/mink": "~1.5@dev",
                 "behat/mink-browserkit-driver": "~1.1@dev",
-                "fabpot/goutte": "~2.0",
+                "fabpot/goutte": "dev-master",
                 "php": ">=5.4"
             },
             "type": "mink-driver",
@@ -158,7 +158,7 @@
                 "headless",
                 "testing"
             ],
-            "time": "2014-05-08 20:55:53"
+            "time": "2014-06-04 04:35:02"
         },
         {
             "name": "doctrine/annotations",
@@ -667,14 +667,8 @@
             "version": "dev-master",
             "source": {
                 "type": "git",
-                "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "3195ebbe24581086e17b333c7e6371ab2104b011"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/3195ebbe24581086e17b333c7e6371ab2104b011",
-                "reference": "3195ebbe24581086e17b333c7e6371ab2104b011",
-                "shasum": ""
+                "url": "https://github.com/larowlan/guzzle.git",
+                "reference": "56458c2819e2fe67d175bc11e9b9e472b1b6035f"
             },
             "require": {
                 "ext-json": "*",
@@ -703,7 +697,6 @@
                     "src/functions.php"
                 ]
             },
-            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -717,15 +710,15 @@
             "description": "Guzzle is a PHP HTTP client library and framework for building RESTful web service clients",
             "homepage": "http://guzzlephp.org/",
             "keywords": [
+                "HTTP client",
                 "client",
                 "curl",
                 "framework",
                 "http",
-                "http client",
                 "rest",
                 "web service"
             ],
-            "time": "2014-06-04 18:17:31"
+            "time": "2014-06-04 04:09:52"
         },
         {
             "name": "guzzlehttp/streams",
