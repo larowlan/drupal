@@ -11,6 +11,7 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityConfirmFormBase;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Url;
+use Drupal\Core\Menu\MenuLinkTreeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -23,7 +24,7 @@ class MenuDeleteForm extends EntityConfirmFormBase {
    *
    * @var \Drupal\Core\Entity\EntityStorageInterface
    */
-  protected $storage;
+  protected $menuTree;
 
   /**
    * The database connection.
@@ -35,13 +36,13 @@ class MenuDeleteForm extends EntityConfirmFormBase {
   /**
    * Constructs a new MenuDeleteForm.
    *
-   * @param \Drupal\Core\Entity\EntityStorageInterface $storage
-   *   The menu link storage.
+   * @param \Drupal\Core\Menu\MenuLinkTreeInterface $menu_tree
+   *   The menu link manager.
    * @param \Drupal\Core\Database\Connection $connection
    *   The database connection.
    */
-  public function __construct(EntityStorageInterface $storage, Connection $connection) {
-    $this->storage = $storage;
+  public function __construct(MenuLinkTreeInterface $menu_tree, Connection $connection) {
+    $this->menuTree = $menu_tree;
     $this->connection = $connection;
   }
 
@@ -50,7 +51,7 @@ class MenuDeleteForm extends EntityConfirmFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorage('menu_link'),
+      $container->get('menu.link_tree'),
       $container->get('database')
     );
   }
@@ -74,7 +75,7 @@ class MenuDeleteForm extends EntityConfirmFormBase {
    */
   public function getDescription() {
     $caption = '';
-    $num_links = $this->storage->countMenuLinks($this->entity->id());
+    $num_links = $this->menuTree->countMenuLinks($this->entity->id());
     if ($num_links) {
       $caption .= '<p>' . format_plural($num_links, '<strong>Warning:</strong> There is currently 1 menu link in %title. It will be deleted (system-defined items will be reset).', '<strong>Warning:</strong> There are currently @count menu links in %title. They will be deleted (system-defined links will be reset).', array('%title' => $this->entity->label())) . '</p>';
     }
@@ -100,21 +101,12 @@ class MenuDeleteForm extends EntityConfirmFormBase {
       return;
     }
 
-    // Reset all the menu links defined by the menu_link.static service.
-    $result = \Drupal::entityQuery('menu_link')
-      ->condition('menu_name', $this->entity->id())
-      ->condition('module', '', '>')
-      ->condition('machine_name', '', '>')
-      ->sort('depth', 'ASC')
-      ->execute();
-    $menu_links = $this->storage->loadMultiple($result);
-    foreach ($menu_links as $link) {
-      $link->reset();
-    }
-
     // Delete all links to the overview page for this menu.
-    $menu_links = $this->storage->loadByProperties(array('link_path' => 'admin/structure/menu/manage/' . $this->entity->id()));
-    menu_link_delete_multiple(array_keys($menu_links));
+    // @todo - there ought to be a better way.
+    $menu_links = $this->menuTree->loadLinksByRoute('menu_ui.menu_edit', array('menu' => $this->entity->id()), TRUE);
+    foreach ($menu_links as $id => $link) {
+      $this->menuTree->deleteLink($id);
+    }
 
     // Delete the custom menu and all its menu links.
     $this->entity->delete();
