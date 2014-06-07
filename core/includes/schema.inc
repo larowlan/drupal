@@ -413,7 +413,12 @@ function drupal_write_record($table, &$record, $primary_keys = array()) {
     }
 
     // Build array of fields to update or insert.
-    $fields[$field] = $object->$field;
+    if (empty($info['serialize'])) {
+      $fields[$field] = $object->$field;
+    }
+    else {
+      $fields[$field] = serialize($object->$field);
+    }
 
     // Type cast to proper datatype, except when the value is NULL and the
     // column allows this.
@@ -519,9 +524,6 @@ function drupal_schema_get_field_value(array $info, $value) {
     }
     elseif (!is_array($value)) {
       $value = (string) $value;
-    }
-    elseif (!empty($info['serialize'])) {
-      $value = serialize($value);
     }
   }
   return $value;

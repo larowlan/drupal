@@ -335,6 +335,10 @@ class MenuLinkContent extends ContentEntityBase implements MenuLinkContentInterf
       ->setDescription(t('A flag to indicate if the link points to a full URL starting with a protocol, like http:// (1 = external, 0 = internal).'))
       ->setSetting('default_value', 0);
 
+    // The form widget doesn't work yet for core fields, so we skip the
+    // for display and manually create form elements for the boolean fields.
+    // @see https://drupal.org/node/2226493
+    // @see https://drupal.org/node/2150511
     $fields['expanded'] = FieldDefinition::create('boolean')
       ->setLabel(t('Expanded'))
       ->setDescription(t('Flag for whether this link should be rendered as expanded in menus - expanded links always have their child links displayed, instead of only when the link is in the active trail (1 = expanded, 0 = not expanded).'))
@@ -343,13 +347,9 @@ class MenuLinkContent extends ContentEntityBase implements MenuLinkContentInterf
         'label' => 'hidden',
         'type' => 'boolean',
         'weight' => 0,
-      ))
-      ->setDisplayOptions('form', array(
-        'type' => 'options_onoff',
-        'weight' => 0,
       ));
 
-    // We manual create a form element for this, since the form logic is
+    // We manually create a form element for this, since the form logic is
     // is inverted to show enabled.
     $fields['hidden'] = FieldDefinition::create('boolean')
       ->setLabel(t('Hidden'))

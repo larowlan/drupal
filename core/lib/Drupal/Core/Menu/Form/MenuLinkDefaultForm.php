@@ -180,8 +180,9 @@ class MenuLinkDefaultForm implements MenuLinkFormInterface, ContainerInjectionIn
   /**
    * Helper function to get a module name.
    *
-   * @todo - this function is horrible, but core has nothing better. Add a
-   *   a method to the ModuleHandler that handles this nicely.
+   * This function is horrible, but core has nothing better until we add a
+   * a method to the ModuleHandler that handles this nicely.
+   * @see - https://drupal.org/node/2281989
    */
   protected function getModuleName($module) {
     // Gather module data.
