@@ -184,9 +184,9 @@ function comment_theme() {
 }
 
 /**
- * Implements hook_menu_link_defaults_alter()
+ * Implements hook_menu_links_alter()
  */
-function comment_menu_link_defaults_alter(&$links) {
+function comment_menu_links_alter(&$links) {
   if (isset($links['node.content_overview'])) {
     // Add comments to the description for admin/content if any.
     $links['node.content_overview']['description'] = 'Administer content and comments.';
