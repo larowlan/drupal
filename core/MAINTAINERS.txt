@@ -36,7 +36,6 @@ Authentication and authorization system
 Base system
 - Damien Tournoud 'DamZ' http://drupal.org/user/22211
 - Moshe Weitzman 'moshe weitzman' http://drupal.org/user/23
-- Kat Bailey 'katbailey' http://drupal.org/user/172987
 
 Batch system
 - Yves Chedemois 'yched' http://drupal.org/user/39567
@@ -279,7 +278,7 @@ Database Logging module
 DateTime module
 - ?
 
-E-mail module
+Email module
 - Nils Destoop 'zuuperman' https://drupal.org/user/361625
 
 Editor module

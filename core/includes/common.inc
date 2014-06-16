@@ -19,7 +19,7 @@ use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Tags;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
@@ -349,13 +349,13 @@ function drupal_get_destination() {
  */
 
 /**
- * Verifies the syntax of the given e-mail address.
+ * Verifies the syntax of the given email address.
  *
  * This uses the
- * @link http://php.net/manual/filter.filters.validate.php PHP e-mail validation filter. @endlink
+ * @link http://php.net/manual/filter.filters.validate.php PHP email validation filter. @endlink
  *
  * @param $mail
- *   A string containing an e-mail address.
+ *   A string containing an email address.
  *
  * @return
  *   TRUE if the address is in a valid format.
@@ -415,7 +415,7 @@ function check_url($uri) {
  * Arbitrary elements may be added using the $args associative array.
  */
 function format_rss_channel($title, $link, $description, $items, $langcode = NULL, $args = array()) {
-  $langcode = $langcode ? $langcode : \Drupal::languageManager()->getCurrentLanguage(Language::TYPE_CONTENT)->id;
+  $langcode = $langcode ? $langcode : \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_CONTENT)->id;
 
   $output = "<channel>\n";
   $output .= ' <title>' . String::checkPlain($title) . "</title>\n";
@@ -1773,7 +1773,7 @@ function _drupal_add_js($data = NULL, $options = NULL) {
             'currentPath' => $current_path,
             'currentPathIsAdmin' => $current_path_is_admin,
             'isFront' => drupal_is_front_page(),
-            'currentLanguage' => \Drupal::languageManager()->getCurrentLanguage(Language::TYPE_URL)->id,
+            'currentLanguage' => \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_URL)->id,
           );
           if (!empty($current_query)) {
             ksort($current_query);
@@ -3305,8 +3305,16 @@ function drupal_render(&$elements, $is_recursive_call = FALSE) {
   // Make any final changes to the element before it is rendered. This means
   // that the $element or the children can be altered or corrected before the
   // element is rendered into the final text.
+  /** @var \Drupal\Core\Controller\ControllerResolverInterface $controller_resolver */
+  $controller_resolver = \Drupal::service('controller_resolver');
   if (isset($elements['#pre_render'])) {
     foreach ($elements['#pre_render'] as $callable) {
+      if (is_string($callable) && strpos($callable, '::') === FALSE) {
+        $callable = $controller_resolver->getControllerFromDefinition($callable);
+      }
+      else {
+        $callable = $callable;
+      }
       $elements = call_user_func($callable, $elements);
     }
   }
@@ -3407,6 +3415,12 @@ function drupal_render(&$elements, $is_recursive_call = FALSE) {
   // which allows the output'ed text to be filtered.
   if (isset($elements['#post_render'])) {
     foreach ($elements['#post_render'] as $callable) {
+      if (is_string($callable) && strpos($callable, '::') === FALSE) {
+        $callable = $controller_resolver->getControllerFromDefinition($callable);
+      }
+      else {
+        $callable = $callable;
+      }
       $elements['#children'] = call_user_func($callable, $elements['#children'], $elements);
     }
   }
@@ -3468,7 +3482,6 @@ function drupal_render(&$elements, $is_recursive_call = FALSE) {
  *
  * @return string
  *   The rendered HTML of all children of the element.
-
  * @see drupal_render()
  */
 function drupal_render_children(&$element, $children_keys = NULL) {
@@ -3662,7 +3675,7 @@ function drupal_render_cache_set(&$markup, array $elements) {
  * placeholders, but should also be called by #post_render_cache callbacks that
  * want to replace the placeholder with the final markup.
  *
- * @param callable $callback
+ * @param string $callback
  *   The #post_render_cache callback that will replace the placeholder with its
  *   eventual markup.
  * @param array $context
@@ -3673,15 +3686,30 @@ function drupal_render_cache_set(&$markup, array $elements) {
  * @return string
  *   The generated placeholder HTML.
  *
+ * @throws \Exception
+ *
  * @see drupal_render_cache_get()
  */
 function drupal_render_cache_generate_placeholder($callback, array &$context) {
+  if (is_string($callback) && strpos($callback, '::') === FALSE) {
+    /** @var \Drupal\Core\Controller\ControllerResolverInterface $controller_resolver */
+    $controller_resolver = \Drupal::service('controller_resolver');
+    $callable = \Drupal::service('controller_resolver')->getControllerFromDefinition($callback);
+  }
+  else {
+   $callable = $callback;
+  }
+
+  if (!is_callable($callable)) {
+    throw new Exception(t('$callable must be a callable function or of the form service_id:method.'));
+  }
+
   // Generate a unique token if one is not already provided.
   $context += array(
     'token' => \Drupal\Component\Utility\Crypt::randomBytesBase64(55),
   );
 
-  return '<drupal:render-cache-placeholder callback="' . $callback . '" token="' . $context['token'] . '" />';
+  return '<drupal-render-cache-placeholder callback="' . $callback . '" token="' . $context['token'] . '"></drupal-render-cache-placeholder>';
 }
 
 /**
@@ -3703,10 +3731,19 @@ function drupal_render_cache_generate_placeholder($callback, array &$context) {
  */
 function _drupal_render_process_post_render_cache(array &$elements) {
   if (isset($elements['#post_render_cache'])) {
+    /** @var \Drupal\Core\Controller\ControllerResolverInterface $controller_resolver */
+    $controller_resolver = \Drupal::service('controller_resolver');
+
     // Call all #post_render_cache callbacks, passing the provided context.
     foreach (array_keys($elements['#post_render_cache']) as $callback) {
+      if (strpos($callback, '::') === FALSE) {
+        $callable = $controller_resolver->getControllerFromDefinition($callback);
+      }
+      else {
+        $callable = $callback;
+      }
       foreach ($elements['#post_render_cache'][$callback] as $context) {
-        $elements = call_user_func_array($callback, array($elements, $context));
+        $elements = call_user_func_array($callable, array($elements, $context));
       }
     }
     // Make sure that any attachments added in #post_render_cache callbacks are

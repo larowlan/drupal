@@ -11,7 +11,7 @@ use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\FieldDefinition;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\node\NodeInterface;
 use Drupal\user\UserInterface;
@@ -85,25 +85,12 @@ class Node extends ContentEntityBase implements NodeInterface {
   public function preSaveRevision(EntityStorageInterface $storage, \stdClass $record) {
     parent::preSaveRevision($storage, $record);
 
-    if ($this->newRevision) {
-      // When inserting either a new node or a new node revision, $node->log
-      // must be set because {node_field_revision}.log is a text column and
-      // therefore cannot have a default value. However, it might not be set at
-      // this point (for example, if the user submitting a node form does not
-      // have permission to create revisions), so we ensure that it is at least
-      // an empty string in that case.
-      // @todo Make the {node_field_revision}.log column nullable so that we
-      //   can remove this check.
-      if (!isset($record->log)) {
-        $record->log = '';
-      }
-    }
-    elseif (isset($this->original) && (!isset($record->log) || $record->log === '')) {
+    if (!$this->isNewRevision() && isset($this->original) && (!isset($record->revision_log) || $record->revision_log === '')) {
       // If we are updating an existing node without adding a new revision, we
-      // need to make sure $entity->log is reset whenever it is empty.
+      // need to make sure $entity->revision_log is reset whenever it is empty.
       // Therefore, this code allows us to avoid clobbering an existing log
       // entry with an empty one.
-      $record->log = $this->original->log->value;
+      $record->revision_log = $this->original->revision_log->value;
     }
   }
 
@@ -180,7 +167,7 @@ class Node extends ContentEntityBase implements NodeInterface {
       // Load languages the node exists in.
       $node_translations = $this->getTranslationLanguages();
       // Load the language from content negotiation.
-      $content_negotiation_langcode = \Drupal::languageManager()->getCurrentLanguage(Language::TYPE_CONTENT)->id;
+      $content_negotiation_langcode = \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_CONTENT)->id;
       // If there is a translation available, use it.
       if (isset($node_translations[$content_negotiation_langcode])) {
         $langcode = $content_negotiation_langcode;
@@ -370,7 +357,7 @@ class Node extends ContentEntityBase implements NodeInterface {
       ->setRequired(TRUE)
       ->setTranslatable(TRUE)
       ->setRevisionable(TRUE)
-      ->setSetting('default_value', '')
+      ->setDefaultValue('')
       ->setSetting('max_length', 255)
       ->setDisplayOptions('view', array(
         'label' => 'hidden',
@@ -433,8 +420,8 @@ class Node extends ContentEntityBase implements NodeInterface {
       ->setQueryable(FALSE)
       ->setRevisionable(TRUE);
 
-    $fields['log'] = FieldDefinition::create('string_long')
-      ->setLabel(t('Log'))
+    $fields['revision_log'] = FieldDefinition::create('string_long')
+      ->setLabel(t('Revision log message'))
       ->setDescription(t('The log entry explaining the changes in this revision.'))
       ->setRevisionable(TRUE)
       ->setTranslatable(TRUE);
@@ -466,11 +453,11 @@ class Node extends ContentEntityBase implements NodeInterface {
 
     $options = $node_type->getModuleSettings('node')['options'];
     $fields['status'] = clone $base_field_definitions['status'];
-    $fields['status']->setSetting('default_value', !empty($options['status']) ? NODE_PUBLISHED : NODE_NOT_PUBLISHED);
+    $fields['status']->setDefaultValue(!empty($options['status']) ? NODE_PUBLISHED : NODE_NOT_PUBLISHED);
     $fields['promote'] = clone $base_field_definitions['promote'];
-    $fields['promote']->setSetting('default_value', !empty($options['promote']) ? NODE_PROMOTED : NODE_NOT_PROMOTED);
+    $fields['promote']->setDefaultValue(!empty($options['promote']) ? NODE_PROMOTED : NODE_NOT_PROMOTED);
     $fields['sticky'] = clone $base_field_definitions['sticky'];
-    $fields['sticky']->setSetting('default_value', !empty($options['sticky']) ? NODE_STICKY : NODE_NOT_STICKY);
+    $fields['sticky']->setDefaultValue(!empty($options['sticky']) ? NODE_STICKY : NODE_NOT_STICKY);
 
     return $fields;
   }

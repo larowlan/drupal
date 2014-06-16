@@ -12,7 +12,7 @@ system.site:
       label: 'Site name'
     mail:
       type: email
-      label: 'E-mail address'
+      label: 'Email address'
     slogan:
       type: label
       label: 'Slogan'
@@ -118,6 +118,12 @@ system.date_format.*:
   type: config_entity
   label: 'Date format'
   mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
     locked:
       type: boolean
       label: 'Locked'
@@ -278,6 +284,12 @@ system.menu.*:
   type: config_entity
   label: 'Menu'
   mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
     description:
       type: label
       label: 'Menu description'
@@ -289,6 +301,12 @@ system.action.*:
   type: config_entity
   label: 'System action'
   mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
     type:
       type: string
       label: 'Type'
@@ -340,7 +358,7 @@ system.image.gd:
 
 system.mail:
   type: mapping
-  label: 'Image settings'
+  label: 'Mail system'
   mapping:
     interface:
       type: mapping
@@ -367,3 +385,9 @@ block.settings.system_branding_block:
     use_site_slogan:
       type: boolean
       label: 'Use site slogan'
+
+condition.plugin.request_path:
+  type: condition.plugin
+  mapping:
+    pages:
+      type: string

@@ -11,7 +11,7 @@ use Drupal\Core\Plugin\ContextAwarePluginBase;
 use Drupal\block\BlockInterface;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\NestedArray;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheableInterface;
 use Drupal\Core\Session\AccountInterface;
@@ -112,8 +112,23 @@ abstract class BlockBase extends ContextAwarePluginBase implements BlockPluginIn
    * {@inheritdoc}
    */
   public function access(AccountInterface $account) {
-    // By default, the block is visible unless user-configured rules indicate
-    // that it should be hidden.
+    // @todo Move block visibility here in https://drupal.org/node/2278541.
+    return $this->blockAccess($account);
+  }
+
+  /**
+   * Indicates whether the block should be shown.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The user session for which to check access.
+   *
+   * @return bool
+   *   TRUE if the block should be shown, or FALSE otherwise.
+   *
+   * @see self::access()
+   */
+  protected function blockAccess(AccountInterface $account) {
+    // By default, the block is visible.
     return TRUE;
   }
 
@@ -264,7 +279,7 @@ abstract class BlockBase extends ContextAwarePluginBase implements BlockPluginIn
     //   \Drupal\system\MachineNameController::transliterate(), so it might make
     //   sense to provide a common service for the two.
     $transliteration_service = \Drupal::transliteration();
-    $transliterated = $transliteration_service->transliterate($admin_label, Language::LANGCODE_DEFAULT, '_');
+    $transliterated = $transliteration_service->transliterate($admin_label, LanguageInterface::LANGCODE_DEFAULT, '_');
 
     $replace_pattern = '[^a-z0-9_.]+';
 

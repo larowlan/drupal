@@ -10,7 +10,7 @@ namespace Drupal\block;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Entity\EntityManagerInterface;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\language\ConfigurableLanguageManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -157,7 +157,7 @@ class BlockForm extends EntityForm {
       $language_types = $this->languageManager->getLanguageTypes();
 
       // Fetch languages.
-      $languages = $this->languageManager->getLanguages(Language::STATE_ALL);
+      $languages = $this->languageManager->getLanguages(LanguageInterface::STATE_ALL);
       $langcodes_options = array();
       foreach ($languages as $language) {
         // @todo $language->name is not wrapped with t(), it should be replaced
@@ -195,7 +195,7 @@ class BlockForm extends EntityForm {
     }
 
     // Per-role visibility.
-    $role_options = array_map('check_plain', user_role_names());
+    $role_options = array_map(array('\Drupal\Component\Utility\String', 'checkPlain'), user_role_names());
     $form['visibility']['role'] = array(
       '#type' => 'details',
       '#title' => $this->t('Roles'),

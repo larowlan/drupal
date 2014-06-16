@@ -17,7 +17,7 @@ use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\ConnectionNotDefinedException;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\AnonymousUserSession;
 use Drupal\Core\Session\UserSession;
@@ -387,7 +387,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   - status: NODE_PUBLISHED.
    *   - sticky: NODE_NOT_STICKY.
    *   - type: 'page'.
-   *   - langcode: Language::LANGCODE_NOT_SPECIFIED.
+   *   - langcode: LanguageInterface::LANGCODE_NOT_SPECIFIED.
    *   - uid: The currently logged in user, or the user running test.
    *   - revision: 1. (Backwards-compatible binary flag indicating whether a
    *     new revision should be created; use 1 to specify a new revision.)
@@ -406,7 +406,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
       'status'    => NODE_PUBLISHED,
       'sticky'    => NODE_NOT_STICKY,
       'type'      => 'page',
-      'langcode'  => Language::LANGCODE_NOT_SPECIFIED,
+      'langcode'  => LanguageInterface::LANGCODE_NOT_SPECIFIED,
     );
 
     // Use the original node's created time for existing nodes.
@@ -421,7 +421,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
         $settings['uid'] = $this->loggedInUser->id();
       }
       else {
-        $user = \Drupal::currentUser() ?: drupal_anonymous_user();
+        $user = \Drupal::currentUser() ?: new AnonymousUserSession();
         $settings['uid'] = $user->id();
       }
     }
@@ -1032,7 +1032,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
       ->save();
 
     // Manually configure the test mail collector implementation to prevent
-    // tests from sending out e-mails and collect them in state instead.
+    // tests from sending out emails and collect them in state instead.
     // While this should be enforced via settings.php prior to installation,
     // some tests expect to be able to test mail system implementations.
     \Drupal::config('system.mail')
@@ -1623,7 +1623,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     $verbose = 'GET request to: ' . $path .
                '<hr />Ending URL: ' . $this->getUrl();
     if ($this->dumpHeaders) {
-      $verbose .= '<hr />Headers: <pre>' . check_plain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>';
+      $verbose .= '<hr />Headers: <pre>' . String::checkPlain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>';
     }
     $verbose .= '<hr />' . $out;
 
@@ -1829,7 +1829,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
           $verbose = 'POST request to: ' . $path;
           $verbose .= '<hr />Ending URL: ' . $this->getUrl();
           if ($this->dumpHeaders) {
-            $verbose .= '<hr />Headers: <pre>' . check_plain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>';
+            $verbose .= '<hr />Headers: <pre>' . String::checkPlain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>';
           }
           $verbose .= '<hr />Fields: ' . highlight_string('<?php ' . var_export($post_array, TRUE), TRUE);
           $verbose .= '<hr />' . $out;
@@ -2268,7 +2268,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     if ($this->dumpHeaders) {
       $this->verbose('GET request to: ' . $path .
                      '<hr />Ending URL: ' . $this->getUrl() .
-                     '<hr />Headers: <pre>' . check_plain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>');
+                     '<hr />Headers: <pre>' . String::checkPlain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>');
     }
 
     return $out;
@@ -2549,8 +2549,6 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *
    * @param $label
    *   Text between the anchor tags.
-   * @param $index
-   *   Link position counting from zero.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -2771,14 +2769,14 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Gets an array containing all e-mails sent during this test case.
+   * Gets an array containing all emails sent during this test case.
    *
    * @param $filter
-   *   An array containing key/value pairs used to filter the e-mails that are
+   *   An array containing key/value pairs used to filter the emails that are
    *   returned.
    *
    * @return
-   *   An array containing e-mail messages captured during the current test.
+   *   An array containing email messages captured during the current test.
    */
   protected function drupalGetMails($filter = array()) {
     $captured_emails = \Drupal::state()->get('system.test_mail_collector') ?: array();
@@ -2997,7 +2995,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     if (!$message) {
       $message = !$not_exists ? String::format('"@text" found', array('@text' => $text)) : String::format('"@text" not found', array('@text' => $text));
     }
-    return $this->assert($not_exists == (strpos($this->plainTextContent, $text) === FALSE), $message, $group);
+    return $this->assert($not_exists == (strpos($this->plainTextContent, (string) $text) === FALSE), $message, $group);
   }
 
   /**
@@ -3225,9 +3223,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    */
   protected function assertThemeOutput($callback, array $variables = array(), $expected, $message = '', $group = 'Other') {
     $output = _theme($callback, $variables);
-    $this->verbose('Variables:' . '<pre>' .  check_plain(var_export($variables, TRUE)) . '</pre>'
-      . '<hr />' . 'Result:' . '<pre>' .  check_plain(var_export($output, TRUE)) . '</pre>'
-      . '<hr />' . 'Expected:' . '<pre>' .  check_plain(var_export($expected, TRUE)) . '</pre>'
+    $this->verbose('Variables:' . '<pre>' .  String::checkPlain(var_export($variables, TRUE)) . '</pre>'
+      . '<hr />' . 'Result:' . '<pre>' .  String::checkPlain(var_export($output, TRUE)) . '</pre>'
+      . '<hr />' . 'Expected:' . '<pre>' .  String::checkPlain(var_export($expected, TRUE)) . '</pre>'
       . '<hr />' . $output
     );
     if (!$message) {
@@ -3797,7 +3795,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Asserts that the most recently sent e-mail message has the given value.
+   * Asserts that the most recently sent email message has the given value.
    *
    * The field in $name must have the content described in $value.
    *
@@ -3813,20 +3811,20 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @param $group
    *   (optional) The group this message is in, which is displayed in a column
    *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'E-mail'; most tests do not override
+   *   translate this string. Defaults to 'Email'; most tests do not override
    *   this default.
    *
    * @return
    *   TRUE on pass, FALSE on fail.
    */
-  protected function assertMail($name, $value = '', $message = '', $group = 'E-mail') {
+  protected function assertMail($name, $value = '', $message = '', $group = 'Email') {
     $captured_emails = \Drupal::state()->get('system.test_mail_collector') ?: array();
     $email = end($captured_emails);
     return $this->assertTrue($email && isset($email[$name]) && $email[$name] == $value, $message, $group);
   }
 
   /**
-   * Asserts that the most recently sent e-mail message has the string in it.
+   * Asserts that the most recently sent email message has the string in it.
    *
    * @param $field_name
    *   Name of field or message property to assert: subject, body, id, ...
@@ -3868,7 +3866,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Asserts that the most recently sent e-mail message has the pattern in it.
+   * Asserts that the most recently sent email message has the pattern in it.
    *
    * @param $field_name
    *   Name of field or message property to assert: subject, body, id, ...

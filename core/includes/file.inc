@@ -6,7 +6,6 @@
  */
 
 use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\StreamWrapper\LocalStream;
 use Drupal\Component\PhpStorage\FileStorage;
 use Drupal\Component\Utility\Bytes;
 use Drupal\Component\Utility\String;
@@ -1172,7 +1171,11 @@ function file_unmanaged_save_data($data, $destination = NULL, $replace = FILE_EX
  *
  * Directories and files beginning with a dot are excluded; this prevents
  * hidden files and directories (such as SVN working directories) from being
- * scanned.
+ * scanned. Use the umask option to skip configuration directories to
+ * eliminate the possibility of accidentally exposing configuration
+ * information. Also, you can use the base directory, recurse, and min_depth
+ * options to improve performance by limiting how much of the filesystem has
+ * to be traversed.
  *
  * @param $dir
  *   The base directory or URI to scan, without trailing slash.
@@ -1300,17 +1303,11 @@ function file_upload_max_size() {
  *   The internet media type registered for the extension or
  *   application/octet-stream for unknown extensions.
  *
- * @see file_default_mimetype_mapping()
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Use \Drupal::service('file.mime_type.guesser')->guess($uri).
  */
 function file_get_mimetype($uri, $mapping = NULL) {
-  if ($wrapper = file_stream_wrapper_get_instance_by_uri($uri)) {
-    return $wrapper->getMimeType($uri, $mapping);
-  }
-  else {
-    // getMimeType() is not implementation specific, so we can directly
-    // call it without an instance.
-    return LocalStream::getMimeType($uri, $mapping);
-  }
+  return \Drupal::service('file.mime_type.guesser')->guess($uri);
 }
 
 /**

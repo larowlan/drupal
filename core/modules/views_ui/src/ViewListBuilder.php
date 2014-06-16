@@ -138,11 +138,11 @@ class ViewListBuilder extends ConfigEntityListBuilder {
   public function getDefaultOperations(EntityInterface $entity) {
     $operations = parent::getDefaultOperations($entity);
 
-    if ($entity->hasLinkTemplate('clone')) {
-      $operations['clone'] = array(
-        'title' => $this->t('Clone'),
+    if ($entity->hasLinkTemplate('duplicate')) {
+      $operations['duplicate'] = array(
+        'title' => $this->t('Duplicate'),
         'weight' => 15,
-      ) + $entity->urlInfo('clone')->toArray();
+      ) + $entity->urlInfo('duplicate')->toArray();
     }
 
     // Add AJAX functionality to enable/disable operations.
@@ -229,7 +229,7 @@ class ViewListBuilder extends ConfigEntityListBuilder {
     $displays = array();
     foreach ($view->get('display') as $display) {
       $definition = $this->displayManager->getDefinition($display['display_plugin']);
-      if (isset($definition['admin'])) {
+      if (!empty($definition['admin'])) {
         // Cast the admin label to a string since it is an object.
         // @see \Drupal\Core\StringTranslation\TranslationWrapper
         $displays[] = (string) $definition['admin'];

@@ -115,6 +115,9 @@ services:
   config.typed:
     class: Drupal\Core\Config\TypedConfigManager
     arguments: ['@config.storage', '@config.storage.schema', '@cache.discovery']
+  context.handler:
+    class: Drupal\Core\Plugin\Context\ContextHandler
+    arguments: ['@typed_data_manager']
   cron:
     class: Drupal\Core\Cron
     arguments: ['@module_handler', '@lock', '@queue', '@state', '@current_user', '@session_manager']
@@ -214,15 +217,13 @@ services:
   container.namespaces:
     class: ArrayObject
     arguments: [ '%container.namespaces%' ]
-    tags:
-      - { name: persist }
   container.trait:
     abstract: true
     calls:
       - [setContainer, ['@service_container']]
   default_plugin_manager:
     abstract: true
-    arguments: ['@container.namespaces', '@cache.discovery', '@language_manager', '@module_handler']
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   module_handler:
     class: Drupal\Core\Extension\ModuleHandler
     arguments: ['%container.modules%', '@cache.bootstrap']
@@ -240,19 +241,19 @@ services:
     arguments: ['@entity.manager', '@form_builder']
   plugin.manager.field.field_type:
     class: Drupal\Core\Field\FieldTypePluginManager
-    arguments: ['@container.namespaces', '@cache.discovery', '@language_manager', '@module_handler']
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   plugin.manager.field.widget:
     class: Drupal\Core\Field\WidgetPluginManager
-    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler', '@language_manager', '@plugin.manager.field.field_type']
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler', '@plugin.manager.field.field_type']
   plugin.manager.field.formatter:
     class: Drupal\Core\Field\FormatterPluginManager
-    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler', '@language_manager', '@plugin.manager.field.field_type']
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler', '@plugin.manager.field.field_type']
   plugin.manager.archiver:
     class: Drupal\Core\Archiver\ArchiverManager
     parent: default_plugin_manager
   plugin.manager.action:
     class: Drupal\Core\Action\ActionManager
-    arguments: ['@container.namespaces', '@cache.discovery', '@language_manager', '@module_handler']
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   plugin.manager.menu.local_action:
     class: Drupal\Core\Menu\LocalActionManager
     arguments: ['@controller_resolver', '@request_stack', '@router.route_provider', '@module_handler', '@cache.discovery', '@language_manager', '@access_manager', '@current_user']
@@ -307,11 +308,11 @@ services:
       - [initLanguageManager]
     tags:
       - { name: service_collector, tag: string_translator, call: addTranslator }
-  database.slave:
+  database.replica:
     class: Drupal\Core\Database\Connection
     factory_class: Drupal\Core\Database\Database
     factory_method: getConnection
-    arguments: [slave]
+    arguments: [replica]
   typed_data_manager:
     class: Drupal\Core\TypedData\TypedDataManager
     parent: default_plugin_manager
@@ -403,6 +404,10 @@ services:
   path.alias_storage:
     class: Drupal\Core\Path\AliasStorage
     arguments: ['@database', '@module_handler']
+  path.matcher:
+    class: Drupal\Core\Path\PathMatcher
+    arguments: ['@config.factory']
+
 # The argument to the hashing service defined in services.yml, to the
 # constructor of PhpassHashedPassword is the log2 number of iterations for
 # password stretching.
@@ -423,8 +428,8 @@ services:
       - { name: route_filter }
   paramconverter_manager:
     class: Drupal\Core\ParamConverter\ParamConverterManager
-    calls:
-      - [setContainer, ['@service_container']]
+    tags:
+      - { name: service_collector, tag: paramconverter, call: addConverter }
   paramconverter_subscriber:
     class: Drupal\Core\EventSubscriber\ParamConverterSubscriber
     tags:
@@ -671,7 +676,7 @@ services:
     arguments: ['@database', '@request_stack']
   plugin.manager.mail:
     class: Drupal\Core\Mail\MailManager
-    arguments: ['@container.namespaces', '@cache.discovery', '@language_manager', '@module_handler', '@config.factory']
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler', '@config.factory']
   plugin.manager.condition:
     class: Drupal\Core\Condition\ConditionManager
     parent: default_plugin_manager
@@ -687,7 +692,7 @@ services:
       - { name: event_subscriber }
   image.toolkit.manager:
     class: Drupal\Core\ImageToolkit\ImageToolkitManager
-    arguments: ['@container.namespaces', '@cache.discovery', '@language_manager', '@config.factory', '@module_handler']
+    arguments: ['@container.namespaces', '@cache.discovery', '@config.factory', '@module_handler']
   image.factory:
     class: Drupal\Core\Image\ImageFactory
     arguments: ['@image.toolkit.manager']
@@ -702,8 +707,8 @@ services:
   batch.storage:
     class: Drupal\Core\Batch\BatchStorage
     arguments: ['@database']
-  slave_database_ignore__subscriber:
-    class: Drupal\Core\EventSubscriber\SlaveDatabaseIgnoreSubscriber
+  replica_database_ignore__subscriber:
+    class: Drupal\Core\EventSubscriber\ReplicaDatabaseIgnoreSubscriber
     tags:
       - {name: event_subscriber}
   country_manager:
@@ -815,9 +820,26 @@ services:
     class: Drupal\Core\Asset\AssetDumper
   library.discovery:
     class: Drupal\Core\Asset\LibraryDiscovery
-    arguments: ['@cache.discovery', '@module_handler']
+    arguments: ['@library.discovery.collector']
+  library.discovery.collector:
+    class: Drupal\Core\Asset\LibraryDiscoveryCollector
+    arguments: ['@cache.discovery', '@lock', '@library.discovery.parser']
+    tags:
+      - { name: needs_destruction }
+  library.discovery.parser:
+    class: Drupal\Core\Asset\LibraryDiscoveryParser
+    arguments: ['@module_handler']
   info_parser:
     class: Drupal\Core\Extension\InfoParser
   element_info:
     class: Drupal\Core\Render\ElementInfo
     arguments: ['@module_handler']
+  file.mime_type.guesser:
+    class: Drupal\Core\File\MimeType\MimeTypeGuesser
+    tags:
+      - { name: service_collector, tag: mime_type_guesser, call: addGuesser }
+  file.mime_type.guesser.extension:
+    class: Drupal\Core\File\MimeType\ExtensionMimeTypeGuesser
+    arguments: ['@module_handler']
+    tags:
+      - { name: mime_type_guesser }

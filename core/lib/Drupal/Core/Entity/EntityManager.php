@@ -16,7 +16,7 @@ use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
@@ -104,6 +104,13 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
   protected $typedDataManager;
 
   /**
+   * The language manager.
+   *
+   * @var \Drupal\Core\Language\LanguageManagerInterface
+   */
+  protected $languageManager;
+
+  /**
    * Static cache of bundle information.
    *
    * @var array
@@ -147,9 +154,10 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
   public function __construct(\Traversable $namespaces, ModuleHandlerInterface $module_handler, CacheBackendInterface $cache, LanguageManagerInterface $language_manager, TranslationInterface $translation_manager, ClassResolverInterface $class_resolver, TypedDataManager $typed_data_manager) {
     parent::__construct('Entity', $namespaces, $module_handler, 'Drupal\Core\Entity\Annotation\EntityType');
 
-    $this->setCacheBackend($cache, $language_manager, 'entity_type:', array('entity_types' => TRUE));
+    $this->setCacheBackend($cache, 'entity_type', array('entity_types' => TRUE));
     $this->alterInfo('entity_type');
 
+    $this->languageManager = $language_manager;
     $this->translationManager = $translation_manager;
     $this->classResolver = $class_resolver;
     $this->typedDataManager = $typed_data_manager;
@@ -732,7 +740,7 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
 
     if ($entity instanceof TranslatableInterface) {
       if (empty($langcode)) {
-        $langcode = $this->languageManager->getCurrentLanguage(Language::TYPE_CONTENT)->id;
+        $langcode = $this->languageManager->getCurrentLanguage(LanguageInterface::TYPE_CONTENT)->id;
       }
 
       // Retrieve language fallback candidates to perform the entity language
@@ -743,7 +751,7 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
 
       // Ensure the default language has the proper language code.
       $default_language = $entity->getUntranslated()->language();
-      $candidates[$default_language->id] = Language::LANGCODE_DEFAULT;
+      $candidates[$default_language->id] = LanguageInterface::LANGCODE_DEFAULT;
 
       // Return the most fitting entity translation.
       foreach ($candidates as $candidate) {
@@ -797,7 +805,7 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
   protected function getAllDisplayModesByEntityType($display_type) {
     if (!isset($this->displayModeInfo[$display_type])) {
       $key = 'entity_' . $display_type . '_info';
-      $langcode = $this->languageManager->getCurrentLanguage(Language::TYPE_INTERFACE)->id;
+      $langcode = $this->languageManager->getCurrentLanguage(LanguageInterface::TYPE_INTERFACE)->id;
       if ($cache = $this->cacheBackend->get("$key:$langcode")) {
         $this->displayModeInfo[$display_type] = $cache->data;
       }

@@ -6,10 +6,10 @@
  */
 
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Language\Language;
 use Drupal\Core\Extension\Extension;
 use Drupal\Core\Extension\ExtensionDiscovery;
 use Drupal\Core\StringTranslation\TranslationWrapper;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\block\BlockPluginInterface;
 use Drupal\user\UserInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -63,7 +63,7 @@ const REGIONS_ALL = 'all';
 /**
  * Defines the max length for an email address
  *
- * The maximum length of an e-mail address is 254 characters. RFC 3696
+ * The maximum length of an email address is 254 characters. RFC 3696
  * specifies a total length of 320 characters, but mentions that
  * addresses longer than 256 characters are not normally useful. Erratum
  * 1690 was then released which corrected this value to 254 characters.
@@ -177,6 +177,7 @@ function system_theme() {
     ),
     'system_config_form' => array(
       'render element' => 'form',
+      'template' => 'system-config-form',
     ),
     'confirm_form' => array(
       'render element' => 'form',
@@ -514,7 +515,7 @@ function system_element_info() {
   );
   $types['language_select'] = array(
     '#input' => TRUE,
-    '#default_value' => Language::LANGCODE_NOT_SPECIFIED,
+    '#default_value' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
   );
   $types['weight'] = array(
     '#input' => TRUE,
@@ -524,7 +525,8 @@ function system_element_info() {
   );
   $types['date'] = array(
     '#input' => TRUE,
-    '#theme' => 'date',
+    '#theme' => 'input__date',
+    '#pre_render' => array('form_pre_render_date'),
     '#theme_wrappers' => array('form_element'),
   );
   $types['file'] = array(
@@ -976,7 +978,7 @@ function system_page_build(&$page) {
       array(
         'path' => current_path(),
         'front' => drupal_is_front_page(),
-        'language' => \Drupal::languageManager()->getCurrentLanguage(\Drupal\Core\Language\Language::TYPE_URL)->id,
+        'language' => \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_URL)->id,
         'query' => \Drupal::service('request')->query->all(),
       )
     );
@@ -1703,22 +1705,6 @@ function system_block_view_system_help_block_alter(array &$build, BlockPluginInt
   // Assume that most users do not need or want to perform contextual actions on
   // the help block, so don't needlessly draw attention to it.
   unset($build['#contextual_links']);
-}
-
-/**
- * Returns HTML for a system settings form.
- *
- * By default this does not alter the appearance of a form at all,
- * but is provided as a convenience for themers.
- *
- * @param $variables
- *   An associative array containing:
- *   - form: A render element representing the form.
- *
- * @ingroup themeable
- */
-function theme_system_config_form($variables) {
-  return drupal_render_children($variables['form']);
 }
 
 /**

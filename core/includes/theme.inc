@@ -13,7 +13,6 @@ use Drupal\Component\Utility\UrlHelper;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Config\Config;
 use Drupal\Core\Config\StorageException;
-use Drupal\Core\Language\Language;
 use Drupal\Core\Extension\Extension;
 use Drupal\Core\Extension\ExtensionNameLengthException;
 use Drupal\Core\Page\FeedLinkElement;
@@ -1674,26 +1673,6 @@ function template_preprocess_table(&$variables) {
 }
 
 /**
- * Returns HTML for a marker for new or updated content.
- *
- * @param $variables
- *   An associative array containing:
- *   - type: Number representing the marker type to display. See MARK_NEW,
- *     MARK_UPDATED, MARK_READ.
- */
-function theme_mark($variables) {
-  $type = $variables['status'];
-  if (\Drupal::currentUser()->isAuthenticated()) {
-    if ($type == MARK_NEW) {
-      return ' <span class="marker">' . t('new') . '</span>';
-    }
-    elseif ($type == MARK_UPDATED) {
-      return ' <span class="marker">' . t('updated') . '</span>';
-    }
-  }
-}
-
-/**
  * Prepares variables for item list templates.
  *
  * Default template: item-list.html.twig.
@@ -2136,6 +2115,7 @@ function template_preprocess_page(&$variables) {
       '#heading' => array(
         'text' => t('Main menu'),
         'class' => array('visually-hidden'),
+        'attributes' => array('id' => 'links__system_main_menu'),
       ),
       '#set_active_class' => TRUE,
     );
@@ -2147,6 +2127,7 @@ function template_preprocess_page(&$variables) {
       '#heading' => array(
         'text' => t('Secondary menu'),
         'class' => array('visually-hidden'),
+        'attributes' => array('id' => 'links__system_secondary_menu'),
       ),
       '#set_active_class' => TRUE,
     );
@@ -2569,6 +2550,7 @@ function drupal_common_theme() {
     ),
     'mark' => array(
       'variables' => array('status' => MARK_NEW),
+      'template' => 'mark',
     ),
     'item_list' => array(
       'variables' => array('items' => array(), 'title' => '', 'list_type' => 'ul', 'attributes' => array(), 'empty' => NULL),
@@ -2630,6 +2612,7 @@ function drupal_common_theme() {
     // From form.inc.
     'input' => array(
       'render element' => 'element',
+      'template' => 'input',
     ),
     'select' => array(
       'render element' => 'element',
@@ -2646,9 +2629,6 @@ function drupal_common_theme() {
     'radios' => array(
       'render element' => 'element',
       'template' => 'radios',
-    ),
-    'date' => array(
-      'render element' => 'element',
     ),
     'checkboxes' => array(
       'render element' => 'element',
@@ -2671,6 +2651,7 @@ function drupal_common_theme() {
     ),
     'form_element_label' => array(
       'render element' => 'element',
+      'template' => 'form-element-label',
     ),
     'vertical_tabs' => array(
       'render element' => 'element',

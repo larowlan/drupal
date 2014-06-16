@@ -11,7 +11,7 @@ use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\ContentEntityForm;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Component\Utility\String;
 
 /**
@@ -38,8 +38,8 @@ class NodeForm extends ContentEntityForm {
 
     if (!$node->isNew()) {
       $node->date = format_date($node->getCreatedTime(), 'custom', 'Y-m-d H:i:s O');
-      // Remove the log message from the original node entity.
-      $node->log = NULL;
+      // Remove the revision log message from the original node entity.
+      $node->revision_log = NULL;
     }
   }
 
@@ -81,7 +81,7 @@ class NodeForm extends ContentEntityForm {
       '#title' => t('Language'),
       '#type' => 'language_select',
       '#default_value' => $node->getUntranslated()->language()->id,
-      '#languages' => Language::STATE_ALL,
+      '#languages' => LanguageInterface::STATE_ALL,
       '#access' => isset($language_configuration['language_show']) && $language_configuration['language_show'],
     );
 
@@ -91,8 +91,8 @@ class NodeForm extends ContentEntityForm {
       '#weight' => 99,
     );
 
-    // Add a log field if the "Create new revision" option is checked, or if
-    // the current user has the ability to check that option.
+    // Add a revision log field if the "Create new revision" option is checked,
+    // or if the current user has the ability to check that option.
     $form['revision_information'] = array(
       '#type' => 'details',
       '#group' => 'advanced',
@@ -117,11 +117,11 @@ class NodeForm extends ContentEntityForm {
       '#group' => 'revision_information',
     );
 
-    $form['log'] = array(
+    $form['revision_log'] = array(
       '#type' => 'textarea',
       '#title' => t('Revision log message'),
       '#rows' => 4,
-      '#default_value' => !empty($node->log->value) ? $node->log->value : '',
+      '#default_value' => !empty($node->revision_log->value) ? $node->revision_log->value : '',
       '#description' => t('Briefly describe the changes you have made.'),
       '#states' => array(
         'visible' => array(
@@ -300,7 +300,7 @@ class NodeForm extends ContentEntityForm {
     }
 
     // Validate the "authored by" field.
-    if (!empty($form_state['values']['uid']) && !($account = user_load_by_name($form_state['values']['uid']))) {
+    if (!empty($form_state['values']['uid']) && !user_load_by_name($form_state['values']['uid'])) {
       // The use of empty() is mandatory in the context of usernames
       // as the empty string denotes the anonymous user. In case we
       // are dealing with an anonymous user we set the user ID to 0.

@@ -73,15 +73,6 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
   protected $moduleList;
 
   /**
-   * Holds an updated list of enabled modules.
-   *
-   * @var array
-   *   An associative array whose keys are module names and whose values are
-   *   ignored.
-   */
-  protected $newModuleList;
-
-  /**
    * List of available modules and installation profiles.
    *
    * @var \Drupal\Core\Extension\Extension[]
@@ -351,7 +342,7 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
    *   needed.
    */
   public function updateModules(array $module_list, array $module_filenames = array()) {
-    $this->newModuleList = $module_list;
+    $this->moduleList = $module_list;
     foreach ($module_filenames as $name => $extension) {
       $this->moduleData[$name] = $extension;
     }
@@ -426,14 +417,6 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
         $this->persistServices($persist);
       }
     }
-    // First check whether the list of modules changed in this request.
-    if (isset($this->newModuleList)) {
-      if (isset($this->container) && isset($this->moduleList) && array_keys($this->moduleList) !== array_keys($this->newModuleList)) {
-        unset($this->container);
-      }
-      $this->moduleList = $this->newModuleList;
-      unset($this->newModuleList);
-    }
     if (isset($this->container)) {
       // All namespaces must be registered before we attempt to use any service
       // from the container.
@@ -442,13 +425,6 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
     else {
       $this->container = $this->buildContainer();
       $this->persistServices($persist);
-
-      // The namespaces are marked as persistent, so objects like the annotated
-      // class discovery still has the right object. We may have updated the
-      // list of modules, so set it.
-      if ($this->container->initialized('container.namespaces')) {
-        $this->container->get('container.namespaces')->exchangeArray($this->container->getParameter('container.namespaces'));
-      }
 
       if ($this->allowDumping) {
         $this->containerNeedsDumping = TRUE;

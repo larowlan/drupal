@@ -9,7 +9,7 @@
  */
 
 use Drupal\Component\Utility\Xss;
-use Drupal\Core\Language\Language;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\Request;
@@ -117,7 +117,7 @@ function node_help($route_name, Request $request) {
       $output .= '<dt>' . t('Creating custom content types') . '</dt>';
       $output .= '<dd>' . t('The Node module gives users with the <em>Administer content types</em> permission the ability to <a href="!content-new">create new content types</a> in addition to the default ones already configured. Creating custom content types allows you the flexibility to add <a href="!field">fields</a> and configure default settings that suit the differing needs of various site content.', array('!content-new' => \Drupal::url('node.type_add'), '!field' => \Drupal::url('help.page', array('name' => 'field')))) . '</dd>';
       $output .= '<dt>' . t('Administering content') . '</dt>';
-      $output .= '<dd>' . t('The <a href="!content">Content administration page</a> allows you to review and bulk manage your site content.', array('!content' => \Drupal::url('node.content_overview'))) . '</dd>';
+      $output .= '<dd>' . t('The <a href="!content">Content administration page</a> allows you to review and bulk manage your site content.', array('!content' => \Drupal::url('system.admin_content'))) . '</dd>';
       $output .= '<dt>' . t('Creating revisions') . '</dt>';
       $output .= '<dd>' . t('The Node module also enables you to create multiple versions of any content, and revert to older versions using the <em>Revision information</em> settings.') . '</dd>';
       $output .= '<dt>' . t('User permissions') . '</dt>';
@@ -209,11 +209,6 @@ function node_entity_view_display_alter(EntityViewDisplayInterface $display, $co
 function node_entity_form_display_alter(EntityFormDisplayInterface $form_display, $context) {
   if ($context['entity_type'] == 'node') {
     $node_type = node_type_load($context['bundle']);
-    // @todo Reconsider when per-bundle overrides of field definitions are
-    //   possible - https://drupal.org/node/2114707.
-    if (!$node_type->has_title) {
-      $form_display->removeComponent('title');
-    }
   }
 }
 
@@ -391,8 +386,7 @@ function node_add_body_field(NodeTypeInterface $type, $label = 'Body') {
   }
   if (empty($instance)) {
     $instance = entity_create('field_instance_config', array(
-      'field_name' => 'body',
-      'entity_type' => 'node',
+      'field' => $field,
       'bundle' => $type->id(),
       'label' => $label,
       'settings' => array('display_summary' => TRUE),
@@ -708,6 +702,7 @@ function node_permission() {
     ),
     'administer content types' => array(
       'title' => t('Administer content types'),
+      'description' => t('Promote, change ownership, edit revisions, and perform other tasks across all content types.'),
       'restrict access' => TRUE,
     ),
     'administer nodes' => array(
@@ -1029,7 +1024,7 @@ function node_block_access(Block $block, $operation, AccountInterface $account, 
  */
 function node_feed($nids = FALSE, $channel = array()) {
   global $base_url;
-  $language_content = \Drupal::languageManager()->getCurrentLanguage(Language::TYPE_CONTENT);
+  $language_content = \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_CONTENT);
   $rss_config = \Drupal::config('system.rss');
 
   if ($nids === FALSE) {

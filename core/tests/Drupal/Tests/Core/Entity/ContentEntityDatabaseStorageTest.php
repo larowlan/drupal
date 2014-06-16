@@ -291,6 +291,7 @@ class ContentEntityDatabaseStorageTest extends UnitTestCase {
           ),
         ),
         'primary key' => array('id'),
+        'unique keys' => array(),
         'indexes' => array(),
         'foreign keys' => array(),
       ),
@@ -489,11 +490,11 @@ class ContentEntityDatabaseStorageTest extends UnitTestCase {
       array(),
       array('revision_timestamp'),
       array('revision_uid'),
-      array('log'),
+      array('revision_log'),
       array('revision_timestamp', 'revision_uid'),
-      array('revision_timestamp', 'log'),
-      array('revision_uid', 'log'),
-      array('revision_timestamp', 'revision_uid', 'log'),
+      array('revision_timestamp', 'revision_log'),
+      array('revision_uid', 'revision_log'),
+      array('revision_timestamp', 'revision_uid', 'revision_log'),
     );
     foreach ($test_cases as $revision_metadata_field_names) {
       $this->setUp();
@@ -796,11 +797,11 @@ class ContentEntityDatabaseStorageTest extends UnitTestCase {
       array(),
       array('revision_timestamp'),
       array('revision_uid'),
-      array('log'),
+      array('revision_log'),
       array('revision_timestamp', 'revision_uid'),
-      array('revision_timestamp', 'log'),
-      array('revision_uid', 'log'),
-      array('revision_timestamp', 'revision_uid', 'log'),
+      array('revision_timestamp', 'revision_log'),
+      array('revision_uid', 'revision_log'),
+      array('revision_timestamp', 'revision_uid', 'revision_log'),
     );
     foreach ($test_cases as $revision_metadata_field_names) {
       $this->setUp();
@@ -973,6 +974,7 @@ class ContentEntityDatabaseStorageTest extends UnitTestCase {
           'not null' => FALSE,
         ),
       ),
+      'unique keys' => array(),
       'indexes' => array(),
       'foreign keys' => array(),
     );

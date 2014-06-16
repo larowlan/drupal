@@ -7,8 +7,7 @@
 
 namespace Drupal\serialization\Tests;
 
-use Drupal\Core\Language\Language;
-use Symfony\Component\Serializer\Serializer;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\Component\Utility\String;
 
 /**
@@ -84,7 +83,7 @@ class EntitySerializationTest extends NormalizerTestBase {
         array('value' => $this->entity->uuid()),
       ),
       'langcode' => array(
-        array('value' => Language::LANGCODE_NOT_SPECIFIED),
+        array('value' => LanguageInterface::LANGCODE_NOT_SPECIFIED),
       ),
       'name' => array(
         array('value' => $this->values['name']),
@@ -139,7 +138,7 @@ class EntitySerializationTest extends NormalizerTestBase {
     $expected = array(
       'id' => '<id><value>' . $this->entity->id() . '</value></id>',
       'uuid' => '<uuid><value>' . $this->entity->uuid() . '</value></uuid>',
-      'langcode' => '<langcode><value>' . Language::LANGCODE_NOT_SPECIFIED . '</value></langcode>',
+      'langcode' => '<langcode><value>' . LanguageInterface::LANGCODE_NOT_SPECIFIED . '</value></langcode>',
       'name' => '<name><value>' . $this->values['name'] . '</value></name>',
       'type' => '<type><value>entity_test_mulrev</value></type>',
       'user_id' => '<user_id><target_id>' . $this->values['user_id'] . '</target_id></user_id>',

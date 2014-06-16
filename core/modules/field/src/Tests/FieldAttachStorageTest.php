@@ -10,6 +10,8 @@ use Drupal\field\Entity\FieldInstanceConfig;
 
 /**
  * Unit test class for storage-related field behavior.
+ *
+ * @todo move this to the Entity module
  */
 class FieldAttachStorageTest extends FieldUnitTestBase {
 
@@ -218,7 +220,7 @@ class FieldAttachStorageTest extends FieldUnitTestBase {
 
     // Verify that fields are populated with default values.
     $entity_init = entity_create($entity_type, array('id' => 1, 'revision_id' => 1));
-    $default = field_test_default_value($entity_init, $this->field, $this->instance);
+    $default = field_test_default_value($entity_init, $this->instance);
     $this->assertEqual($entity_init->{$this->field_name}->getValue(), $default, 'Default field value correctly populated.');
 
     // Insert: Field is NULL.

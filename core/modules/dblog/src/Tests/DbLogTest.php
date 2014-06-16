@@ -8,7 +8,6 @@
 namespace Drupal\dblog\Tests;
 
 use Drupal\Component\Utility\Xss;
-use Drupal\Core\Language\Language;
 use Drupal\dblog\Controller\DbLogController;
 use Drupal\simpletest\MinkNodeElementDecorator;
 use Drupal\simpletest\WebTestBase;
@@ -71,6 +70,7 @@ class DbLogTest extends WebTestBase {
     $this->verifyCron($row_limit);
     $this->verifyEvents();
     $this->verifyReports();
+    $this->verifyBreadcrumbs();
 
     // Login the regular user.
     $this->drupalLogin($this->any_user);
@@ -187,11 +187,23 @@ class DbLogTest extends WebTestBase {
 
     // View the database log event page.
     $wid = db_query('SELECT MIN(wid) FROM {watchdog}')->fetchField();
-    $this->drupalGet('admin/reports/event/' . $wid);
+    $this->drupalGet('admin/reports/dblog/event/' . $wid);
     $this->assertResponse($response);
     if ($response == 200) {
       $this->assertText(t('Details'), 'DBLog event node was displayed');
     }
+
+  }
+
+  /**
+   * Generates and then verifies breadcrumbs.
+   */
+  private function verifyBreadcrumbs() {
+    // View the database log event page.
+    $wid = db_query('SELECT MIN(wid) FROM {watchdog}')->fetchField();
+    $this->drupalGet('admin/reports/dblog/event/' . $wid);
+    $xpath = '//nav[@class="breadcrumb"]/ol/li[last()]/a';
+    $this->assertEqual(current($this->xpath($xpath)), 'Recent log messages', 'DBLogs link displayed at breadcrumb in event page.');
   }
 
   /**

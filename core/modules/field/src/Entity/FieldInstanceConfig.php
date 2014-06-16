@@ -9,7 +9,7 @@ namespace Drupal\field\Entity;
 
 use Drupal\Component\Utility\String;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Field\FieldDefinition;
 use Drupal\Core\Field\TypedData\FieldItemDataDefinition;
@@ -154,14 +154,10 @@ class FieldInstanceConfig extends ConfigEntityBase implements FieldInstanceConfi
    * The name of a callback function that returns default values.
    *
    * The function will be called with the following arguments:
-   * - \Drupal\Core\Entity\EntityInterface $entity
+   * - \Drupal\Core\Entity\ContentEntityInterface $entity
    *   The entity being created.
-   * - \Drupal\field\Entity\FieldConfig $field
-   *   The field object.
-   * - \Drupal\field\Entity\FieldInstanceConfig $instance
-   *   The field instance object.
-   * - string $langcode
-   *   The language of the entity being created.
+   * - \Drupal\Core\Field\FieldDefinitionInterface $definition
+   *   The field definition.
    * It should return an array of default values, in the same format as the
    * $default_value property.
    *
@@ -211,36 +207,45 @@ class FieldInstanceConfig extends ConfigEntityBase implements FieldInstanceConfi
   /**
    * Constructs a FieldInstanceConfig object.
    *
-   * @param array $values
-   *   An array of field instance properties, keyed by property name. Most
-   *   array elements will be used to set the corresponding properties on the
-   *   class; see the class property documentation for details. Some array
-   *   elements have special meanings and a few are required; these special
-   *   elements are:
-   *   - field_name: The name of the field this is an instance of. This only
-   *     supports non-deleted fields.
-   *   - field_uuid: (optional) The uuid of the field this is an instance of.
-   *     If present and the instance is marked as 'deleted', this has priority
-   *     over the 'field_name' value for retrieving the related field.
-   *   - entity_type: required.
-   *   - bundle: required.
-   *
    * In most cases, Field instance entities are created via
    * entity_create('field_instance_config', $values), where $values is the same
    * parameter as in this constructor.
    *
-   * @see entity_create()
+   * @param array $values
+   *   An array of field instance properties, keyed by property name. The field
+   *   this is an instance of can be specified either with:
+   *   - field: the FieldConfigInterface object,
+   *   or by referring to an existing field in the current configuration with:
+   *   - field_name: The field name.
+   *   - entity_type: The entity type.
+   *   Additionally, a 'bundle' property is required to indicate the entity
+   *   bundle to which the instance is attached to. Other array elements will be
+   *   used to set the corresponding properties on the class; see the class
+   *   property documentation for details.
    *
-   * @ingroup field_crud
+   * @see entity_create()
    */
   public function __construct(array $values, $entity_type = 'field_instance_config') {
-    // Check required properties.
-    if (empty($values['field_name'])) {
-      throw new FieldException('Attempt to create an instance of a field without a field_name.');
+    // Allow either an injected FieldConfig object, or a field_name and
+    // entity_type.
+    if (isset($values['field'])) {
+      if (!$values['field'] instanceof FieldConfigInterface) {
+        throw new FieldException('Attempt to create a configurable instance of a non-configurable field.');
+      }
+      $field = $values['field'];
+      $values['field_name'] = $field->getName();
+      $values['entity_type'] = $field->getTargetEntityTypeId();
+      $this->field = $field;
     }
-    if (empty($values['entity_type'])) {
-      throw new FieldException(String::format('Attempt to create an instance of field @field_name without an entity_type.', array('@field_name' => $values['field_name'])));
+    else {
+      if (empty($values['field_name'])) {
+        throw new FieldException('Attempt to create an instance of a field without a field_name.');
+      }
+      if (empty($values['entity_type'])) {
+        throw new FieldException(String::format('Attempt to create an instance of field @field_name without an entity_type.', array('@field_name' => $values['field_name'])));
+      }
     }
+    // 'bundle' is required in either case.
     if (empty($values['bundle'])) {
       throw new FieldException(String::format('Attempt to create an instance of field @field_name without a bundle.', array('@field_name' => $values['field_name'])));
     }
@@ -263,34 +268,10 @@ class FieldInstanceConfig extends ConfigEntityBase implements FieldInstanceConfi
    * {@inheritdoc}
    */
   public function toArray() {
-    $names = array(
-      'uuid',
-      'status',
-      'langcode',
-      'field_uuid',
-      'field_name',
-      'entity_type',
-      'bundle',
-      'label',
-      'description',
-      'required',
-      'default_value',
-      'default_value_function',
-      'settings',
-      'dependencies',
-    );
-    $properties = array(
-      'id' => $this->id(),
-    );
-    foreach ($names as $name) {
-      $properties[$name] = $this->get($name);
-    }
-
+    $properties = parent::toArray();
     // Additionally, include the field type, that is needed to be able to
     // generate the field-type-dependant parts of the config schema.
-    if (isset($this->field->type)) {
-      $properties['field_type'] = $this->field->type;
-    }
+    $properties['field_type'] = $this->getType();
 
     return $properties;
   }
@@ -471,31 +452,14 @@ class FieldInstanceConfig extends ConfigEntityBase implements FieldInstanceConfi
    */
   public function getField() {
     if (!$this->field) {
-      // Load the corresponding field.
-      // - If the instance is deleted (case of field purge), load the field
-      //   based on the UUID.
-      // - Otherwise (regular case), fetch the field from the EntityManager
-      //   registry.
-      if (!empty($this->deleted)) {
-        if ($fields = entity_load_multiple_by_properties('field_config', array('uuid' => $this->field_uuid, 'include_deleted' => TRUE))) {
-          $field = current($fields);
-        }
-        else {
-          throw new FieldException(String::format('Attempt to create an instance of field @field_name that does not exist on entity type @entity_type.', array('@field_name' => $this->field_name, '@entity_type' => $this->entity_type)));
-        }
+      $fields = \Drupal::entityManager()->getFieldStorageDefinitions($this->entity_type);
+      if (!isset($fields[$this->field_name])) {
+        throw new FieldException(String::format('Attempt to create an instance of field @field_name that does not exist on entity type @entity_type.', array('@field_name' => $this->field_name, '@entity_type' => $this->entity_type)));
       }
-      else {
-        $fields = \Drupal::entityManager()->getFieldStorageDefinitions($this->entity_type);
-        if (!isset($fields[$this->field_name])) {
-          throw new FieldException(String::format('Attempt to create an instance of field @field_name that does not exist on entity type @entity_type.', array('@field_name' => $this->field_name, '@entity_type' => $this->entity_type)));
-        }
-        if (!$fields[$this->field_name] instanceof FieldConfigInterface) {
-          throw new FieldException(String::format('Attempt to create a configurable instance of non-configurable field @field_name.', array('@field_name' => $this->field_name, '@entity_type' => $this->entity_type)));
-        }
-        $field = $fields[$this->field_name];
+      if (!$fields[$this->field_name] instanceof FieldConfigInterface) {
+        throw new FieldException(String::format('Attempt to create a configurable instance of non-configurable field @field_name.', array('@field_name' => $this->field_name, '@entity_type' => $this->entity_type)));
       }
-
-      $this->field = $field;
+      $this->field = $fields[$this->field_name];
     }
 
     return $this->field;
@@ -512,7 +476,7 @@ class FieldInstanceConfig extends ConfigEntityBase implements FieldInstanceConfi
    * {@inheritdoc}
    */
   public function getType() {
-    return $this->getField()->type;
+    return $this->getField()->getType();
   }
 
   /**
@@ -620,14 +584,17 @@ class FieldInstanceConfig extends ConfigEntityBase implements FieldInstanceConfi
   /**
    * {@inheritdoc}
    */
-  public function getDefaultValue(EntityInterface $entity) {
-    if (!empty($this->default_value_function)) {
-      $function = $this->default_value_function;
-      return $function($entity, $this->getField(), $this, $entity->language()->id);
+  public function getDefaultValue(ContentEntityInterface $entity) {
+    // Allow custom default values function.
+    if ($function = $this->default_value_function) {
+      $value = call_user_func($function, $entity, $this);
     }
-    elseif (!empty($this->default_value)) {
-      return $this->default_value;
+    else {
+      $value = $this->default_value;
     }
+    // Allow the field type to process default values.
+    $field_item_list_class = $this->getClass();
+    return $field_item_list_class::processDefaultValue($value, $entity, $this);
   }
 
   /**
@@ -682,7 +649,10 @@ class FieldInstanceConfig extends ConfigEntityBase implements FieldInstanceConfi
    */
   public function __sleep() {
     // Only serialize properties from self::toArray().
-    return array_keys(array_intersect_key($this->toArray(), get_object_vars($this)));
+    $properties = array_keys(array_intersect_key($this->toArray(), get_object_vars($this)));
+    // Serialize $entityTypeId property so that toArray() works when waking up.
+    $properties[] = 'entityTypeId';
+    return $properties;
   }
 
   /**

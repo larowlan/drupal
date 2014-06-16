@@ -152,7 +152,7 @@ class ImageItem extends FileItem {
   /**
    * {@inheritdoc}
    */
-  public function settingsForm(array $form, array &$form_state, $has_data) {
+  public function settingsForm(array &$form, array &$form_state, $has_data) {
     $element = array();
 
     // We need the field-level 'default_image' setting, and $this->getSettings()
@@ -303,7 +303,7 @@ class ImageItem extends FileItem {
     // Determine the dimensions if necessary.
     if (empty($width) || empty($height)) {
       $image = \Drupal::service('image.factory')->get($this->entity->getFileUri());
-      if ($image->isSupported()) {
+      if ($image->isValid()) {
         $this->width = $image->getWidth();
         $this->height =$image->getHeight();
       }
