@@ -77,7 +77,7 @@ class BlockContentCreationTest extends BlockContentTestBase {
 
     // Go to the configure page and verify that the new view mode is correct.
     $this->drupalGet('admin/structure/block/manage/testblock');
-    $this->assertFieldByXPath('//select[@name="settings[block_content][view_mode]"]/option[@selected="selected"]/@value', 'test_view_mode', 'View mode changed to Test View Mode');
+    $this->assertFieldByXPath('//select[@name="settings[block_content][view_mode]"]/option[@selected="selected"]', 'test_view_mode', 'View mode changed to Test View Mode');
 
     // Test the available view mode options.
     $this->assertOption('edit-settings-block-content-view-mode', 'default', 'The default view mode is available.');
