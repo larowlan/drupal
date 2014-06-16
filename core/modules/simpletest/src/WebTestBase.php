@@ -3269,7 +3269,12 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
         foreach ($fields as $field) {
           try {
             $type = $field->getAttribute('type');
-            if ($type == 'radio' || $type == 'checkbox') {
+            // Handle flag checkbox.
+            if ($type == 'checkbox' && is_bool($value) && count($fields) === 1) {
+              $checked = $field->getAttribute('checked') || $field->isChecked();
+              $found = $value ? $checked : !$checked;
+            }
+            elseif ($type == 'radio' || $type == 'checkbox') {
               if ($field->getAttribute('value') == $value && ($field->getAttribute('checked') || $field->isChecked())) {
                 $found = TRUE;
               }
