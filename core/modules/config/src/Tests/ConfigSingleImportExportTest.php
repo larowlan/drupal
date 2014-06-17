@@ -173,6 +173,7 @@ EOD;
    *   TRUE if the assertion succeeded, FALSE otherwise.
    */
   protected function assertTextArea($name, $value, $message) {
+    // @todo Remove this hack, as may want to use another driver for example.
     $xpath = '//textarea[@name="' . $name . '"]/text()';
     $xpath = $this->buildXPathQuery($xpath);
     $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
