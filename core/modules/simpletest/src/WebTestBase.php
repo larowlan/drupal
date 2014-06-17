@@ -2499,21 +2499,16 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @return
    *   Option elements in select.
    */
-  protected function getAllOptions(\SimpleXMLElement $element) {
-    // @todo larowlan refactor around Mink
-    $options = array();
-    // Add all options items.
-    foreach ($element->option as $option) {
-      $options[] = $option;
+  protected function getAllOptions($element) {
+    $options = $element->findAll('css', 'option');
+    $decorated = array();
+    foreach ($options as $option) {
+      $decorated[] = MinkNodeElementDecorator::decorate($option);
     }
-
-    // Search option group children.
-    if (isset($element->optgroup)) {
-      foreach ($element->optgroup as $group) {
-        $options = array_merge($options, $this->getAllOptions($group));
-      }
+    if (count($decorated) === 1) {
+      return $decorated[0];
     }
-    return $options;
+    return MinkNodeElementCollectionDecorator::decorate($decorated);
   }
 
   /**
