@@ -136,13 +136,14 @@ EOD;
     $element = $this->xpath('//select[@name="config_name"]');
     $options = $this->getAllOptions($element[0]);
     $expected_options = array('system.site', 'user.settings');
-    foreach ($options as &$option) {
-      $option = (string) $option;
+    $option_values = array();
+    foreach ($options as $option) {
+      $option_values[] = $option->getAttribute('value');
     }
-    $this->assertIdentical($expected_options, array_intersect($expected_options, $options), 'The expected configuration files are listed.');
+    $this->assertIdentical($expected_options, array_intersect($expected_options, $option_values), 'The expected configuration files are listed.');
 
     $this->drupalGet('admin/config/development/configuration/single/export/system.simple/system.image');
-    $this->assertFieldByXPath('//textarea[@name="export"]', "toolkit: gd\n", 'The expected system configuration is displayed.');
+    $this->assertTextArea('export', "toolkit: gd\n", 'The expected system configuration is displayed.');
 
     $this->drupalGet('admin/config/development/configuration/single/export/date_format');
     $this->assertFieldByXPath('//select[@name="config_type"]//option[@selected="selected"]', t('Date format'), 'The date format entity type is selected when specified in the URL.');
@@ -152,7 +153,40 @@ EOD;
 
     $fallback_date = \Drupal::entityManager()->getStorage('date_format')->load('fallback');
     $data = Yaml::encode($fallback_date->toArray());
-    $this->assertFieldByXPath('//textarea[@name="export"]', $data, 'The fallback date format config entity export code is displayed.');
+    $this->assertTextArea('export', $data, 'The fallback date format config entity export code is displayed.');
   }
 
+  /**
+   * Assert textarea matches an expected value.
+   *
+   * BrowserKitDriver expects a form to have a submit button. Configuration
+   * export does not, therefore this is work around to testing textarea value.
+   *
+   * @param string $name
+   *   Name of textarea field.
+   * @param string $value
+   *   Expected value.
+   * @param string $message
+   *   A message to display with the assertion.
+   *
+   * @return bool
+   *   TRUE if the assertion succeeded, FALSE otherwise.
+   */
+  protected function assertTextArea($name, $value, $message) {
+    $xpath = '//textarea[@name="' . $name . '"]/text()';
+    $xpath = $this->buildXPathQuery($xpath);
+    $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
+    if (empty($elements)) {
+      return $this->assert(FALSE, $message);
+    }
+    $reflection = new \ReflectionClass($this->getSession()->getDriver());
+    $method = $reflection->getMethod('getCrawler');
+    $method->setAccessible(TRUE);
+    $crawler = $method->invoke($this->getSession()->getDriver());
+    $text = '';
+    foreach ($elements as $element) {
+      $text .= $crawler->filterXPath($element->getXpath())->eq(0)->text();
+    }
+    return $this->assertEqual($value, $text, $message);
+  }
 }
