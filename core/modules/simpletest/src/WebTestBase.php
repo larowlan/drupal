@@ -2496,7 +2496,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @param $element
    *   The element for which to get the options.
    *
-   * @return
+   * @return NodeElement[]
    *   Option elements in select.
    */
   protected function getAllOptions($element) {
@@ -3251,42 +3251,36 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertFieldByXPath($xpath, $value = NULL, $message = '', $group = 'Other') {
-    /** @var \Behat\Mink\Element\NodeElement[] $fields */
-    $fields = $this->xpath($xpath);
+    $xpath = $this->buildXPathQuery($xpath);
+    $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
+    if (!isset($value)) {
+      return $this->assert(!empty($elements), $message, $group);
+    }
+    if (empty($elements)) {
+      return $this->assert(FALSE, $message, $group);
+    }
 
-    // If value specified then check array for match.
-    $found = TRUE;
-    if (isset($value)) {
-      $found = FALSE;
-      if ($fields) {
-        foreach ($fields as $field) {
-          try {
-            $type = $field->getAttribute('type');
-            // Handle flag checkbox.
-            if ($type == 'checkbox' && is_bool($value) && count($fields) === 1) {
-              $checked = $field->getAttribute('checked') || $field->isChecked();
-              $found = $value ? $checked : !$checked;
-            }
-            elseif ($type == 'radio' || $type == 'checkbox') {
-              if ($field->getAttribute('value') == $value && ($field->getAttribute('checked') || $field->isChecked())) {
-                $found = TRUE;
-              }
-            }
-            elseif ($field->getValue() == $value) {
-              // Input element with correct value.
-              $found = TRUE;
-            }
-          }
-          catch (\LogicException $e) {
-            // Method called on a non-form field, fallback to text value.
-            if ($field->getText() == $value) {
-              $found = TRUE;
-            }
-          }
+    /** @var $element NodeElement */
+    foreach ($elements as $element) {
+      $tag_name = $element->getTagName();
+      if ($tag_name == 'option') {
+        if ($element->hasAttribute('selected') && ($element->getAttribute('value') == $value || $element->getText() == $value)) {
+          return $this->assert(TRUE, $message, $group);
+        }
+      }
+      elseif (in_array($tag_name, array('input', 'textarea', 'select'))) {
+        if ($element->getValue() == $value) {
+          // Form field with correct value.
+          return $this->assert(TRUE, $message, $group);
+        }
+      }
+      else {
+        if ($element->getText() == $value) {
+          return $this->assert(TRUE, $message, $group);
         }
       }
     }
-    return $this->assertTrue($fields && $found, $message, $group);
+    return $this->assert(FALSE, $message, $group);
   }
 
   /**
