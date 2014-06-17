@@ -268,53 +268,100 @@
  * @{
  * Describes how to define and manipulate content and configuration entities.
  *
- * @todo Add an overview here, describing what an entity is, bundles, entity
- *   types, etc. at an overview level. And link to more detailed documentation:
- *   https://drupal.org/developing/api/entity
- *
- * @section types Types of entities
- * Entities can be used to store content or configuration information. See the
+ * Entities, in Drupal, are objects that are used for persistent storage of
+ * content and configuration information. See the
  * @link architecture Drupal's architecture topic @endlink for an overview of
  * the different types of information, and the
  * @link config_api Configuration API topic @endlink for more about the
- * configuration API. Defining and manipulating content and configuration
- * entities is very similar, and this is described in the sections below.
+ * configuration API.
+ *
+ * Each entity is an instance of a particular "entity type". Some content entity
+ * types have sub-types, which are known as "bundles", while for other entity
+ * types, there is only a single bundle. For example, the Node content entity
+ * type, which is used for the main content pages in Drupal, has bundles that
+ * are known as "content types", while the User content type, which is used for
+ * user accounts, has only one bundle.
+ *
+ * The sections below have more information about entities and the Entity API;
+ * for more detailed information, see https://drupal.org/developing/api/entity
  *
  * @section define Defining an entity type
- *
- * @todo This section was written for Config entities. Add information about
- *   content entities to each item, and add additional items that are relevant
- *   to content entities, making sure to say they are not needed for config
- *   entities, such as view page controllers, etc.
- *
- * Here are the steps to follow to define a new entity type:
+ * Entity types are defined by modules, using Drupal's Plugin API (see the
+ * @link plugins Plugin API topic @endlink for more information about plugins
+ * in general). Here are the steps to follow to define a new entity type:
  * - Choose a unique machine name, or ID, for your entity type. This normally
  *   starts with (or is the same as) your module's machine name. It should be
  *   as short as possible, and may not exceed 32 characters.
  * - Define an interface for your entity's get/set methods, extending either
- *   \Drupal\Core\Config\Entity\ConfigEntityInterface or [content entity
- *   interface].
+ *   \Drupal\Core\Config\Entity\ConfigEntityInterface or
+ *   \Drupal\Core\Entity\ContentEntityInterface.
  * - Define a class for your entity, implementing your interface and extending
- *   either \Drupal\Core\Config\Entity\ConfigEntityBase or [content entity
- *   class] , with annotation for \@ConfigEntityType or [content entity
- *   annotation] in its documentation block.
+ *   either \Drupal\Core\Config\Entity\ConfigEntityBase or
+ *   \Drupal\Core\Entity\ContentEntityBase, with annotation for
+ *   \@ConfigEntityType or \@ContentEntityType in its documentation block.
  * - The 'id' annotation gives the entity type ID, and the 'label' annotation
- *   gives the human-readable name of the entity type.
+ *   gives the human-readable name of the entity type. If you are defining a
+ *   content entity type that uses bundles, the 'bundle_label' annotation gives
+ *   the human-readable name to use for a bundle of this entity type (for
+ *   example, "Content type" for the Node entity).
  * - The annotation will refer to several controller classes, which you will
  *   also need to define:
  *   - list_builder: Define a class that extends
- *     \Drupal\Core\Config\Entity\ConfigEntityListBuilder or [content entity
-       list builder], to provide an administrative overview for your entities.
+ *     \Drupal\Core\Config\Entity\ConfigEntityListBuilder (for configuration
+ *     entities) or \Drupal\Core\Entity\EntityListBuilder (for content
+ *     entities), to provide an administrative overview for your entities.
  *   - add and edit forms, or default form: Define a class (or two) that
  *     extend(s) \Drupal\Core\Entity\EntityForm to provide add and edit forms
  *     for your entities.
  *   - delete form: Define a class that extends
  *     \Drupal\Core\Entity\EntityConfirmFormBase to provide a delete
  *     confirmation form for your entities.
+ *   - view_buider: For content entities, define a class that extends
+ *     \Drupal\Core\Entity\EntityViewBuilder, to display a single entity.
+ *   - translation: For translatable content entities (if the 'translatable'
+ *     annotation has value TRUE), define a class that extends
+ *     \Drupal\content_translation\ContentTranslationHandler, to translate
+ *     the content. Configuration translation is handled automatically by the
+ *     Configuration Translation module, without the need of a controller class.
  *   - access: If your configuration entity has complex permissions, you might
  *     need an access controller, implementing
  *     \Drupal\Core\Entity\EntityAccessControllerInterface, but most entities
  *     can just use the 'admin_permission' annotation instead.
+ * - For content entities, the annotation will refer to a number of database
+ *   tables and their fields. These annotation properties, such as 'base_table',
+ *   'data_table', 'entity_keys', etc., are documented on
+ *   \Drupal\Core\Entity\EntityType. Your module will also need to set up its
+ *   database tables using hook_schema().
+ * - For content entities that are displayed on their own pages, the annotation
+ *   will refer to a 'uri_callback' function, which takes an object of the
+ *   entity interface you have defined as its parameter, and returns routing
+ *   information for the entity page; see node_uri() for an example. You will
+ *   also need to add a corresponding route to your module's routing.yml file;
+ *   see the node.view route in node.routing.yml for an example, and see the
+ *   @link menu Menu and routing @endlink topic for more information about
+ *   routing.
+ * - Define routing and links for the various URLs associated with the entity.
+ *   These go into the 'links' annotation, with the link type as the key, and
+ *   the route machine name (defined in your module's routing.yml file) as the
+ *   value. Typical link types are:
+ *   - canonical: Default link, either to view (if entities are viewed on their
+ *     own pages) or edit the entity.
+ *   - delete-form: Confirmation form to delete the entity.
+ *   - edit-form: Editing form.
+ *   - admin-form: Form for editing bundle or entity type settings.
+ *   - Other link types specific to your entity type can also be defined.
+ * - If your content entity has bundles, you will also need to define a second
+ *   plugin to handle the bundles. This plugin is itself a configuration entity
+ *   type, so follow the steps here to define it. The machine name ('id'
+ *   annotation) of this configuration entity class goes into the
+ *   'bundle_entity_type' annotation on the entity type class. For example, for
+ *   the Node entity, the bundle class is \Drupal\node\Entity\NodeType, whose
+ *   machine name is 'node_type'. This is the annotation value for
+ *  'bundle_entity_type' on the \Drupal\node\Entity\Node class.
+ * - Additional annotations can be seen on entity class examples such as
+ *   \Drupal\node\Entity\Node (content) and \Drupal\user\Entity\Role
+ *   (configuration). These annotations are documented on
+ *   \Drupal\Core\Entity\EntityType.
  *
  * @section load_query Loading and querying entities
  * To load entities, use the entity storage manager, which is a class
@@ -323,6 +370,8 @@
  * @code
  * $storage = \Drupal::entityManager()->getStorage('your_entity_type');
  * @endcode
+ * Here, 'your_entity_type' is the machine name of your entity type ('id'
+ * annotation on the entity class).
  *
  * To query to find entities to load, use an entity query, which is a class
  * implementing \Drupal\Core\Entity\Query\QueryInterface that you can retrieve
@@ -330,9 +379,6 @@
  * @code
  * $storage = \Drupal::entityQuery('your_entity_type');
  * @endcode
- *
- * @todo Add additional relevant classes and interfaces to this topic using
- *   ingroup.
  * @}
  */
 
@@ -672,14 +718,60 @@
 /**
  * @defgroup typed_data Typed Data API
  * @{
- * API for defining what type of data is used in fields, configuration, etc.
+ * API for describing data based on a set of available data types.
  *
- * @todo write this
+ * The Typed Data API was created to provide developers with a consistent
+ * interface for interacting with data, as well as an API for metadata
+ * (information about the data, such as the data type, whether it is
+ * translatable, and who can access it). The Typed Data API is used in several
+ * Drupal sub-systems, such as the Entity Field API and Configuration API.
  *
- * Additional documentation paragraphs need to be written, and functions,
- * classes, and interfaces need to be added to this topic.
+ * See https://drupal.org/node/1794140 for more information about the Typed
+ * Data API.
  *
- * See https://drupal.org/node/1794140
+ * @section interfaces Interfaces and classes in the Typed Data API
+ * There are several basic interfaces in the Typed Data API, representing
+ * different types of data:
+ * - \Drupal\Core\TypedData\PrimitiveInterface: Used for primitive data, such
+ *   as strings, numeric types, etc. Drupal provides primitive types for
+ *   integers, strings, etc. based on this interface, and you should
+ *   not ever need to create new primitive types.
+ * - \Drupal\Core\TypedData\TypedDataInterface: Used for single pieces of data,
+ *   with some information about its context. Abstract base class
+ *   \Drupal\Core\TypedData\TypedData is a useful starting point, and contains
+ *   documentation on how to extend it.
+ * - \Drupal\Core\TypedData\ComplexDataInterface: Used for complex data, which
+ *   contains named and typed properties; extends TypedDataInterface. Examples
+ *   of complex data include content entities and field items. See the
+ *   @link entity_api Entity API topic @endlink for more information about
+ *   entities; for most complex data, developers should use entities.
+ * - \Drupal\Core\TypedData\ListInterface: Used for a sequential list of other
+ *   typed data. Class \Drupal\Core\TypedData\Plugin\DataType\ItemList is a
+ *   generic implementation of this interface, and it is used by default for
+ *   data declared as a list of some other data type. You can also define a
+ *   custom list class, in which case ItemList is a useful base class.
+ *
+ * @section defining Defining data types
+ * To define a new data type:
+ * - Create a class that implements one of the Typed Data interfaces.
+ *   Typically, you will want to extend one of the classes listed in the
+ *   section above as a starting point.
+ * - Make your class into a DataType plugin. To do that, put it in namespace
+ *   \Drupal\yourmodule\Plugin\DataType (where "yourmodule" is your module's
+ *   short name), and add annotation of type
+ *   \Drupal\Core\TypedData\Annotation\DataType to the documentation header.
+ *   See the @link plugin_api Plugin API topic @endlink and the
+ *   @link annotation Annotations topic @endlink for more information.
+ *
+ * @section using Using data types
+ * The data types of the Typed Data API can be used in several ways, once they
+ * have been defined:
+ * - In the Field API, data types can be used as the class in the property
+ *   definition of the field. See the @link field Field API topic @endlink for
+ *   more information.
+ * - In configuration schema files, you can use the unique ID ('id' annotation)
+ *   from any DataType plugin class as the 'type' value for an entry. See the
+ *   @link config_api Confuration API topic @endlink for more information.
  * @}
  */
 
@@ -702,12 +794,96 @@
  * @{
  * Overview of PHPUnit tests and Simpletest tests.
  *
- * @todo write this
+ * The Drupal project has embraced a philosophy of using automated tests,
+ * consisting of both unit tests (which test the functionality of classes at a
+ * low level) and functional tests (which test the functionality of Drupal
+ * systems at a higher level, usually involving web output). The goal is to
+ * have test coverage for all or most of the components and features, and to
+ * run the automated tests before any code is changed or added, to make sure
+ * it doesn't break any existing functionality (regression testing).
  *
- * Additional documentation paragraphs need to be written, and functions,
- * classes, and interfaces need to be added to this topic.
+ * In order to implement this philosophy, developers need to do the following:
+ * - When making a patch to fix a bug, make sure that the bug fix patch includes
+ *   a test that fails without the code change and passes with the code change.
+ *   This helps reviewers understand what the bug is, demonstrates that the code
+ *   actually fixes the bug, and ensures the bug will not reappear due to later
+ *   code changes.
+ * - When making a patch to implement a new feature, include new unit and/or
+ *   functional tests in the patch. This serves to both demonstrate that the
+ *   code actually works, and ensure that later changes do not break the new
+ *   functionality.
  *
- * See https://drupal.org/simpletest and https://drupal.org/phpunit
+ * @section write_unit Writing PHPUnit tests for classes
+ * PHPUnit tests for classes are written using the industry-standard PHPUnit
+ * framework. Use a PHPUnit test to test functionality of a class if the Drupal
+ * environment (database, settings, etc.) and web browser are not needed for the
+ * test, or if the Drupal environment can be replaced by a "mock" object. To
+ * write a PHPUnit test:
+ * - Define a class that extends \Drupal\Tests\UnitTestCase.
+ * - The class name needs to end in the word Test.
+ * - The namespace must be a subspace/subdirectory of \Drupal\yourmodule\Tests,
+ *   where yourmodule is your module's machine name.
+ * - The test class file must be named and placed under the yourmodule/tests/src
+ *   directory, according to the PSR-4 standard.
+ * - Your test class needs a getInfo() method, which gives information about
+ *   the test.
+ * - Methods in your test class whose names start with 'test' are the actual
+ *   test cases. Each one should test a logical subset of the functionality.
+ * For more details, see:
+ * - https://drupal.org/phpunit for full documentation on how to write PHPUnit
+ *   tests for Drupal.
+ * - http://phpunit.de for general information on the PHPUnit framework.
+ * - @link oo_conventions Object-oriented programming topic @endlink for more
+ *   on PSR-4, namespaces, and where to place classes.
+ *
+ * @section write_functional Writing functional tests
+ * Functional tests are written using a Drupal-specific framework that is, for
+ * historical reasons, known as "Simpletest". Use a Simpletest test to test the
+ * functionality of sub-system of Drupal, if the functionality depends on the
+ * Drupal database and settings, or to test the web output of Drupal. To
+ * write a Simpletest test:
+ * - For functional tests of the web output of Drupal, define a class that
+ *   extends \Drupal\simpletest\WebTestBase, which contains an internal web
+ *   browser and defines many helpful test assertion methods that you can use
+ *   in your tests. You can specify modules to be enabled by defining a
+ *   $modules member variable -- keep in mind that by default, WebTestBase uses
+ *   a "testing" install profile, with a minimal set of modules enabled.
+ * - For functional tests that do not test web output, define a class that
+ *   extends \Drupal\simpletest\KernelTestBase. This class is much faster
+ *   than WebTestBase, because instead of making a full install of Drupal, it
+ *   uses an in-memory pseudo-installation (similar to what the installer and
+ *   update scripts use). To use this test class, you will need to create the
+ *   database tables you need and install needed modules manually.
+ * - The namespace must be a subspace/subdirectory of \Drupal\yourmodule\Tests,
+ *   where yourmodule is your module's machine name.
+ * - The test class file must be named and placed under the yourmodule/src/Tests
+ *   directory, according to the PSR-4 standard.
+ * - Your test class needs a getInfo() method, which gives information about
+ *   the test.
+ * - You may also override the default setUp() method, which can set be used to
+ *   set up content types and similar procedures.
+ * - In some cases, you may need to write a test module to support your test;
+ *   put such modules under the yourmodule/tests/modules directory.
+ * - Methods in your test class whose names start with 'test', and which have
+ *   no arguments, are the actual test cases. Each one should test a logical
+ *   subset of the functionality, and each one runs in a new, isolated test
+ *   environment, so it can only rely on the setUp() method, not what has
+ *   been set up by other test methods.
+ * For more details, see:
+ * - https://drupal.org/simpletest for full documentation on how to write
+ *   functional tests for Drupal.
+ * - @link oo_conventions Object-oriented programming topic @endlink for more
+ *   on PSR-4, namespaces, and where to place classes.
+ *
+ * @section running Running tests
+ * You can run both Simpletest and PHPUnit tests by enabling the core Testing
+ * module (core/modules/simpletest). Once that module is enabled, tests can be
+ * run usin the core/scripts/run-tests.sh script, using
+ * @link https://drupal.org/project/drush Drush @endlink, or from the Testing
+ * module user interface.
+ *
+ * PHPUnit tests can also be run from the command line, using the PHPUnit
+ * framework. See https://drupal.org/node/2116263 for more information.
  * @}
  */
 
