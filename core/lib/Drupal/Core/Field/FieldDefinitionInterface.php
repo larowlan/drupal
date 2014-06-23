@@ -52,7 +52,28 @@ use Drupal\Core\TypedData\ListDataDefinitionInterface;
  * based on that abstract definition, even though that abstract definition can
  * differ from the concrete definition of any particular node's body field.
  */
-interface FieldDefinitionInterface extends FieldStorageDefinitionInterface, ListDataDefinitionInterface {
+interface FieldDefinitionInterface extends ListDataDefinitionInterface {
+
+  /**
+   * Returns the machine name of the field.
+   *
+   * This defines how the field data is accessed from the entity. For example,
+   * if the field name is "foo", then $entity->foo returns its data.
+   *
+   * @return string
+   *   The field name.
+   */
+  public function getName();
+
+  /**
+   * Returns the field type.
+   *
+   * @return string
+   *   The field type, i.e. the id of a field type plugin. For example 'text'.
+   *
+   * @see \Drupal\Core\Field\FieldTypePluginManagerInterface
+   */
+  public function getType();
 
   /**
    * Returns whether the display for the field can be configured.
@@ -91,6 +112,8 @@ interface FieldDefinitionInterface extends FieldStorageDefinitionInterface, List
    *     for the field type will be used.
    *   - settings: (array) Settings for the plugin specified above. The default
    *     settings for the plugin will be used for settings left unspecified.
+   *   - third_party_settings: (array) Settings provided by other extensions
+   *     through hook_field_formatter_third_party_settings_form().
    *   - weight: (float) The weight of the element. Not needed if 'type' is
    *     'hidden'.
    *   The defaults of the various display options above get applied by the used
@@ -129,4 +152,29 @@ interface FieldDefinitionInterface extends FieldStorageDefinitionInterface, List
    */
   public function getDefaultValue(ContentEntityInterface $entity);
 
+  /**
+   * Returns whether the field is translatable.
+   *
+   * @return bool
+   *   TRUE if the field is translatable.
+   */
+  public function isTranslatable();
+
+  /**
+   * Sets whether the field is translatable.
+   *
+   * @param bool $translatable
+   *   Whether the field is translatable.
+   *
+   * @return $this
+   */
+  public function setTranslatable($translatable);
+
+  /**
+   * Returns the field storage definition.
+   *
+   * @return \Drupal\Core\Field\FieldStorageDefinitionInterface
+   *   The field storage definition.
+   */
+  public function getFieldStorageDefinition();
 }

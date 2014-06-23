@@ -7,9 +7,9 @@
 
 namespace Drupal\file\Tests;
 
-use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\field\Tests\FieldUnitTestBase;
 
 /**
@@ -49,7 +49,7 @@ class FileItemTest extends FieldUnitTestBase {
       'name' => 'file_test',
       'entity_type' => 'entity_test',
       'type' => 'file',
-      'cardinality' => FieldDefinitionInterface::CARDINALITY_UNLIMITED,
+      'cardinality' => FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED,
     ))->save();
     entity_create('field_instance_config', array(
       'entity_type' => 'entity_test',
@@ -82,6 +82,7 @@ class FileItemTest extends FieldUnitTestBase {
     $this->assertEqual($entity->file_test->display, 1);
     $this->assertEqual($entity->file_test->description, $description);
     $this->assertEqual($entity->file_test->entity->getFileUri(), $this->file->getFileUri());
+    $this->assertEqual($entity->file_test->entity->url(), $url = file_create_url($this->file->getFileUri()));
     $this->assertEqual($entity->file_test->entity->id(), $this->file->id());
     $this->assertEqual($entity->file_test->entity->uuid(), $this->file->uuid());
 

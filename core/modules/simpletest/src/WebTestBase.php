@@ -539,7 +539,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   @endcode
    *   The following defaults are provided:
    *   - label: Random string.
-   *   - id: Random string.
+   *   - ID: Random string.
    *   - region: 'sidebar_first'.
    *   - theme: The default theme.
    *   - visibility: Empty array.
@@ -564,10 +564,13 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
         'max_age' => 0,
       ),
     );
-    foreach (array('region', 'id', 'theme', 'plugin', 'visibility', 'weight') as $key) {
+    foreach (array('region', 'id', 'theme', 'plugin', 'weight') as $key) {
       $values[$key] = $settings[$key];
       // Remove extra values that do not belong in the settings array.
       unset($settings[$key]);
+    }
+    foreach ($settings['visibility'] as $id => $visibility) {
+      $settings['visibility'][$id]['id'] = $id;
     }
     $values['settings'] = $settings;
     $block = entity_create('block', $values);
@@ -3238,7 +3241,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @param $xpath
    *   XPath used to find the field.
    * @param $value
-   *   (optional) Value of the field to assert.
+   *   (optional) Value of the field to assert. You may pass in NULL (default)
+   *   to skip checking the actual value, while still checking that the field
+   *   exists.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3310,12 +3315,13 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Asserts that a field does not exist in the current page by the given XPath.
+   * Asserts that a field doesn't exist or its value doesn't match, by XPath.
    *
    * @param $xpath
    *   XPath used to find the field.
    * @param $value
-   *   (optional) Value of the field to assert.
+   *   (optional) Value for the field, to assert that the field's value on the
+   *   page doesn't match it.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3368,7 +3374,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @param $name
    *   Name of field to assert.
    * @param $value
-   *   Value of the field to assert.
+   *   (optional) Value of the field to assert. You may pass in NULL (default)
+   *   to skip checking the actual value, while still checking that the field
+   *   exists.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3405,7 +3413,10 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @param $name
    *   Name of field to assert.
    * @param $value
-   *   Value of the field to assert.
+   *   (optional) Value for the field, to assert that the field's value on the
+   *   page doesn't match it. You may pass in NULL to skip checking the
+   *   value, while still checking that the field doesn't exist. However, the
+   *   default value ('') asserts that the field value is not an empty string.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3424,12 +3435,15 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Asserts that a field exists with the given id and value.
+   * Asserts that a field exists with the given ID and value.
    *
    * @param $id
-   *   Id of field to assert.
+   *   ID of field to assert.
    * @param $value
-   *   Value of the field to assert.
+   *   (optional) Value for the field to assert. You may pass in NULL to skip
+   *   checking the value, while still checking that the field exists.
+   *   However, the default value ('') asserts that the field value is an empty
+   *   string.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3448,12 +3462,15 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Asserts that a field does not exist with the given id and value.
+   * Asserts that a field does not exist with the given ID and value.
    *
    * @param $id
-   *   Id of field to assert.
+   *   ID of field to assert.
    * @param $value
-   *   Value of the field to assert.
+   *   (optional) Value for the field, to assert that the field's value on the
+   *   page doesn't match it. You may pass in NULL to skip checking the value,
+   *   while still checking that the field doesn't exist. However, the default
+   *   value ('') asserts that the field value is not an empty string.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3475,7 +3492,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * Asserts that a checkbox field in the current page is checked.
    *
    * @param $id
-   *   Id of field to assert.
+   *   ID of field to assert.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3503,7 +3520,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * Asserts that a checkbox field in the current page is not checked.
    *
    * @param $id
-   *   Id of field to assert.
+   *   ID of field to assert.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3532,7 +3549,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * Asserts that a select option in the current page exists.
    *
    * @param $id
-   *   Id of select field to assert.
+   *   ID of select field to assert.
    * @param $option
    *   Option to assert.
    * @param $message
@@ -3557,7 +3574,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * Asserts that a select option in the current page does not exist.
    *
    * @param $id
-   *   Id of select field to assert.
+   *   ID of select field to assert.
    * @param $option
    *   Option to assert.
    * @param $message
@@ -3583,7 +3600,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * Asserts that a select option in the current page is checked.
    *
    * @param $id
-   *   Id of select field to assert.
+   *   ID of select field to assert.
    * @param $option
    *   Option to assert.
    * @param $message
@@ -3616,7 +3633,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * Asserts that a select option in the current page is not checked.
    *
    * @param $id
-   *   Id of select field to assert.
+   *   ID of select field to assert.
    * @param $option
    *   Option to assert.
    * @param $message
@@ -3638,10 +3655,10 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Asserts that a field exists with the given name or id.
+   * Asserts that a field exists with the given name or ID.
    *
    * @param $field
-   *   Name or id of field to assert.
+   *   Name or ID of field to assert.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not
@@ -3660,10 +3677,10 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Asserts that a field does not exist with the given name or id.
+   * Asserts that a field does not exist with the given name or ID.
    *
    * @param $field
-   *   Name or id of field to assert.
+   *   Name or ID of field to assert.
    * @param $message
    *   (optional) A message to display with the assertion. Do not translate
    *   messages: use format_string() to embed variables in the message text, not

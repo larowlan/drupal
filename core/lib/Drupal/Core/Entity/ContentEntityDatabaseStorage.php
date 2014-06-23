@@ -14,13 +14,12 @@ use Drupal\Core\Entity\Query\QueryInterface;
 use Drupal\Core\Entity\Schema\ContentEntitySchemaHandler;
 use Drupal\Core\Entity\Sql\DefaultTableMapping;
 use Drupal\Core\Entity\Sql\SqlEntityStorageInterface;
-use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\Language\LanguageInterface;
-use Drupal\field\FieldConfigUpdateForbiddenException;
-use Drupal\field\FieldConfigInterface;
-use Drupal\field\FieldInstanceConfigInterface;
 use Drupal\field\Entity\FieldConfig;
+use Drupal\field\FieldConfigInterface;
+use Drupal\field\FieldConfigUpdateForbiddenException;
+use Drupal\field\FieldInstanceConfigInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -38,13 +37,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * schema; e.g., to add additional indexes.
  */
 class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements SqlEntityStorageInterface {
-
-  /**
-   * The storage field definitions for this entity type.
-   *
-   * @var \Drupal\Core\Field\FieldStorageDefinitionInterface[]
-   */
-  protected $fieldStorageDefinitions;
 
   /**
    * The mapping of field columns to SQL tables.
@@ -130,6 +122,17 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
   }
 
   /**
+   * Gets the base field definitions for a content entity type.
+   *
+   * @return \Drupal\Core\Field\FieldDefinitionInterface[]
+   *   The array of base field definitions for the entity type, keyed by field
+   *   name.
+   */
+  public function getFieldStorageDefinitions() {
+    return $this->entityManager->getBaseFieldDefinitions($this->entityTypeId);
+  }
+
+  /**
    * Constructs a ContentEntityDatabaseStorage object.
    *
    * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
@@ -144,7 +147,6 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
 
     $this->database = $database;
     $this->entityManager = $entity_manager;
-    $this->fieldStorageDefinitions = $entity_manager->getBaseFieldDefinitions($entity_type->id());
 
     // @todo Remove table names from the entity type definition in
     //   https://drupal.org/node/2232465
@@ -236,11 +238,11 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
   public function getTableMapping() {
     if (!isset($this->tableMapping)) {
 
-      $definitions = array_filter($this->fieldStorageDefinitions, function (FieldDefinitionInterface $definition) {
+      $definitions = array_filter($this->getFieldStorageDefinitions(), function (FieldStorageDefinitionInterface $definition) {
         // @todo Remove the check for FieldDefinitionInterface::isMultiple() when
         //   multiple-value base fields are supported in
         //   https://drupal.org/node/2248977.
-        return !$definition->isComputed() && !$definition->hasCustomStorage() && !$definition->isMultiple();
+        return !$definition->hasCustomStorage() && !$definition->isMultiple();
       });
       $this->tableMapping = new DefaultTableMapping($definitions);
 
@@ -834,10 +836,10 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
     $table_mapping = $this->getTableMapping();
     foreach ($table_mapping->getFieldNames($table_name) as $field_name) {
 
-      if (empty($this->fieldStorageDefinitions[$field_name])) {
+      if (empty($this->getFieldStorageDefinitions()[$field_name])) {
         throw new EntityStorageException(String::format('Table mapping contains invalid field %field.', array('%field' => $field_name)));
       }
-      $definition = $this->fieldStorageDefinitions[$field_name];
+      $definition = $this->getFieldStorageDefinitions()[$field_name];
       $columns = $table_mapping->getColumnNames($field_name);
 
       foreach ($columns as $column_name => $schema_name) {
@@ -953,10 +955,12 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
 
     // Collect impacted fields.
     $fields = array();
+    $definitions = array();
     foreach ($bundles as $bundle => $v) {
-      foreach ($this->entityManager->getFieldDefinitions($this->entityTypeId, $bundle) as $field_name => $instance) {
+      $definitions[$bundle] = $this->entityManager->getFieldDefinitions($this->entityTypeId, $bundle);
+      foreach ($definitions[$bundle] as $field_name => $instance) {
         if ($instance instanceof FieldInstanceConfigInterface) {
-          $fields[$field_name] = $instance->getField();
+          $fields[$field_name] = $instance->getFieldStorageDefinition();
         }
       }
     }
@@ -979,10 +983,11 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
 
       $delta_count = array();
       foreach ($results as $row) {
+        $bundle = $entities[$row->entity_id]->bundle();
 
         // Ensure that records for non-translatable fields having invalid
         // languages are skipped.
-        if ($row->langcode == $default_langcodes[$row->entity_id] || $field->isTranslatable()) {
+        if ($row->langcode == $default_langcodes[$row->entity_id] || $definitions[$bundle][$field_name]->isTranslatable()) {
           if (!isset($delta_count[$row->entity_id][$row->langcode])) {
             $delta_count[$row->entity_id][$row->langcode] = 0;
           }
@@ -1025,7 +1030,7 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
       if (!($instance instanceof FieldInstanceConfigInterface)) {
         continue;
       }
-      $field = $instance->getField();
+      $field = $instance->getFieldStorageDefinition();
       $table_name = static::_fieldTableName($field);
       $revision_name = static::_fieldRevisionTableName($field);
 
@@ -1102,7 +1107,7 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
       if (!($instance instanceof FieldInstanceConfigInterface)) {
         continue;
       }
-      $field = $instance->getField();
+      $field = $instance->getFieldStorageDefinition();
       $table_name = static::_fieldTableName($field);
       $revision_name = static::_fieldRevisionTableName($field);
       $this->database->delete($table_name)
@@ -1124,7 +1129,7 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
         if (!($instance instanceof FieldInstanceConfigInterface)) {
           continue;
         }
-        $revision_name = static::_fieldRevisionTableName($instance->getField());
+        $revision_name = static::_fieldRevisionTableName($instance->getFieldStorageDefinition());
         $this->database->delete($revision_name)
           ->condition('entity_id', $entity->id())
           ->condition('revision_id', $vid)
@@ -1255,7 +1260,7 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
    * {@inheritdoc}
    */
   public function onInstanceDelete(FieldInstanceConfigInterface $instance) {
-    $field = $instance->getField();
+    $field = $instance->getFieldStorageDefinition();
     $table_name = static::_fieldTableName($field);
     $revision_name = static::_fieldRevisionTableName($field);
     $this->database->update($table_name)
@@ -1277,7 +1282,7 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
     // using the old bundle name.
     $instances = entity_load_multiple_by_properties('field_instance_config', array('entity_type' => $this->entityTypeId, 'bundle' => $bundle, 'include_deleted' => TRUE));
     foreach ($instances as $instance) {
-      $field = $instance->getField();
+      $field = $instance->getFieldStorageDefinition();
       $table_name = static::_fieldTableName($field);
       $revision_name = static::_fieldRevisionTableName($field);
       $this->database->update($table_name)
@@ -1295,7 +1300,7 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
    * {@inheritdoc}
    */
   protected function readFieldItemsToPurge(EntityInterface $entity, FieldInstanceConfigInterface $instance) {
-    $field = $instance->getField();
+    $field = $instance->getFieldStorageDefinition();
     $table_name = static::_fieldTableName($field);
     $query = $this->database->select($table_name, 't', array('fetch' => \PDO::FETCH_ASSOC))
       ->condition('entity_id', $entity->id())
@@ -1310,7 +1315,7 @@ class ContentEntityDatabaseStorage extends ContentEntityStorageBase implements S
    * {@inheritdoc}
    */
   public function purgeFieldItems(EntityInterface $entity, FieldInstanceConfigInterface $instance) {
-    $field = $instance->getField();
+    $field = $instance->getFieldStorageDefinition();
     $table_name = static::_fieldTableName($field);
     $revision_name = static::_fieldRevisionTableName($field);
     $this->database->delete($table_name)
