@@ -151,7 +151,7 @@ class FileFieldWidgetTest extends FileFieldTestBase {
           switch ($type) {
             case 'nojs':
               // Mmm Mink.
-              $this->getMink()->getSession()->getPage()->findButton($button_name);
+              $button = $this->getMink()->getSession()->getPage()->findButton($button_name);
               $button->press();
               break;
 
@@ -219,12 +219,12 @@ class FileFieldWidgetTest extends FileFieldTestBase {
     // Ensure we can't change 'uri_scheme' field settings while there are some
     // entities with uploaded files.
     $this->drupalGet("admin/structure/types/manage/$type_name/fields/$instance->id/field");
-    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and @disabled="disabled"]', 'public', 'Upload destination setting disabled.');
+    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and @disabled="disabled"]', 'private', 'Upload destination setting disabled.');
 
     // Delete node and confirm that setting could be changed.
     $node->delete();
     $this->drupalGet("admin/structure/types/manage/$type_name/fields/$instance->id/field");
-    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and not(@disabled)]', 'public', 'Upload destination setting enabled.');
+    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and not(@disabled)]', 'private', 'Upload destination setting enabled.');
   }
 
   /**

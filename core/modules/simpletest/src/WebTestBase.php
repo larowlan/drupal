@@ -30,6 +30,7 @@ use GuzzleHttp\Event\BeforeEvent;
 use GuzzleHttp\Event\RequestEvents;
 use GuzzleHttp\Event\SubscriberInterface;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Post\PostFile;
 use Symfony\Component\HttpFoundation\Request;
 use Behat\Mink\Mink;
 use Behat\Mink\Session;
@@ -1815,7 +1816,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
                 $post[$key] = '1';
               }
             }
-            $out = $this->drupalPost($action, 'application/vnd.drupal-ajax', $post, $options);
+            $out = $this->drupalPost($action, 'application/vnd.drupal-ajax', $post, $options, $upload);
           }
           // Ensure that any changes to variables in the other thread are picked
           // up.
@@ -1899,7 +1900,6 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @see ajax.js
    */
   protected function drupalPostAjaxForm($path, $edit, $triggering_element, $ajax_path = NULL, array $options = array(), array $headers = array(), $form_html_id = NULL, $ajax_settings = NULL) {
-    // @todo larowlan refactor around Mink
     // Get the content of the initial page prior to calling drupalPostForm(),
     // since drupalPostForm() replaces $this->content.
     if (isset($path)) {
@@ -2104,15 +2104,16 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * @param array $options
    *   (optional) Options to be forwarded to the url generator. The 'absolute'
    *   option will automatically be enabled.
+   * @param array $files
+   *   (optional) Array of files to upload.
    *
-   * @return
-   *   The content returned from the call to curl_exec().
+   * @return string
+   *   The content returned from the Guzzle call.
    *
    * @see WebTestBase::getAjaxPageStatePostData()
-   * @see WebTestBase::curlExec()
    * @see url()
    */
-  protected function drupalPost($path, $accept, array $post, $options = array()) {
+  protected function drupalPost($path, $accept, array $post, $options = array(), $files = array()) {
     /** @var \GuzzleHttp\Client $guzzle */
     $guzzle = $this->getSession()->getDriver()->getClient()->getClient();
     $cookies = [];
@@ -2131,6 +2132,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     $request->addHeader('Content-Type', 'application/x-www-form-urlencoded');
     if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
       $request->setHeader('User-Agent', drupal_generate_test_ua($matches[0]));
+    }
+    foreach ($files as $name => $file) {
+      $request->getBody()->addFile(new PostFile($name, fopen($file, 'r')));
     }
     try {
       $response = $guzzle->send($request);
@@ -2365,6 +2369,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
             break;
           case 'file':
             $element->attachFile($edit[$name]);
+            $upload[$name] = $edit[$name];
             unset($edit[$name]);
             break;
         }
