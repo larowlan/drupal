@@ -137,23 +137,17 @@ class EntityReferenceAdminTest extends WebTestBase {
   /**
    * Extracts all options from a select element.
    *
-   * @param \SimpleXMLElement $element
+   * @param $element
    *   The select element field information.
    *
    * @return array
    *   An array of option values as strings.
    */
-  protected function getAllOptionsList(\SimpleXMLElement $element) {
+  protected function getAllOptionsList($element) {
     $options = array();
-    // Add all options items.
-    foreach ($element->option as $option) {
-      $options[] = (string) $option['value'];
+    foreach ($this->getAllOptions($element) as $opt_element) {
+      $options[] = $opt_element->getAttribute('value');
     }
-
-    if (isset($element->optgroup)) {
-      $options += $this->getAllOptionsList($element->optgroup);
-    }
-
     return $options;
   }
 
