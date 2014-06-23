@@ -63,7 +63,7 @@ class ManageDisplayTest extends FieldUiTestBase {
     // Check whether formatter weights are respected.
     $result = $this->xpath('//select[@id=:id]/option', array(':id' => 'edit-fields-field-test-type'));
     $options = array_map(function($item) {
-      return (string) $item->attributes()->value[0];
+      return $item->getAttribute('value');
     }, $result);
     $expected_options = array (
       'field_no_settings',
@@ -176,7 +176,7 @@ class ManageDisplayTest extends FieldUiTestBase {
     // Check whether widget weights are respected.
     $result = $this->xpath('//select[@id=:id]/option', array(':id' => 'edit-fields-field-test-type'));
     $options = array_map(function($item) {
-      return (string) $item->attributes()->value[0];
+      return $item->getAttribute('value');
     }, $result);
     $expected_options = array (
       'test_field_widget',

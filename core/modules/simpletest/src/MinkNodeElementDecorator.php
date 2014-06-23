@@ -111,7 +111,7 @@ class MinkNodeElementDecorator implements \ArrayAccess {
       foreach ($element->attributes as $name => $attribute) {
         $attributes[$name] = $attribute->value;
       }
-      return $attributes;
+      return ObjectArrayDecorator::decorate($attributes);
     }
     // @see SimpleXMLElement::getName()
     if ($method == 'getName') {
