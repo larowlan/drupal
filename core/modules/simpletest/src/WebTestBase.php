@@ -3276,6 +3276,14 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
         }
       }
       elseif (in_array($tag_name, array('input', 'textarea', 'select'))) {
+        // @todo Fix Goutte Driver to handle checkboxes correctly.
+        if ($tag_name === 'input' && $element->getAttribute('type') === 'checkbox') {
+          $checkbox_value = $element->getAttribute('value');
+          $is_checked = $element->hasAttribute('checked');
+          if ($is_checked && $checkbox_value == $value) {
+            return $this->assert(TRUE, $message, $group);
+          }
+        }
         if ($element->getValue() == $value) {
           // Form field with correct value.
           return $this->assert(TRUE, $message, $group);
