@@ -54,11 +54,11 @@ class FilterBooleanWebTest extends UITestBase {
     $this->drupalGet('admin/structure/views/nojs/handler/test_view/default/filter/status');
 
     $result = $this->xpath('//input[@name="options[group_info][group_items][1][value]"]');
-    $this->assertEqual((int) $result[1]->attributes()->checked, 'checked');
+    $this->assertEqual((int) $result[1]->getAttribute('checked'), 'checked');
     $result = $this->xpath('//input[@name="options[group_info][group_items][2][value]"]');
-    $this->assertEqual((int) $result[2]->attributes()->checked, 'checked');
+    $this->assertEqual((int) $result[2]->getAttribute('checked'), 'checked');
     $result = $this->xpath('//input[@name="options[group_info][group_items][3][value]"]');
-    $this->assertEqual((int) $result[1]->attributes()->checked, 'checked');
+    $this->assertEqual((int) $result[1]->getAttribute('checked'), 'checked');
   }
 
 }
