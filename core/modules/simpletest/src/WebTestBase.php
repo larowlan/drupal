@@ -3637,8 +3637,8 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
       return $this->assertTrue($elements && $elements->getAttribute('selected') == 'selected', $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
     }
     else {
-      $elements = $this->getSession()->getPage()->find('css', "#$id");
-      return $this->assertTrue($elements && $option == $elements->getValue(), $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
+      $elements = $this->getSession()->getPage()->find('css', "#$id option[selected=selected]");
+      return $this->assertTrue($elements && $option == $elements->getAttribute('value'), $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
     }
   }
 

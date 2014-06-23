@@ -67,7 +67,9 @@ class MinkNodeElementCollectionDecorator implements \ArrayAccess, \Iterator, \Co
   /**
    * {@inheritdoc}
    */
-  public function offsetUnset($offset) {}
+  public function offsetUnset($offset) {
+    unset($this->nodeElements[$offset]);
+  }
 
   /**
    * {@inheritdoc}

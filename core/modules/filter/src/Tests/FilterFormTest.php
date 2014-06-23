@@ -202,13 +202,13 @@ class FilterFormTest extends WebTestBase {
   protected function assertOptions($id, array $expected_options, $selected) {
     $select = $this->xpath('//select[@id=:id]', array(':id' => $id));
     $select = reset($select);
-    $this->assertTrue($select instanceof \SimpleXMLElement, String::format('Field @id exists.', array(
+    $this->assertTrue($select->getAttribute('id') == $id, String::format('Field @id exists.', array(
       '@id' => $id,
     )));
 
     $found_options = $this->getAllOptions($select);
     foreach ($found_options as $found_key => $found_option) {
-      $expected_key = array_search($found_option->attributes()->value, $expected_options);
+      $expected_key = array_search($found_option->getAttribute('value'), $expected_options);
       if ($expected_key !== FALSE) {
         $this->pass(String::format('Option @option for field @id exists.', array(
           '@option' => $expected_options[$expected_key],
@@ -229,7 +229,7 @@ class FilterFormTest extends WebTestBase {
     }
     foreach ($found_options as $found_option) {
       $this->fail(String::format('Option @option for field @id does not exist.', array(
-        '@option' => $found_option->attributes()->value,
+        '@option' => $found_option->getAttribute('value'),
         '@id' => $id,
       )));
     }
@@ -251,7 +251,7 @@ class FilterFormTest extends WebTestBase {
       ':id' => $id,
     ));
     $select = reset($select);
-    $this->assertTrue($select instanceof \SimpleXMLElement, String::format('Required field @id exists.', array(
+    $this->assertTrue($select->getAttribute('id') == $id, String::format('Required field @id exists.', array(
       '@id' => $id,
     )));
     // A required select element has a "- Select -" option whose key is an empty
@@ -271,7 +271,7 @@ class FilterFormTest extends WebTestBase {
       ':id' => $id,
     ));
     $textarea = reset($textarea);
-    $this->assertTrue($textarea instanceof \SimpleXMLElement, String::format('Enabled field @id exists.', array(
+    $this->assertTrue($textarea->getAttribute('id') == $id, String::format('Enabled field @id exists.', array(
       '@id' => $id,
     )));
   }
@@ -287,7 +287,7 @@ class FilterFormTest extends WebTestBase {
       ':id' => $id,
     ));
     $textarea = reset($textarea);
-    $this->assertTrue($textarea instanceof \SimpleXMLElement, String::format('Disabled field @id exists.', array(
+    $this->assertTrue($textarea->getAttribute('id') == $id, String::format('Disabled field @id exists.', array(
       '@id' => $id,
     )));
     $expected = 'This field has been disabled because you do not have sufficient permissions to edit it.';
