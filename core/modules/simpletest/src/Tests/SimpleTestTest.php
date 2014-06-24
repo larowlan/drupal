@@ -387,7 +387,7 @@ EOD;
    * @return
    *   Extracted text.
    */
-  function asText(\SimpleXMLElement $element) {
+  function asText($element) {
     if (!is_object($element)) {
       return $this->fail('The element is not an element.');
     }
