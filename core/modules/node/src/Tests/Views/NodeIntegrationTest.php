@@ -69,7 +69,7 @@ class NodeIntegrationTest extends NodeTestBase {
     $result = $this->xpath('//span[@class="field-content"]');
     $nids = array();
     foreach ($result as $element) {
-      $nids[] = (int) $element;
+      $nids[] = (int) $element->getText();
     }
     $this->assertEqual($nids, $expected_nids);
   }
