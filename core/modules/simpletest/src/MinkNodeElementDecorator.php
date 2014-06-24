@@ -9,7 +9,7 @@ namespace Drupal\simpletest;
 
 use Behat\Mink\Element\NodeElement;
 
-class MinkNodeElementDecorator implements \ArrayAccess {
+class MinkNodeElementDecorator implements \ArrayAccess, \IteratorAggregate {
 
   /**
    * The decorated node element.
@@ -150,4 +150,10 @@ class MinkNodeElementDecorator implements \ArrayAccess {
     return $this->nodeElement->getText();
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function getIterator() {
+    return new \ArrayIterator(array($this));
+  }
 }
