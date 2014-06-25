@@ -3299,23 +3299,16 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   /**
    * Get the selected value from a select field.
    *
-   * @param $element
-   *   SimpleXMLElement select element.
+   * @param NodeElement $element
+   *   The select element.
    *
    * @return
    *   The selected value or FALSE.
    */
-  protected function getSelectedItem(\SimpleXMLElement $element) {
-    // @todo Refactor to use Mink.
-    foreach ($element->children() as $item) {
-      if (isset($item['selected'])) {
-        return $item['value'];
-      }
-      elseif ($item->getName() == 'optgroup') {
-        if ($value = $this->getSelectedItem($item)) {
-          return $value;
-        }
-      }
+  protected function getSelectedItem($element) {
+    $selected_option = $element->find('xpath', '//option[@selected="selected"]');
+    if ($selected_option) {
+      return $selected_option->getAttribute('value');
     }
     return FALSE;
   }
