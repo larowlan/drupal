@@ -210,6 +210,11 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   protected $curlCookies = array();
 
   /**
+   * Cookies send back in headers.
+   */
+  protected $cookies = array();
+
+  /**
    * An array of custom translations suitable for drupal_rewrite_settings().
    *
    * @var array
@@ -1505,6 +1510,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   public function curlHeaderCallback(AbstractTransferEvent $event) {
     if ($response = $event->getResponse()) {
       $headers = $response->getHeaders();
+      $this->cookies = array();
       foreach ($headers as $name => $header) {
         $header = implode(";", $header);
         $this->headers[$name] = $header;
