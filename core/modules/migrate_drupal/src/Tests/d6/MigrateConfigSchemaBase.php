@@ -2,22 +2,27 @@
 
 /**
  * @file
- * Contains \Drupal\Core\Config\Schema\SchemaCheckTrait.
+ * Contains \Drupal\migrate_drupal\Tests\MigrateDrupalTestBase.
  */
 
-namespace Drupal\Core\Config\Schema;
+namespace Drupal\migrate_drupal\Tests\d6;
 
+use Drupal\Core\Config\Schema\ArrayElement;
 use Drupal\Core\Config\TypedConfigManagerInterface;
-use Drupal\Core\TypedData\PrimitiveInterface;
 use Drupal\Core\TypedData\Type\BooleanInterface;
 use Drupal\Core\TypedData\Type\StringInterface;
+use Drupal\Component\Utility\String;
+use Drupal\Core\Config\Schema\SchemaIncompleteException;
+use Drupal\Core\TypedData\PrimitiveInterface;
 use Drupal\Core\TypedData\Type\FloatInterface;
 use Drupal\Core\TypedData\Type\IntegerInterface;
+use Drupal\migrate_drupal\Tests\MigrateDrupalTestBase;
 
 /**
- * Provides a trait for checking configuration schema.
+ * Base class for Drupal migration tests.
  */
-trait SchemaCheckTrait {
+abstract class MigrateConfigSchemaBase extends MigrateDrupalTestBase {
+
 
   /**
    * The config schema wrapper object for the configuration object under test.
@@ -34,7 +39,14 @@ trait SchemaCheckTrait {
   protected $configName;
 
   /**
-   * Checks the TypedConfigManager has a valid schema for the configuration.
+   * Global state for whether the config has a valid schema.
+   *
+   * @var boolean
+   */
+  protected $configPass;
+
+  /**
+   * Asserts the TypedConfigManager has a valid schema for the configuration.
    *
    * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config
    *   The TypedConfigManager.
@@ -42,27 +54,23 @@ trait SchemaCheckTrait {
    *   The configuration name.
    * @param array $config_data
    *   The configuration data.
-   *
-   * @return array|bool
-   *   FALSE if no schema found. List of errors if any found. TRUE if fully
-   *   valid.
    */
-  public function checkConfigSchema(TypedConfigManagerInterface $typed_config, $config_name, $config_data) {
+  public function assertConfigSchema(TypedConfigManagerInterface $typed_config, $config_name, $config_data) {
     $this->configName = $config_name;
     if (!$typed_config->hasConfigSchema($config_name)) {
-      return FALSE;
+      $this->fail(String::format('No schema for !config_name', array('!config_name' => $config_name)));
+      return;
     }
     $definition = $typed_config->getDefinition($config_name);
     $data_definition = $typed_config->buildDataDefinition($definition, $config_data);
     $this->schema = $typed_config->create($data_definition, $config_data);
-    $errors = array();
+    $this->configPass = TRUE;
     foreach ($config_data as $key => $value) {
-      $errors = array_merge($errors, $this->checkValue($key, $value));
+      $this->checkValue($key, $value);
     }
-    if (empty($errors)) {
-      return TRUE;
+    if ($this->configPass) {
+      $this->pass(String::format('Schema found for !config_name and values comply with schema.', array('!config_name' => $config_name)));
     }
-    return $errors;
   }
 
   /**
@@ -73,26 +81,25 @@ trait SchemaCheckTrait {
    * @param mixed $value
    *   Value of given key.
    *
-   * @return array
-   *   List of errors found while checking with the corresponding schema.
+   * @return mixed
+   *   Returns mixed value.
    */
   protected function checkValue($key, $value) {
-    $error_key = $this->configName . ':' . $key;
     $element = FALSE;
     try {
       $element = $this->schema->get($key);
     }
     catch (SchemaIncompleteException $e) {
       if (is_scalar($value) || $value === NULL) {
-        return array($error_key => 'Missing schema');
+        $this->fail("{$this->configName}:$key has no schema.");
       }
     }
     // Do not check value if it is defined to be ignored.
     if ($element && $element instanceof Ignore) {
-      return array();
+      return $value;
     }
 
-    if ($element && is_scalar($value) || $value === NULL) {
+    if (is_scalar($value) || $value === NULL) {
       $success = FALSE;
       $type = gettype($value);
       if ($element instanceof PrimitiveInterface) {
@@ -106,13 +113,12 @@ trait SchemaCheckTrait {
       }
       $class = get_class($element);
       if (!$success) {
-        return array($error_key => "Variable type is $type but applied schema class is $class.");
+        $this->fail("{$this->configName}:$key has the wrong schema. Variable type is $type and schema class is $class.");
       }
     }
     else {
-      $errors = array();
       if (!$element instanceof ArrayElement) {
-        $errors[$error_key] = 'Non-scalar value but not defined as an array (such as mapping or sequence)';
+        $this->fail("Non-scalar {$this->configName}:$key is not defined as an array type (such as mapping or sequence).");
       }
 
       // Go on processing so we can get errors on all levels. Any non-scalar
@@ -122,11 +128,18 @@ trait SchemaCheckTrait {
       }
       // Recurse into any nested keys.
       foreach ($value as $nested_value_key => $nested_value) {
-        $errors = array_merge($errors, $this->checkValue($key . '.' . $nested_value_key, $nested_value));
+        $value[$nested_value_key] = $this->checkValue($key . '.' . $nested_value_key, $nested_value);
       }
-      return $errors;
     }
-    // No errors found.
-    return array();
+    return $value;
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function fail($message = NULL, $group = 'Other') {
+    $this->configPass = FALSE;
+    return parent::fail($message, $group);
+  }
+
 }
