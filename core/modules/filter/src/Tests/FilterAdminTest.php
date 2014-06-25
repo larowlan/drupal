@@ -253,9 +253,9 @@ class FilterAdminTest extends WebTestBase {
     $format = entity_load('filter_format', $edit['format']);
     $this->assertNotNull($format, 'Format found in database.');
     $this->drupalGet('admin/config/content/formats/manage/' . $format->format);
-    $this->assertFieldByName('roles[' . DRUPAL_AUTHENTICATED_RID . ']', '', 'Role found.');
-    $this->assertFieldByName('filters[' . $second_filter . '][status]', '', 'Line break filter found.');
-    $this->assertFieldByName('filters[' . $first_filter . '][status]', '', 'Url filter found.');
+    $this->assertFieldByName('roles[' . DRUPAL_AUTHENTICATED_RID . ']', DRUPAL_AUTHENTICATED_RID, 'Role found.');
+    $this->assertFieldByName('filters[' . $second_filter . '][status]', TRUE, 'Line break filter found.');
+    $this->assertFieldByName('filters[' . $first_filter . '][status]', TRUE, 'Url filter found.');
 
     // Disable new filter.
     $this->drupalPostForm('admin/config/content/formats/manage/' . $format->format . '/disable', array(), t('Disable'));
