@@ -160,7 +160,7 @@ class ForumTest extends WebTestBase {
     $forum_arg = array(':forum' => 'forum-list-' . $this->forum['tid']);
 
     // Topics cell contains number of topics and number of unread topics.
-    $xpath = $this->buildXPathQuery('//tr[@id=:forum]//td[@class="topics"]', $forum_arg);
+    $xpath = $this->buildXPathQuery('//tr[@id=:forum]//td[@class="topics"]/text()[1]', $forum_arg);
     $topics = $this->xpath($xpath);
     $topics = trim($topics[0]);
     $this->assertEqual($topics, '6', 'Number of topics found.');
@@ -168,7 +168,7 @@ class ForumTest extends WebTestBase {
     // Verify the number of unread topics.
     $unread_topics = $this->container->get('forum_manager')->unreadTopics($this->forum['tid'], $this->edit_any_topics_user->id());
     $unread_topics = format_plural($unread_topics, '1 new post', '@count new posts');
-    $xpath = $this->buildXPathQuery('//tr[@id=:forum]//td[@class="topics"]//a', $forum_arg);
+    $xpath = $this->buildXPathQuery('//tr[@id=:forum]//td[@class="topics"]//a/text()[1]', $forum_arg);
     $this->assertFieldByXPath($xpath, $unread_topics, 'Number of unread topics found.');
     // Verify that the forum name is in the unread topics text.
     $xpath = $this->buildXPathQuery('//tr[@id=:forum]//em[@class="placeholder"]', $forum_arg);
