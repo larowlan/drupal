@@ -3274,33 +3274,23 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
 
     /** @var $element NodeElement */
     foreach ($elements as $element) {
-      $tag_name = $element->getTagName();
-      if ($tag_name == 'option') {
-        if ($element->hasAttribute('selected') && ($element->getAttribute('value') == $value || $element->getText() == $value)) {
-          return $this->assert(TRUE, $message, $group);
-        }
+      if ($element->hasAttribute('value') && $element->getAttribute('value') == $value) {
+        return $this->assert(TRUE, $message, $group);
       }
-      elseif (in_array($tag_name, array('input', 'textarea', 'select'))) {
-        // @todo Fix Goutte Driver to handle checkboxes correctly.
-        if ($tag_name === 'input' && $element->getAttribute('type') === 'checkbox') {
-          $checkbox_value = $element->getAttribute('value');
-          $is_checked = $element->hasAttribute('checked');
-          if ($is_checked && $checkbox_value == $value) {
+      elseif ($element->getTagName() === 'select') {
+        $selected_option = $element->find('xpath', '//option[@selected="selected"]');
+        if (empty($selected_option)) {
+          $first_option = $element->find('xpath', '//option');
+          if (!empty($first_option) && $first_option->getAttribute('value') == $value) {
             return $this->assert(TRUE, $message, $group);
           }
         }
-        if ($element->getValue() == $value) {
-          // Form field with correct value.
-          return $this->assert(TRUE, $message, $group);
-        }
-        elseif ($element->getText() == $value) {
+        elseif ($selected_option->getAttribute('value') == $value) {
           return $this->assert(TRUE, $message, $group);
         }
       }
-      else {
-        if ($element->getText() == $value) {
-          return $this->assert(TRUE, $message, $group);
-        }
+      elseif ($element->getText() == $value) {
+        return $this->assert(TRUE, $message, $group);
       }
     }
     return $this->assert(FALSE, $message, $group);
@@ -3352,36 +3342,37 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   TRUE on pass, FALSE on fail.
    */
   protected function assertNoFieldByXPath($xpath, $value = NULL, $message = '', $group = 'Other') {
-    $fields = $this->xpath($xpath);
+    $xpath = $this->buildXPathQuery($xpath);
+    $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
+    if (!isset($value)) {
+      return $this->assert(empty($elements), $message, $group);
+    }
+    if (empty($elements)) {
+      return $this->assert(TRUE, $message, $group);
+    }
 
-    // If value specified then check array for match.
-    $found = TRUE;
-    if (isset($value)) {
-      $found = FALSE;
-      if ($fields) {
-        foreach ($fields as $field) {
-          try {
-            $type = $field->getAttribute('type');
-            if ($type == 'radio' || $type == 'checkbox') {
-              if ($field->getAttribute('value') == $value && ($field->getAttribute('checked') || $field->isChecked())) {
-                $found = TRUE;
-              }
-            }
-            elseif ($field->getValue() == $value) {
-              // Input element with correct value.
-              $found = TRUE;
-            }
-          }
-          catch (\LogicException $e) {
-            // Method called on a non-form field, fallback to text value.
-            if ($field->getText() == $value) {
-              $found = TRUE;
-            }
+    /** @var $element NodeElement */
+    foreach ($elements as $element) {
+      if ($element->hasAttribute('value') && $element->getAttribute('value') == $value) {
+        return $this->assert(FALSE, $message, $group);
+      }
+      elseif ($element->getTagName() === 'select') {
+        $selected_option = $element->find('xpath', '//option[@selected="selected"]');
+        if (empty($selected_option)) {
+          $first_option = $element->find('xpath', '//option');
+          if (!empty($first_option) && $first_option->getAttribute('value') == $value) {
+            return $this->assert(FALSE, $message, $group);
           }
         }
+        elseif ($selected_option->getAttribute('value') == $value) {
+          return $this->assert(FALSE, $message, $group);
+        }
+      }
+      elseif ($element->getText() == $value) {
+        return $this->assert(FALSE, $message, $group);
       }
     }
-    return $this->assertFalse($fields && $found, $message, $group);
+    return $this->assert(TRUE, $message, $group);
   }
 
   /**
