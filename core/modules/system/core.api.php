@@ -17,10 +17,10 @@
  *
  * @section essentials Essential background concepts
  *
- * - @link architecture Drupal's architecture @endlink
  * - @link oo_conventions Object-oriented conventions used in Drupal @endlink
  * - @link extending Extending and altering Drupal @endlink
  * - @link best_practices Security and best practices @endlink
+ * - @link info_types Types of information in Drupal @endlink
  *
  * @section interface User interface
  *
@@ -67,39 +67,6 @@
  */
 
 /**
- * @defgroup block_api Block API
- * @{
- * Information about the classes and interfaces that make up the Block API.
- *
- * Blocks are a combination of a configuration entity and a plugin. The
- * configuration entity stores placement information (theme, region, weight) and
- * any other configuration that is specific to the block. The block plugin does
- * the work of rendering the block's content for display.
- *
- * To define a block in a module you need to:
- * - Define a Block plugin by creating a new class that implements the
- *   \Drupal\block\BlockPluginInterface. For more information about how block
- *   plugins are discovered see the @link plugin_api Plugin API topic @endlink.
- * - Usually you will want to extend the \Drupal\block\BlockBase class, which
- *   provides a common configuration form and utility methods for getting and
- *   setting configuration in the block configuration entity.
- * - Block plugins use the annotations defined by
- *   \Drupal\block\Annotation\Block. See the
- *   @link annotation Annotations topic @endlink for more information about
- *   annotations.
- *
- * Further information and examples:
- * - \Drupal\system\Plugin\Block\SystemPoweredByBlock provides a simple example
- *   of defining a block.
- * - \Drupal\book\Plugin\Block\BookNavigationBlock is an example of a block with
- *   a custom configuration form.
- * - For a more in-depth discussion of the Block API see
- *   https://drupal.org/developing/api/8/block_api
- * - The examples project also provides a Block example in
- *   https://drupal.org/project/examples.
- */
-
-/**
  * @defgroup third_party REST and Application Integration
  * @{
  * Integrating third-party applications using REST and related operations.
@@ -117,7 +84,7 @@
  * Information about the State API.
  *
  * The State API is one of several methods in Drupal for storing information.
- * See @link architecture Drupal's architecture topic @endlink for an
+ * See the @link info_types Information types topic @endlink for an
  * overview of the different types of information.
  *
  * The basic entry point into the State API is \Drupal::state(), which returns
@@ -143,7 +110,7 @@
  * Information about the Configuration API.
  *
  * The Configuration API is one of several methods in Drupal for storing
- * information. See @link architecture Drupal's architecture topic @endlink for
+ * information. See the @link info_types Information types topic @endlink for
  * an overview of the different types of information. The sections below have
  * more information about the configuration API; see
  * https://drupal.org/developing/api/8/configuration for more details.
@@ -163,6 +130,10 @@
  * a configuration object, configuration settings have data types (integer,
  * string, Boolean, etc.) and settings can also exist in a nested hierarchy,
  * known as a "mapping".
+ *
+ * Configuration can also be overridden on a global, per-language, or
+ * per-module basis. See https://www.drupal.org/node/1928898 for more
+ * information.
  *
  * @section sec_yaml Configuration YAML files
  * Whether or not configuration files are being used for the active
@@ -275,8 +246,8 @@
  *
  * Entities, in Drupal, are objects that are used for persistent storage of
  * content and configuration information. See the
- * @link architecture Drupal's architecture topic @endlink for an overview of
- * the different types of information, and the
+ * @link info_types Information types topic @endlink for an overview of the
+ * different types of information, and the
  * @link config_api Configuration API topic @endlink for more about the
  * configuration API.
  *
@@ -439,23 +410,6 @@
  * @see node_api_hooks
  * @}
  */
-
-/**
- * @defgroup views_overview Views overview
- * @{
- * Overview of the Views module API
- *
- * @todo write this
- *
- * Additional documentation paragraphs need to be written, and functions,
- * classes, and interfaces need to be added to this topic. Should link to all
- * or most of the existing Views topics, and maybe this should be moved into
- * a different file? This topic should be an overview so that developers know
- * which of the many Views classes and topics are important if they want to
- * accomplish tasks that they may have.
- * @}
- */
-
 
 /**
  * @defgroup i18n Internationalization
@@ -993,18 +947,10 @@
  */
 
 /**
- * @defgroup architecture Architecture overview
+ * @defgroup info_types Information types
  * @{
- * Overview of Drupal's architecture for developers.
+ * Types of information in Drupal.
  *
- * @todo write this
- *
- * Additional documentation paragraphs need to be written, and functions,
- * classes, and interfaces need to be added to this topic.
- *
- * Should include: modules, info.yml files, location of files, etc.
- *
- * @section Types of information in Drupal
  * Drupal has several distinct types of information, each with its own methods
  * for storage and retrieval:
  * - Content: Information meant to be displayed on your site: articles, basic
@@ -1013,7 +959,10 @@
  * - Session: Information about individual users' interactions with the site,
  *   such as whether they are logged in. This is really "state" information, but
  *   it is not stored the same way so it's a separate type here. Session
- *   information is managed ...
+ *   information is managed via the session_manager service in Drupal, which
+ *   implements \Drupal\Core\Session\SessionManagerInterface. See the
+ *   @link container Services topic @endlink for more information about
+ *   services.
  * - State: Information of a temporary nature, generally machine-generated and
  *   not human-edited, about the current state of your site. Examples: the time
  *   when Cron was last run, whether node access permissions need rebuilding,
@@ -1024,9 +973,8 @@
  *   you have defined, etc. See
  *   @link config_api the Configuration API topic @endlink for more information.
  *
- * @todo Add something relevant to the list item about sessions.
- * @todo Add some information about Settings, the key-value store in general,
- *   and maybe the cache to this list (not sure if cache belongs here?).
+ * @see cache
+ * @see i18n
  * @}
  */
 
@@ -1266,16 +1214,33 @@
  * @{
  * PSR-4, namespaces, class naming, and other conventions.
  *
- * @todo write this
- *
- * Additional documentation paragraphs need to be written, and functions,
- * classes, and interfaces need to be added to this topic.
- *
- * See https://drupal.org/node/608152 and links therein for references. This
- * should be an overview and link to details. It needs to cover: PSR-*,
- * namespaces, link to reference on OO, class naming conventions (base classes,
- * etc.), and other things developers should know related to object-oriented
- * coding.
+ * A lot of the PHP code in Drupal is object oriented (OO), making use of
+ * @link http://php.net/manual/language.oop5.php PHP classes, interfaces, and traits @endlink
+ * (which are loosely referred to as "classes" in the rest of this topic). The
+ * following conventions and standards apply to this version of Drupal:
+ * - Each class must be in its own file.
+ * - Classes must be namespaced. If a module defines a class, the namespace
+ *   must start with \Drupal\module_name. If it is defined by Drupal Core for
+ *   use across many modules, the namespace should be \Drupal\Core or
+ *   \Drupal\Component, with the exception of the global class \Drupal. See
+ *   https://www.drupal.org/node/1353118 for more about namespaces.
+ * - In order for the PSR-4-based class auto-loader to find the class, it must
+ *   be located in a directory corresponding to the namespace. For
+ *   module-defined classes, if the namespace is \Drupal\module_name\foo\bar,
+ *   then the class goes under the main module directory in directory
+ *   src/foo/bar. For Drupal-wide classes, if the namespace is
+ *   \Drupal\Core\foo\bar, then it goes in directory
+ *   core/lib/Drupal/Core/foo/bar. See https://www.drupal.org/node/2156625 for
+ *   more information about PSR-4.
+ * - Some classes have annotations added to their documentation headers. See
+ *   the @link annotation Annotation topic @endlink for more information.
+ * - Standard plugin discovery requires particular namespaces and annotation
+ *   for most plugin classes. See the
+ *   @link plugin_api Plugin API topic @endlink for more information.
+ * - There are project-wide coding standards for OO code, including naming:
+ *   https://drupal.org/node/608152
+ * - Documentation standards for classes are covered on:
+ *   https://www.drupal.org/coding-standards/docs#classes
  * @}
  */
 
@@ -1323,4 +1288,26 @@
  * @see transliteration
  * @see validation
  * @}
+ */
+
+/**
+ * @addtogroup hooks
+ * @{
+ */
+
+/**
+ * Alter display variant plugin definitions.
+ *
+ * @param array $definitions
+ *   The array of display variant definitions, keyed by plugin ID.
+ *
+ * @see \Drupal\Core\Display\VariantManager
+ * @see \Drupal\Core\Display\Annotation\DisplayVariant
+ */
+function hook_display_variant_plugin_alter(array &$definitions) {
+  $definitions['full_page']['admin_label'] = t('Block layout');
+}
+
+/**
+ * @} End of "addtogroup hooks".
  */
