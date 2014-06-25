@@ -3293,6 +3293,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
           // Form field with correct value.
           return $this->assert(TRUE, $message, $group);
         }
+        elseif ($element->getText() == $value) {
+          return $this->assert(TRUE, $message, $group);
+        }
       }
       else {
         if ($element->getText() == $value) {
