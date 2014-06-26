@@ -1452,6 +1452,18 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
       $curl_options[CURLOPT_COOKIE] .= implode('; ', $cookies) . ';';
     }
 
+    // Set request headers
+    if (!empty($curl_options[CURLOPT_HTTPHEADER])) {
+      $http_headers = array();
+      foreach ($curl_options[CURLOPT_HTTPHEADER] as $header) {
+        $pos = strpos($header, ':');
+        $header_name = substr($header, 0, $pos);
+        $header_value = trim(substr($header, $pos + 1));
+        $http_headers[$header_name] = $header_value;
+        $this->getSession()->setRequestHeader($header_name, $header_value);
+      }
+    }
+
     // Set client options on Goutte's Guzzle client.
     $this->setClientOptions($this->additionalCurlOptions + $curl_options);
 
@@ -1463,6 +1475,12 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     }
 
     $this->getSession()->visit($url);
+
+    if (isset($http_headers)) {
+      foreach ($http_headers as $header_name => $header_value) {
+        $this->getSession()->setRequestHeader($header_name, NULL);
+      }
+    }
 
     $content = $this->getSession()->getPage()->getContent();
     $status = $this->getSession()->getStatusCode();
@@ -1634,7 +1652,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
 
     $verbose = 'GET request to: ' . $path .
                '<hr />Ending URL: ' . $this->getUrl();
-    if ($this->dumpHeaders) {
+    if ($this->dumpHeaders || TRUE) {
       $verbose .= '<hr />Headers: <pre>' . String::checkPlain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>';
     }
     $verbose .= '<hr />' . $out;
