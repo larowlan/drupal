@@ -78,7 +78,7 @@ class StyleSerializerTest extends PluginTestBase {
 
     // Test the http Content-type.
     $headers = $this->drupalGetHeaders();
-    $this->assertEqual($headers['content-type'], 'application/json', 'The header Content-type is correct.');
+    $this->assertEqual($headers['Content-Type'], 'application/json', 'The header Content-type is correct.');
 
     $expected = array();
     foreach ($view->result as $row) {
@@ -101,7 +101,7 @@ class StyleSerializerTest extends PluginTestBase {
     $this->assertIdentical($actual_json, drupal_render($output), 'The expected JSON preview output was found.');
 
     // Test a 403 callback.
-    $this->drupalGet('test/serialize/denied');
+    $this->drupalGet('test/serialize/denied', array(), array('Accept: application/json'));
     $this->assertResponse(403);
 
     // Test the entity rows.
