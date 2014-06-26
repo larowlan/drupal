@@ -8,6 +8,7 @@
 namespace Drupal\system\Tests\Session;
 
 use Drupal\simpletest\WebTestBase;
+use GuzzleHttp\Event\BeforeEvent;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\String;
@@ -23,6 +24,13 @@ class SessionHttpsTest extends WebTestBase {
    * @var array
    */
   public static $modules = array('session_test');
+
+  /**
+   * Form action.
+   *
+   * @var string
+   */
+  protected $formAction;
 
   public static function getInfo() {
     return array(
@@ -53,16 +61,14 @@ class SessionHttpsTest extends WebTestBase {
     // Test HTTPS session handling by altering the form action to submit the
     // login form through https.php, which creates a mock HTTPS request.
     $this->drupalGet('user');
-    $form = $this->xpath('//form[@id="user-login-form"]');
-    $form[0]['action'] = $this->httpsUrl('user');
+    $this->formAction  = $this->httpsUrl('user');
     $edit = array('name' => $user->getUsername(), 'pass' => $user->pass_raw);
     $this->drupalPostForm(NULL, $edit, t('Log in'));
 
     // Test a second concurrent session.
     $this->curlClose();
     $this->drupalGet('user');
-    $form = $this->xpath('//form[@id="user-login-form"]');
-    $form[0]['action'] = $this->httpsUrl('user');
+    $this->formAction = $this->httpsUrl('user');
     $this->drupalPostForm(NULL, $edit, t('Log in'));
 
     // Check secure cookie on secure page.
@@ -96,8 +102,7 @@ class SessionHttpsTest extends WebTestBase {
     // test environments.
     $this->curlClose();
     $this->drupalGet('user');
-    $form = $this->xpath('//form[@id="user-login-form"]');
-    $form[0]['action'] = $this->httpUrl('user');
+    $this->formAction = $this->httpUrl('user');
     $edit = array('name' => $user->getUsername(), 'pass' => $user->pass_raw);
     $this->drupalPostForm(NULL, $edit, t('Log in'));
     $this->drupalGet($this->httpUrl('admin/config'));
@@ -156,13 +161,13 @@ class SessionHttpsTest extends WebTestBase {
     $this->drupalGet('user/password');
     $form = $this->xpath('//form[@id="user-pass"]');
     $this->assertNotEqual(substr($form[0]['action'], 0, 6), 'https:', 'Password request form action is not secure');
-    $form[0]['action'] = $this->httpsUrl('user');
+    $this->formAction = $this->httpsUrl('user');
 
     // Check that user login form action is secure.
     $this->drupalGet('user');
     $form = $this->xpath('//form[@id="user-login-form"]');
     $this->assertEqual(substr($form[0]['action'], 0, 6), 'https:', 'Login form action is secure');
-    $form[0]['action'] = $this->httpsUrl('user');
+    $this->formAction = $this->httpsUrl('user');
 
     $edit = array(
       'name' => $user->getUsername(),
@@ -217,8 +222,7 @@ class SessionHttpsTest extends WebTestBase {
 
     // Mock a login to the secure site using the secure session cookie.
     $this->drupalGet('user');
-    $form = $this->xpath('//form[@id="user-login-form"]');
-    $form[0]['action'] = $this->httpsUrl('user');
+    $this->formAction = $this->httpsUrl('user');
     $this->drupalPostForm(NULL, $edit, t('Log in'));
 
     // Test that the user is also authenticated on the insecure site.
@@ -252,8 +256,7 @@ class SessionHttpsTest extends WebTestBase {
 
     // Login using the HTTPS user-login form.
     $this->drupalGet('user');
-    $form = $this->xpath('//form[@id="user-login-form"]');
-    $form[0]['action'] = $this->httpsUrl('user');
+    $this->formAction = $this->httpsUrl('user');
     $edit = array('name' => $user->getUsername(), 'pass' => $user->pass_raw);
     $this->drupalPostForm(NULL, $edit, t('Log in'));
 
@@ -269,8 +272,7 @@ class SessionHttpsTest extends WebTestBase {
 
     // Verify that submitting form values via HTTPS to a form originally
     // retrieved over HTTP works.
-    $form = $this->xpath('//form[@id="session-test-form"]');
-    $form[0]['action'] = $this->httpsUrl('session-test/form');
+    $this->formAction = $this->httpsUrl('session-test/form');
     $edit = array('input' => $this->randomName(32));
     $this->curlClose();
     $this->drupalPostForm(NULL, $edit, 'Save', array('Cookie: ' . $secure_session_name . '=' . $ssid));
@@ -292,7 +294,10 @@ class SessionHttpsTest extends WebTestBase {
   protected function getFormToken() {
     $token_fields = $this->xpath('//input[@name="form_token"]');
     $this->assertEqual(count($token_fields), 1, 'One form token field on the page');
-    return (string) $token_fields[0]['value'];
+    if (empty($token_fields)) {
+      return NULL;
+    }
+    return $token_fields[0]->getAttribute('value');
   }
 
   /**
@@ -344,5 +349,17 @@ class SessionHttpsTest extends WebTestBase {
   protected function httpUrl($url) {
     global $base_url;
     return $base_url . '/core/modules/system/tests/http.php/' . $url;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function onBefore(BeforeEvent $event) {
+    parent::onBefore($event);
+    // Set form action.
+    if ($this->formAction && ($request = $event->getRequest())) {
+      $request->setUrl($this->formAction);
+      $this->formAction = FALSE;
+    }
   }
 }
