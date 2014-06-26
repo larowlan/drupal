@@ -1652,7 +1652,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
 
     $verbose = 'GET request to: ' . $path .
                '<hr />Ending URL: ' . $this->getUrl();
-    if ($this->dumpHeaders || TRUE) {
+    if ($this->dumpHeaders) {
       $verbose .= '<hr />Headers: <pre>' . String::checkPlain(var_export(array_map('trim', $this->headers), TRUE)) . '</pre>';
     }
     $verbose .= '<hr />' . $out;
