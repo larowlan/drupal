@@ -26,6 +26,11 @@ services:
     class: Drupal\Core\Cache\TimeZoneCacheContext
     tags:
       - { name: cache.context}
+  cache.backend.chainedfast:
+    class: Drupal\Core\Cache\ChainedFastBackendFactory
+    arguments: ['@settings']
+    calls:
+      - [setContainer, ['@service_container']]
   cache.backend.database:
     class: Drupal\Core\Cache\DatabaseBackendFactory
     arguments: ['@database']
@@ -604,9 +609,12 @@ services:
     tags:
       - { name: access_check, applies_to: _csrf_token }
     arguments: ['@csrf_token']
+  maintenance_mode:
+    class: Drupal\Core\Site\MaintenanceMode
+    arguments: ['@state', '@current_user']
   maintenance_mode_subscriber:
     class: Drupal\Core\EventSubscriber\MaintenanceModeSubscriber
-    arguments: ['@state', '@config.factory', '@string_translation', '@url_generator', '@current_user']
+    arguments: ['@maintenance_mode', '@config.factory', '@string_translation', '@url_generator', '@current_user']
     tags:
       - { name: event_subscriber }
   path_subscriber:
@@ -800,8 +808,6 @@ services:
   session_manager:
     class: Drupal\Core\Session\SessionManager
     arguments: ['@request_stack', '@database', '@session_manager.metadata_bag', '@settings']
-    tags:
-      - { name: persist }
   session_manager.metadata_bag:
     class: Drupal\Core\Session\MetadataBag
     arguments: ['@settings']

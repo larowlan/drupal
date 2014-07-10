@@ -8,13 +8,13 @@
 use Drupal\Component\Utility\String;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\file\Entity\File;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Template\Attribute;
 use Drupal\file\FileUsage\FileUsageInterface;
-use Symfony\Component\HttpFoundation\Request;
 
 // Load all Field module hooks for File.
 require_once __DIR__ . '/file.field.inc';
@@ -22,7 +22,7 @@ require_once __DIR__ . '/file.field.inc';
 /**
  * Implements hook_help().
  */
-function file_help($route_name, Request $request) {
+function file_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
     case 'help.page.file':
       $output = '';
@@ -124,18 +124,6 @@ function file_load($fid, $reset = FALSE) {
 }
 
 /**
- * Returns the file usage service.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::service('file.usage').
- *
- * @return \Drupal\file\FileUsage\FileUsageInterface.
- */
-function file_usage() {
-  return \Drupal::service('file.usage');
-}
-
-/**
  * Copies a file to a new location and adds a file record to the database.
  *
  * This function should be used when manipulating files that have records
@@ -174,10 +162,10 @@ function file_usage() {
 function file_copy(File $source, $destination = NULL, $replace = FILE_EXISTS_RENAME) {
   if (!file_valid_uri($destination)) {
     if (($realpath = drupal_realpath($source->getFileUri())) !== FALSE) {
-      watchdog('file', 'File %file (%realpath) could not be copied because the destination %destination is invalid. This is often caused by improper use of file_copy() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%realpath' => $realpath, '%destination' => $destination));
+      \Drupal::logger('file')->notice('File %file (%realpath) could not be copied because the destination %destination is invalid. This is often caused by improper use of file_copy() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%realpath' => $realpath, '%destination' => $destination));
     }
     else {
-      watchdog('file', 'File %file could not be copied because the destination %destination is invalid. This is often caused by improper use of file_copy() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%destination' => $destination));
+      \Drupal::logger('file')->notice('File %file could not be copied because the destination %destination is invalid. This is often caused by improper use of file_copy() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%destination' => $destination));
     }
     drupal_set_message(t('The specified file %file could not be copied because the destination is invalid. More information is available in the system log.', array('%file' => $source->getFileUri())), 'error');
     return FALSE;
@@ -251,10 +239,10 @@ function file_copy(File $source, $destination = NULL, $replace = FILE_EXISTS_REN
 function file_move(File $source, $destination = NULL, $replace = FILE_EXISTS_RENAME) {
   if (!file_valid_uri($destination)) {
     if (($realpath = drupal_realpath($source->getFileUri())) !== FALSE) {
-      watchdog('file', 'File %file (%realpath) could not be moved because the destination %destination is invalid. This may be caused by improper use of file_move() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%realpath' => $realpath, '%destination' => $destination));
+      \Drupal::logger('file')->notice('File %file (%realpath) could not be moved because the destination %destination is invalid. This may be caused by improper use of file_move() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%realpath' => $realpath, '%destination' => $destination));
     }
     else {
-      watchdog('file', 'File %file could not be moved because the destination %destination is invalid. This may be caused by improper use of file_move() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%destination' => $destination));
+      \Drupal::logger('file')->notice('File %file could not be moved because the destination %destination is invalid. This may be caused by improper use of file_move() or a missing stream wrapper.', array('%file' => $source->getFileUri(), '%destination' => $destination));
     }
     drupal_set_message(t('The specified file %file could not be moved because the destination is invalid. More information is available in the system log.', array('%file' => $source->getFileUri())), 'error');
     return FALSE;
@@ -522,7 +510,7 @@ function file_save_data($data, $destination = NULL, $replace = FILE_EXISTS_RENAM
     $destination = file_default_scheme() . '://';
   }
   if (!file_valid_uri($destination)) {
-    watchdog('file', 'The data could not be saved because the destination %destination is invalid. This may be caused by improper use of file_save_data() or a missing stream wrapper.', array('%destination' => $destination));
+    \Drupal::logger('file')->notice('The data could not be saved because the destination %destination is invalid. This may be caused by improper use of file_save_data() or a missing stream wrapper.', array('%destination' => $destination));
     drupal_set_message(t('The data could not be saved because the destination is invalid. More information is available in the system log.'), 'error');
     return FALSE;
   }
@@ -732,11 +720,11 @@ function file_cron() {
           $file->delete();
         }
         else {
-          watchdog('file system', 'Could not delete temporary file "%path" during garbage collection', array('%path' => $file->getFileUri()), WATCHDOG_ERROR);
+          \Drupal::logger('file system')->error('Could not delete temporary file "%path" during garbage collection', array('%path' => $file->getFileUri()));
         }
       }
       else {
-        watchdog('file system', 'Did not delete temporary file "%path" during garbage collection because it is in use by the following modules: %modules.', array('%path' => $file->getFileUri(), '%modules' => implode(', ', array_keys($references))), WATCHDOG_INFO);
+        \Drupal::logger('file system')->info('Did not delete temporary file "%path" during garbage collection because it is in use by the following modules: %modules.', array('%path' => $file->getFileUri(), '%modules' => implode(', ', array_keys($references))));
       }
     }
   }
@@ -958,7 +946,7 @@ function file_save_upload($form_field_name, $validators = array(), $destination 
     $file->uri = $file->destination;
     if (!drupal_move_uploaded_file($file_info->getRealPath(), $file->getFileUri())) {
       drupal_set_message(t('File upload error. Could not move uploaded file.'), 'error');
-      watchdog('file', 'Upload error. Could not move uploaded file %file to destination %destination.', array('%file' => $file->filename, '%destination' => $file->uri));
+      \Drupal::logger('file')->notice('Upload error. Could not move uploaded file %file to destination %destination.', array('%file' => $file->filename, '%destination' => $file->uri));
       $files[$i] = FALSE;
       continue;
     }
@@ -1510,7 +1498,7 @@ function file_managed_file_save_upload($element, array &$form_state) {
 
   $destination = isset($element['#upload_location']) ? $element['#upload_location'] : NULL;
   if (isset($destination) && !file_prepare_directory($destination, FILE_CREATE_DIRECTORY)) {
-    watchdog('file', 'The upload directory %directory for the file field !name could not be created or is not accessible. A newly uploaded file could not be saved in this directory as a consequence, and the upload was canceled.', array('%directory' => $destination, '!name' => $element['#field_name']));
+    \Drupal::logger('file')->notice('The upload directory %directory for the file field !name could not be created or is not accessible. A newly uploaded file could not be saved in this directory as a consequence, and the upload was canceled.', array('%directory' => $destination, '!name' => $element['#field_name']));
     form_set_error($upload_name, $form_state, t('The file could not be uploaded.'));
     return FALSE;
   }
@@ -1520,7 +1508,7 @@ function file_managed_file_save_upload($element, array &$form_state) {
   $files_uploaded |= !$element['#multiple'] && !empty($file_upload);
   if ($files_uploaded) {
     if (!$files = file_save_upload($upload_name, $element['#upload_validators'], $destination)) {
-      watchdog('file', 'The file upload failed. %upload', array('%upload' => $upload_name));
+      \Drupal::logger('file')->notice('The file upload failed. %upload', array('%upload' => $upload_name));
       form_set_error($upload_name, $form_state, t('Files in the !name field were unable to be uploaded.', array('!name' => $element['#title'])));
       return array();
     }
@@ -1951,9 +1939,7 @@ function file_permission() {
   $perms = array(
     'access files overview' => array(
       'title' => t('Access the Files overview page'),
-      'description' => user_access('access files overview')
-        ? t('Get an overview of <a href="@url">all files</a>.', array('@url' => url('admin/content/files')))
-        : t('Get an overview of all files.'),
+      'description' => t('Get an overview of <a href="!url">all files</a>.', array('!url' => url('admin/content/files'))),
     ),
   );
 

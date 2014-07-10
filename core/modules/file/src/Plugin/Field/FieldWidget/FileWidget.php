@@ -76,7 +76,7 @@ class FileWidget extends WidgetBase {
     // Load the items for form rebuilds from the field state as they might not be
     // in $form_state['values'] because of validation limitations. Also, they are
     // only passed in as $items when editing existing entities.
-    $field_state = field_form_get_state($parents, $field_name, $form_state);
+    $field_state = static::getWidgetState($parents, $field_name, $form_state);
     if (isset($field_state['items'])) {
       $items->setValue($field_state['items']);
     }
@@ -159,8 +159,8 @@ class FileWidget extends WidgetBase {
       $elements['#title'] = $title;
 
       $elements['#description'] = $description;
-      $elements['#field_name'] = $element['#field_name'];
-      $elements['#language'] = $element['#language'];
+      $elements['#field_name'] = $field_name;
+      $elements['#language'] = $items->getLangcode();
       $elements['#display_field'] = (bool) $this->getFieldSetting('display_field');
       // The field settings include defaults for the field type. However, this
       // widget is a base class for other widgets (e.g., ImageWidget) that may
@@ -218,6 +218,8 @@ class FileWidget extends WidgetBase {
       // Allows this field to return an array instead of a single value.
       '#extended' => TRUE,
       // Add properties needed by value() and process() methods.
+      '#field_name' => $this->fieldDefinition->getName(),
+      '#entity_type' => $items->getEntity()->getEntityTypeId(),
       '#display_field' => (bool) $field_settings['display_field'],
       '#display_default' => $field_settings['display_default'],
       '#description_field' => $field_settings['description_field'],
@@ -528,9 +530,9 @@ class FileWidget extends WidgetBase {
     NestedArray::setValue($form_state['values'], array_slice($button['#parents'], 0, -2), $submitted_values);
 
     // Update items.
-    $field_state = field_form_get_state($parents, $field_name, $form_state);
+    $field_state = static::getWidgetState($parents, $field_name, $form_state);
     $field_state['items'] = $submitted_values;
-    field_form_set_state($parents, $field_name, $form_state, $field_state);
+    static::setWidgetState($parents, $field_name, $form_state, $field_state);
   }
 
 }

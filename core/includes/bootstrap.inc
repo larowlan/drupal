@@ -4,6 +4,7 @@
  * Functions that need to be loaded on every Drupal request.
  */
 
+use Drupal\Component\Datetime\DateTimePlus;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\Environment;
 use Drupal\Component\Utility\String;
@@ -405,7 +406,7 @@ function drupal_page_is_cacheable($allow_caching = NULL) {
   }
 
   return $allow_caching_static && ($_SERVER['REQUEST_METHOD'] == 'GET' || $_SERVER['REQUEST_METHOD'] == 'HEAD')
-    && !drupal_is_cli();
+    && PHP_SAPI !== 'cli';
 }
 
 /**
@@ -572,7 +573,7 @@ function drupal_page_header() {
 
   $default_headers = array(
     'Expires' => 'Sun, 19 Nov 1978 05:00:00 GMT',
-    'Last-Modified' => gmdate(DATE_RFC1123, REQUEST_TIME),
+    'Last-Modified' => gmdate(DateTimePlus::RFC7231, REQUEST_TIME),
     'Cache-Control' => 'no-cache, must-revalidate, post-check=0, pre-check=0',
     'ETag' => '"' . REQUEST_TIME . '"',
   );
@@ -813,20 +814,21 @@ function request_uri($omit_query_string = FALSE) {
  */
 function watchdog_exception($type, Exception $exception, $message = NULL, $variables = array(), $severity = WATCHDOG_ERROR, $link = NULL) {
 
-   // Use a default value if $message is not set.
-   if (empty($message)) {
-     // The exception message is run through
-     // \Drupal\Component\Utility\String::checkPlain() by
-     // \Drupal\Core\Utility\Error:decodeException().
-     $message = '%type: !message in %function (line %line of %file).';
-   }
-   // $variables must be an array so that we can add the exception information.
-   if (!is_array($variables)) {
-     $variables = array();
-   }
+  // Use a default value if $message is not set.
+  if (empty($message)) {
+    // The exception message is run through
+    // \Drupal\Component\Utility\String::checkPlain() by
+    // \Drupal\Core\Utility\Error:decodeException().
+    $message = '%type: !message in %function (line %line of %file).';
+  }
 
-   $variables += Error::decodeException($exception);
-   watchdog($type, $message, $variables, $severity, $link);
+  if ($link) {
+    $variables['link'] = $link;
+  }
+
+  $variables += Error::decodeException($exception);
+
+  \Drupal::logger($type)->log($severity, $message, $variables);
 }
 
 /**
@@ -1040,19 +1042,6 @@ function drupal_get_user_timezone() {
     $config_data_default_timezone = $config->get('timezone.default');
     return !empty($config_data_default_timezone) ? $config_data_default_timezone : @date_default_timezone_get();
   }
-}
-
-/**
- * Gets a salt useful for hardening against SQL injection.
- *
- * @return
- *   A salt based on information in settings.php, not in the database.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0. Use
- *   \Drupal\Core\Site\Settings::getHashSalt() instead.
- */
-function drupal_get_hash_salt() {
-  return Settings::getHashSalt();
 }
 
 /**
@@ -1459,59 +1448,6 @@ function _current_path($path = NULL) {
 }
 
 /**
- * Returns a component of the current Drupal path.
- *
- * When viewing a page at the path "admin/structure/types", for example, arg(0)
- * returns "admin", arg(1) returns "structure", and arg(2) returns "types".
- *
- * Avoid use of this function where possible, as resulting code is hard to
- * read. In menu callback functions, attempt to use named arguments. See the
- * explanation in menu.inc for how to construct callbacks that take arguments.
- * When attempting to use this function to load an element from the current
- * path, e.g. loading the node on a node page, use menu_get_object() instead.
- *
- * @param $index
- *   The index of the component, where each component is separated by a '/'
- *   (forward-slash), and where the first component has an index of 0 (zero).
- * @param $path
- *   A path to break into components. Defaults to the path of the current page.
- *
- * @return
- *   The component specified by $index, or NULL if the specified component was
- *   not found. If called without arguments, it returns an array containing all
- *   the components of the current path.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- */
-function arg($index = NULL, $path = NULL) {
-  // Even though $arguments doesn't need to be resettable for any functional
-  // reasons (the result of explode() does not depend on any run-time
-  // information), it should be resettable anyway in case a module needs to
-  // free up the memory used by it.
-  // Use the advanced drupal_static() pattern, since this is called very often.
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-    $drupal_static_fast['arguments'] = &drupal_static(__FUNCTION__);
-  }
-  $arguments = &$drupal_static_fast['arguments'];
-
-  if (!isset($path)) {
-    // @todo The public function current_path() is not available during early
-    //   bootstrap.
-    $path = _current_path();
-  }
-  if (!isset($arguments[$path])) {
-    $arguments[$path] = explode('/', $path);
-  }
-  if (!isset($index)) {
-    return $arguments[$path];
-  }
-  if (isset($arguments[$path][$index])) {
-    return $arguments[$path][$index];
-  }
-}
-
-/**
  * Initializes and returns the class loader.
  *
  * The class loader is responsible for lazy-loading all PSR-0 compatible
@@ -1547,7 +1483,7 @@ function drupal_classloader($class_loader = NULL) {
     }
     if ($class_loader === 'apc') {
       require_once __DIR__ . '/../vendor/symfony/class-loader/Symfony/Component/ClassLoader/ApcClassLoader.php';
-      $apc_loader = new ApcClassLoader('drupal.' . drupal_get_hash_salt(), $loader);
+      $apc_loader = new ApcClassLoader('drupal.' . Settings::getHashSalt(), $loader);
       $loader->unregister();
       $apc_loader->register();
     }
@@ -1727,6 +1663,9 @@ function drupal_static_reset($name = NULL) {
 
 /**
  * Detects whether the current script is running in a command-line environment.
+ *
+ * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
+ *   Check the PHP_SAPI value directly instead.
  */
 function drupal_is_cli() {
   return PHP_SAPI === 'cli';
@@ -1806,30 +1745,6 @@ function _drupal_shutdown_function() {
     }
     error_log($exception);
   }
-}
-
-/**
- * Compares the memory required for an operation to the available memory.
- *
- * @param $required
- *   The memory required for the operation, expressed as a number of bytes with
- *   optional SI or IEC binary unit prefix (e.g. 2, 3K, 5MB, 10G, 6GiB, 8bytes,
- *   9mbytes).
- * @param $memory_limit
- *   (optional) The memory limit for the operation, expressed as a number of
- *   bytes with optional SI or IEC binary unit prefix (e.g. 2, 3K, 5MB, 10G,
- *   6GiB, 8bytes, 9mbytes). If no value is passed, the current PHP
- *   memory_limit will be used. Defaults to NULL.
- *
- * @return
- *   TRUE if there is sufficient memory to allow the operation, or FALSE
- *   otherwise.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal\Component\Utility\Environment::checkMemoryLimit().
- */
-function drupal_check_memory_limit($required, $memory_limit = NULL) {
-  return Environment::checkMemoryLimit($required, $memory_limit);
 }
 
 /**

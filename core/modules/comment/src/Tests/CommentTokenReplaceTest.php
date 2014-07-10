@@ -9,6 +9,7 @@ namespace Drupal\comment\Tests;
 
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Xss;
+use Drupal\comment\Entity\Comment;
 
 /**
  * Tests comment token replacement in strings.
@@ -45,7 +46,7 @@ class CommentTokenReplaceTest extends CommentTestBase {
     // Post a reply to the comment.
     $this->drupalGet('comment/reply/node/' . $node->id() . '/comment/' . $parent_comment->id());
     $child_comment = $this->postComment(NULL, $this->randomName(), $this->randomName());
-    $comment = comment_load($child_comment->id());
+    $comment = Comment::load($child_comment->id());
     $comment->setHomepage('http://example.org/');
 
     // Add HTML to ensure that sanitation of some fields tested directly.
@@ -106,10 +107,12 @@ class CommentTokenReplaceTest extends CommentTestBase {
     $tests['[entity:comment-count-new]'] = 2;
     // Also test the deprecated legacy token.
     $tests['[node:comment-count]'] = 2;
+    $tests['[node:comment-count-new]'] = 2;
 
     foreach ($tests as $input => $expected) {
       $output = $token_service->replace($input, array('entity' => $node, 'node' => $node), array('langcode' => $language_interface->id));
       $this->assertEqual($output, $expected, format_string('Node comment token %token replaced.', array('%token' => $input)));
     }
   }
+
 }

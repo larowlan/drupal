@@ -146,9 +146,6 @@ class Comment extends ContentEntityBase implements CommentInterface {
     $this->releaseThreadLock();
     // Update the {comment_entity_statistics} table prior to executing the hook.
     $storage->updateEntityStatistics($this);
-    if ($this->isPublished()) {
-      \Drupal::moduleHandler()->invokeAll('comment_publish', array($this));
-    }
   }
 
   /**
@@ -376,6 +373,9 @@ class Comment extends ContentEntityBase implements CommentInterface {
    * {@inheritdoc}
    */
   public function getAuthorName() {
+    if ($this->get('uid')->target_id) {
+      return $this->get('uid')->entity->label();
+    }
     return $this->get('name')->value ?: \Drupal::config('user.settings')->get('anonymous');
   }
 

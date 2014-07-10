@@ -394,11 +394,13 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
       }
     }
 
-    // Automatically set the field name for non-configurable fields.
+    // Automatically set the field name, target entity type and bundle
+    // for non-configurable fields.
     foreach ($base_field_definitions as $field_name => $base_field_definition) {
       if ($base_field_definition instanceof FieldDefinition) {
         $base_field_definition->setName($field_name);
         $base_field_definition->setTargetEntityTypeId($entity_type_id);
+        $base_field_definition->setBundle(NULL);
       }
     }
 
@@ -491,11 +493,13 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
       }
     }
 
-    // Automatically set the field name for non-configurable fields.
+    // Automatically set the field name, target entity type and bundle
+    // for non-configurable fields.
     foreach ($bundle_field_definitions as $field_name => $field_definition) {
       if ($field_definition instanceof FieldDefinition) {
         $field_definition->setName($field_name);
         $field_definition->setTargetEntityTypeId($entity_type_id);
+        $field_definition->setBundle($bundle);
       }
     }
 
@@ -813,7 +817,7 @@ class EntityManager extends DefaultPluginManager implements EntityManagerInterfa
         $this->displayModeInfo[$display_type] = array();
         foreach ($this->getStorage($display_type)->loadMultiple() as $display_mode) {
           list($display_mode_entity_type, $display_mode_name) = explode('.', $display_mode->id(), 2);
-          $this->displayModeInfo[$display_type][$display_mode_entity_type][$display_mode_name] = (array) $display_mode;
+          $this->displayModeInfo[$display_type][$display_mode_entity_type][$display_mode_name] = $display_mode->toArray();
         }
         $this->moduleHandler->alter($key, $this->displayModeInfo[$display_type]);
         $this->cacheBackend->set("$key:$langcode", $this->displayModeInfo[$display_type], CacheBackendInterface::CACHE_PERMANENT, array('entity_types' => TRUE, 'entity_field_info' => TRUE));

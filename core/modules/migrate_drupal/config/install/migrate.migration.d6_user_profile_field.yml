@@ -5,7 +5,7 @@ source:
   constants:
     entity_type: user
 process:
-  entity_type: constants.entity_type
+  entity_type: 'constants/entity_type'
   name: name
   type:
     plugin: static_map
@@ -18,6 +18,10 @@ process:
       textfield: text
       textarea: text_long
       url: link
+  settings:
+    plugin: d6_profile_field_settings
+    source: type
+  'settings/allowed_values': options
   cardinality:
     plugin: static_map
     default_value: 1

@@ -900,7 +900,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    * Generate a token for the currently logged in user.
    */
   protected function drupalGetToken($value = '') {
-    $private_key = drupal_get_private_key();
+    $private_key = \Drupal::service('private_key')->get();
     return Crypt::hmacBase64($value, $this->session_id . $private_key);
   }
 
@@ -924,6 +924,16 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
       $this->loggedInUser = FALSE;
       $this->container->get('current_user')->setAccount(new AnonymousUserSession());
     }
+  }
+
+  /**
+   * Returns the session name in use on the child site.
+   *
+   * @return string
+   *   The name of the session cookie.
+   */
+  public function getSessionName() {
+    return $this->session_name;
   }
 
   /**
@@ -956,6 +966,12 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
       'mail' => 'admin@example.com',
       'pass_raw' => $this->randomName(),
     ));
+
+    // Some tests (SessionTest and SessionHttpsTest) need to examine whether the
+    // proper session cookies were set on a response. Because the child site
+    // uses the same session name as the test runner, it is necessary to make
+    // that available to test-methods.
+    $this->session_name = $this->originalSessionName;
 
     // Reset the static batch to remove Simpletest's batch operations.
     $batch = &batch_get();
@@ -1033,10 +1049,11 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
 
     $request = \Drupal::request();
     $this->kernel = DrupalKernel::createFromRequest($request, drupal_classloader(), 'prod', TRUE);
+    $this->kernel->prepareLegacyRequest($request);
     // Force the container to be built from scratch instead of loaded from the
     // disk. This forces us to not accidently load the parent site.
     $container = $this->kernel->rebuildContainer();
-    $this->kernel->prepareLegacyRequest($request);
+
     $config = $container->get('config.factory');
 
     // Manually create and configure private and temporary files directories.
@@ -1258,7 +1275,6 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     $request = \Drupal::request();
     // Rebuild the kernel and bring it back to a fully bootstrapped state.
     $this->container = $this->kernel->rebuildContainer();
-    $this->container->get('current_user')->setAccount(\Drupal::currentUser());
 
     // The request context is normally set by the router_listener from within
     // its KernelEvents::REQUEST listener. In the simpletest parent site this
@@ -2645,7 +2661,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *
    * Will click the first link found with this link text by default, or a later
    * one if an index is given. Match is case sensitive with normalized space.
-   * The label is translated label. There is an assert for successful click.
+   * The label is translated label.
+   *
+   * If the link is discovered and clicked, the test passes. Fail otherwise.
    *
    * @param $label
    *   Text between the anchor tags.
@@ -2653,13 +2671,12 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   Link position counting from zero.
    *
    * @return
-   *   Page on success, or FALSE on failure.
+   *   Page contents on success, or FALSE on failure.
    */
   protected function clickLink($label, $index = 0) {
     $url_before = $this->getUrl();
     /** @var \Behat\Mink\Element\NodeElement[] $urls */
     $urls = $this->xpath('//a[normalize-space()=:label]', array(':label' => $label));
-
     if (isset($urls[$index])) {
       $url_target = $this->getAbsoluteUrl($urls[$index]->getAttribute('href'));
     }
@@ -2669,6 +2686,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     if (isset($url_target)) {
       return $this->drupalGet($url_target);
     }
+    $this->fail(String::format('Link $label does not exist on @url_before', array('%label' => $label, '@url_before' => $url_before)), 'Browser');
     return FALSE;
   }
 

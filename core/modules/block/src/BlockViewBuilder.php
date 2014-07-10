@@ -37,12 +37,13 @@ class BlockViewBuilder extends EntityViewBuilder {
    * {@inheritdoc}
    */
   public function viewMultiple(array $entities = array(), $view_mode = 'full', $langcode = NULL) {
+    /** @var \Drupal\block\BlockInterface[] $entities */
     $build = array();
     foreach ($entities as  $entity) {
       $entity_id = $entity->id();
       $plugin = $entity->getPlugin();
       $plugin_id = $plugin->getPluginId();
-      $base_id = $plugin->getBasePluginId();
+      $base_id = $plugin->getBaseId();
       $derivative_id = $plugin->getDerivativeId();
       $configuration = $plugin->getConfiguration();
 
@@ -85,7 +86,7 @@ class BlockViewBuilder extends EntityViewBuilder {
           'entity_view',
           'block',
           $entity->id(),
-          $entity->langcode,
+          $entity->language()->getId(),
           // Blocks are always rendered in a "per theme" cache context.
           'cache_context.theme',
         );

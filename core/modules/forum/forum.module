@@ -10,12 +10,12 @@ use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Component\Utility\String;
-use Symfony\Component\HttpFoundation\Request;
+use Drupal\Core\Routing\RouteMatchInterface;
 
 /**
  * Implements hook_help().
  */
-function forum_help($route_name, Request $request) {
+function forum_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
     case 'help.page.forum':
       $output = '';
@@ -358,35 +358,18 @@ function forum_permission() {
 }
 
 /**
- * Implements hook_comment_publish().
- *
- * This actually handles the insertion and update of published nodes since
- * $comment->save() calls hook_comment_publish() for all published comments.
+ * Implements hook_comment_update().
  */
-function forum_comment_publish(CommentInterface $comment) {
+function forum_comment_update(CommentInterface $comment) {
   if ($comment->getCommentedEntityTypeId() == 'node') {
     \Drupal::service('forum.index_storage')->updateIndex($comment->getCommentedEntity());
   }
 }
 
 /**
- * Implements hook_comment_update().
- *
- * The Comment module doesn't call hook_comment_unpublish() when saving
- * individual comments, so we need to check for those here.
+ * Implements hook_comment_insert().
  */
-function forum_comment_update(CommentInterface $comment) {
-  // $comment->save() calls hook_comment_publish() for all published comments,
-  // so we need to handle all other values here.
-  if (!$comment->isPublished() && $comment->getCommentedEntityTypeId() == 'node') {
-    \Drupal::service('forum.index_storage')->updateIndex($comment->getCommentedEntity());
-  }
-}
-
-/**
- * Implements hook_comment_unpublish().
- */
-function forum_comment_unpublish(CommentInterface $comment) {
+function forum_comment_insert(CommentInterface $comment) {
   if ($comment->getCommentedEntityTypeId() == 'node') {
     \Drupal::service('forum.index_storage')->updateIndex($comment->getCommentedEntity());
   }
@@ -590,8 +573,11 @@ function template_preprocess_forums(&$variables) {
         $variables['topics'][$id]->new_url = '';
 
         if ($topic->new_replies) {
+          $page_number = \Drupal::entityManager()->getStorage('comment')
+            ->getNewCommentPageNumber($topic->comment_count, $topic->new_replies, $topic, 'comment_forum');
+          $query = $page_number ? array('page' => $page_number) : NULL;
           $variables['topics'][$id]->new_text = format_plural($topic->new_replies, '1 new post<span class="visually-hidden"> in topic %title</span>', '@count new posts<span class="visually-hidden"> in topic %title</span>', array('%title' => $variables['topics'][$id]->label()));
-          $variables['topics'][$id]->new_url = url('node/' . $topic->id(), array('query' => comment_new_page_count($topic->comment_count, $topic->new_replies, $topic, 'comment_node_forum'), 'fragment' => 'new'));
+          $variables['topics'][$id]->new_url = url('node/' . $topic->id(), array('query' => $query, 'fragment' => 'new'));
         }
 
         // Build table rows from topics.

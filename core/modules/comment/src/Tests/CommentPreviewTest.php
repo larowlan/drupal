@@ -7,7 +7,9 @@
 
 namespace Drupal\comment\Tests;
 
+use Drupal\comment\CommentManagerInterface;
 use Drupal\Core\Datetime\DrupalDateTime;
+use Drupal\comment\Entity\Comment;
 
 /**
  * Tests previewing comments.
@@ -40,7 +42,7 @@ class CommentPreviewTest extends CommentTestBase {
     $this->setCommentPreview(DRUPAL_OPTIONAL);
     $this->setCommentForm(TRUE);
     $this->setCommentSubject(TRUE);
-    $this->setCommentSettings('default_mode', COMMENT_MODE_THREADED, 'Comment paging changed.');
+    $this->setCommentSettings('default_mode', CommentManagerInterface::COMMENT_MODE_THREADED, 'Comment paging changed.');
     $this->drupalLogout();
 
     // Login as web user and add a signature and a user picture.
@@ -83,7 +85,7 @@ class CommentPreviewTest extends CommentTestBase {
     $this->setCommentPreview(DRUPAL_OPTIONAL);
     $this->setCommentForm(TRUE);
     $this->setCommentSubject(TRUE);
-    $this->setCommentSettings('default_mode', COMMENT_MODE_THREADED, 'Comment paging changed.');
+    $this->setCommentSettings('default_mode', CommentManagerInterface::COMMENT_MODE_THREADED, 'Comment paging changed.');
 
     $edit = array();
     $date = new DrupalDateTime('2008-03-02 17:23');
@@ -135,7 +137,9 @@ class CommentPreviewTest extends CommentTestBase {
     $this->drupalPostForm('comment/' . $comment->id() . '/edit', $displayed, t('Save'));
 
     // Check that the saved comment is still correct.
-    $comment_loaded = comment_load($comment->id(), TRUE);
+    $comment_storage = \Drupal::entityManager()->getStorage('comment');
+    $comment_storage->resetCache(array($comment->id()));
+    $comment_loaded = Comment::load($comment->id());
     $this->assertEqual($comment_loaded->getSubject(), $edit['subject'], 'Subject loaded.');
     $this->assertEqual($comment_loaded->comment_body->value, $edit['comment_body[0][value]'], 'Comment body loaded.');
     $this->assertEqual($comment_loaded->getAuthorName(), $edit['name'], 'Name loaded.');
@@ -148,7 +152,8 @@ class CommentPreviewTest extends CommentTestBase {
     $expected_created_time = $comment_loaded->getCreatedTime();
     $this->drupalLogin($web_user);
     $this->drupalPostForm('comment/' . $comment->id() . '/edit', $user_edit, t('Save'));
-    $comment_loaded = comment_load($comment->id(), TRUE);
+    $comment_storage->resetCache(array($comment->id()));
+    $comment_loaded = Comment::load($comment->id());
     $this->assertEqual($comment_loaded->getCreatedTime(), $expected_created_time, 'Expected date and time for comment edited.');
     $this->drupalLogout();
   }

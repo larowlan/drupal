@@ -71,10 +71,113 @@
  * @{
  * Integrating third-party applications using REST and related operations.
  *
- * @todo write this
+ * @section sec_overview Overview of web services
+ * Web services make it possible for applications and web sites to read and
+ * update information from other web sites. There are several standard
+ * techniques for providing web services, including:
+ * - SOAP: http://en.wikipedia.org/wiki/SOAP SOAP
+ * - XML-RPC: http://en.wikipedia.org/wiki/XML-RPC
+ * - REST: http://en.wikipedia.org/wiki/Representational_state_transfer
+ * Drupal sites can both provide web services and integrate third-party web
+ * services.
  *
- * Additional documentation paragraphs need to be written, and functions,
- * classes, and interfaces need to be added to this topic.
+ * @section sec_rest_overview Overview of REST
+ * The REST technique uses basic HTTP requests to obtain and update data, where
+ * each web service defines a specific API (HTTP GET and/or POST parameters and
+ * returned response) for its HTTP requests. REST requests are separated into
+ * several types, known as methods, including:
+ * - GET: Requests to obtain data.
+ * - PUT: Requests to update or create data.
+ * - PATCH: Requests to update a subset of data, such as one field.
+ * - DELETE: Requests to delete data.
+ * The Drupal Core REST module provides support for GET, PUT, PATCH, and DELETE
+ * quests on entities, GET requests on the database log from the Database
+ * Logging module, and a plugin framework for providing REST support for other
+ * data and other methods.
+ *
+ * REST requests can be authenticated. The Drupal Core Basic Auth module
+ * provides authentication using the HTTP Basic protocol; contributed module
+ * OAuth (https://www.drupal.org/project/oauth) implements the OAuth
+ * authenticaion protocol. You can also use cookie-based authentication, which
+ * would require users to be logged into the Drupal site while using the
+ * application on the third-party site that is using the REST service.
+ *
+ * @section sec_rest Enabling REST for entities and the log
+ * Here are the steps to take to use the REST operations provided by Drupal
+ * Core:
+ * - Enable the REST module, plus Basic Auth (or another authentication method)
+ *   and HAL.
+ * - Node entity support is configured by default. If you would like to support
+ *   other types of entities, you can copy
+ *   core/modules/rest/config/install/rest.settings.yml to your staging
+ *   configuration directory, appropriately modified for other entity types,
+ *   and import it. Support for GET on the log from the Database Logging module
+ *   can also be enabled in this way; in this case, the 'entity:node' line
+ *   in the configuration would be replaced by the appropriate plugin ID,
+ *   'dblog'.
+ * - Set up permissions to allow the desired REST operations for a role, and set
+ *   up one or more user accounts to perform the operations.
+ * - To perform a REST operation, send a request to either the canonical URL
+ *   for an entity (such as node/12345 for a node), or if the entity does not
+ *   have a canonical URL, a URL like entity/(type)/(ID). The URL for a log
+ *   entry is dblog/(ID). The request must have the following properties:
+ *   - The request method must be set to the REST method you are using (POST,
+ *     GET, PATCH, etc.).
+ *   - The content type for the data you send, or the accept type for the
+ *     data you are receiving, must be set to 'application/hal+json'.
+ *   - If you are sending data, it must be JSON-encoded.
+ *   - You'll also need to make sure the authentication information is sent
+ *     with the request, unless you have allowed access to anonymous users.
+ *
+ * For more detailed information on setting up REST, see
+ * https://www.drupal.org/documentation/modules/rest.
+ *
+ * @section sec_plugins Defining new REST plugins
+ * The REST framework in the REST module has support built in for entities, but
+ * it is also an extensible plugin-based system. REST plugins implement
+ * interface \Drupal\rest\Plugin\ResourceInterface, and generally extend base
+ * class \Drupal\rest\Plugin\ResourceBase. They are annotated with
+ * \Drupal\rest\Annotation\RestResource annotation, and must be in plugin
+ * namespace subdirectory Plugin\rest\resource. For more information on how to
+ * create plugins, see the @link plugin_api Plugin API topic. @endlink
+ *
+ * If you create a new REST plugin, you will also need to enable it by
+ * providing default configuration or configuration import, as outlined in
+ * @ref sec_rest above.
+ *
+ * @section sec_xmlrpc Using XML-RPC
+ * In XML-RPC, a web site can set up one or more XML-RPC methods, which it
+ * will usually service at a central XML-RPC URL. Drupal Core's XML-RPC module
+ * provides both client and server XML-RPC functionality.
+ *
+ * On the server side, the XML-RPC module sets up URL path xmlrpc.php, which
+ * responds to XML-RPC requests. Individual XML-RPC request methods are defined
+ * by modules by implementing hook_xmlrpc(); Drupal Core does not define any
+ * XML-RPC web service requests by default.
+ *
+ * On the client side, XML-RPC requests to other web sites that provide XML-RPC
+ * web services can be performed in Drupal by using the xmlrpc() function.
+ *
+ * @section sec_integrate Integrating data from other sites into Drupal
+ * If you want to integrate data from other web sites into Drupal, here are
+ * some notes:
+ * - There are contributed modules available for integrating many third-party
+ *   sites into Drupal. Search on https://www.drupal.org/project/project_module
+ * - If there is not an existing module, you will need to find documentation on
+ *   the specific web services API for the site you are trying to integrate.
+ * - There are several classes and functions that are useful for interacting
+ *   with web services:
+ *   - You should make requests using the 'http_client' service, which
+ *     implements \GuzzleHttp\ClientInterface. See the
+ *     @link container Services topic @endlink for more information on
+ *     services. If you cannot use dependency injection to retrieve this
+ *     service, the \Drupal::httpClient() method is available. A good example
+ *     of how to use this service can be found in
+ *     \Drupal\aggregator\Plugin\aggregator\fetcher\DefaultFetcher
+ *   - \Drupal\Component\Serialization\Json (JSON encoding and decoding).
+ *   - PHP has functions and classes for parsing XML; see
+ *     http://php.net/manual/refs.xml.php
+ *   - As mentioned above, for XML-RPC requests, use function xmlrpc().
  * @}
  */
 
@@ -313,13 +416,13 @@
  *   entity interface you have defined as its parameter, and returns routing
  *   information for the entity page; see node_uri() for an example. You will
  *   also need to add a corresponding route to your module's routing.yml file;
- *   see the node.view route in node.routing.yml for an example, and see the
- *   @link menu Menu and routing @endlink topic for more information about
- *   routing.
+ *   see the node.view route in node.routing.yml for an example, and see
+ *   @ref sec_routes below for some notes.
  * - Define routing and links for the various URLs associated with the entity.
  *   These go into the 'links' annotation, with the link type as the key, and
  *   the route machine name (defined in your module's routing.yml file) as the
- *   value. Typical link types are:
+ *   value; see @ref sec_routes below for some routing notes. Typical link
+ *   types are:
  *   - canonical: Default link, either to view (if entities are viewed on their
  *     own pages) or edit the entity.
  *   - delete-form: Confirmation form to delete the entity.
@@ -338,6 +441,37 @@
  *   \Drupal\node\Entity\Node (content) and \Drupal\user\Entity\Role
  *   (configuration). These annotations are documented on
  *   \Drupal\Core\Entity\EntityType.
+ *
+ * @section sec_routes Entity routes
+ * Entity routes, like other routes, are defined in *.routing.yml files; see
+ * the @link menu Menu and routing @endlink topic for more information. Here
+ * is a typical entry, for the block configure form:
+ * @code
+ * block.admin_edit:
+ *   path: '/admin/structure/block/manage/{block}'
+ *   defaults:
+ *     _entity_form: 'block.default'
+ *     _title: 'Configure block'
+ *   requirements:
+ *     _entity_access: 'block.update'
+ * @endcode
+ * Some notes:
+ * - path: The {block} in the path is a placeholder, which (for an entity) must
+ *   always take the form of {machine_name_of_entity_type}. In the URL, the
+ *   placeholder value will be the ID of an entity item. When the route is used,
+ *   the entity system will load the corresponding entity item and pass it in as
+ *   an object to the controller for the route.
+ * - defaults: For entity form routes, use _entity_form rather than the generic
+ *   _content or _form. The value is composed of the entity type machine name
+ *   and a form controller type from the entity annotation (see @ref define
+ *   above more more on controllers and annotation). So, in this example,
+ *   block.default refers to the 'default' form controller on the block entity
+ *   type, whose annotation contains:
+ *   @code
+ *   controllers = {
+ *     "form" = {
+ *       "default" = "Drupal\block\BlockForm",
+ *   @endcode
  *
  * @section load_query Loading and querying entities
  * To load entities, use the entity storage manager, which is an object
@@ -388,6 +522,19 @@
  *   ->execute();
  * $files = $storage->loadMultiple($fids);
  * @endcode
+ *
+ * @section sec_access Access checking on entities
+ * Entity types define their access permission scheme in their annotation.
+ * Access permissions can be quite complex, so you should not assume any
+ * particular permission scheme. Instead, once you have an entity object
+ * loaded, you can check for permission for a particular operation (such as
+ * 'view') at the entity or field level by calling:
+ * @code
+ * $entity->access($operation);
+ * $entity->nameOfField->access($operation);
+ * @endcode
+ * The interface related to access checking in entities and fields is
+ * \Drupal\Core\Access\AccessibleInterface.
  *
  * @see i18n
  * @}
@@ -676,14 +823,94 @@
  */
 
 /**
- * @defgroup user_api User Accounts System
+ * @defgroup user_api User accounts, permissions, and roles
  * @{
  * API for user accounts, access checking, roles, and permissions.
  *
- * @todo write this
+ * @sec sec_overview Overview and terminology
+ * Drupal's permission system is based on the concepts of accounts, roles,
+ * and permissions.
  *
- * Additional documentation paragraphs need to be written, and functions,
- * classes, and interfaces need to be added to this topic.
+ * Users (site visitors) have accounts, which include a user name, an email
+ * address, a password (or some other means of authentication), and possibly
+ * other fields (if defined on the site). Anonymous users have an implicit
+ * account that does not have a real user name or any account information.
+ *
+ * Each user account is assigned one or more roles. The anonymous user account
+ * automatically has the anonymous user role; real user accounts
+ * automatically have the authenticated user role, plus any roles defined on
+ * the site that they have been assigned.
+ *
+ * Each role, including the special anonymous and authenticated user roles, is
+ * granted one or more named permissions, which allow them to perform certain
+ * tasks or view certain content on the site. It is possible to designate a
+ * role to be the "administrator" role; if this is set up, this role is
+ * automatically granted all available permissions whenever a module is
+ * enabled that defines permissions.
+ *
+ * All code in Drupal that allows users to perform tasks or view content must
+ * check that the current user has the correct permission before allowing the
+ * action. In the standard case, access checking consists of answering the
+ * question "Does the current user have permission 'foo'?", and allowing or
+ * denying access based on the answer. Note that access checking should nearly
+ * always be done at the permission level, not by checking for a particular role
+ * or user ID, so that site administrators can set up user accounts and roles
+ * appropriately for their particular sites.
+ *
+ * @sec sec_define Defining permissions
+ * Modules define permissions by implementing hook_permission(). The return
+ * value defines machine names, human-readable names, and optionally
+ * descriptions for each permission type. The machine names are the canonical
+ * way to refer to permissions for access checking.
+ *
+ * @sec sec_access Access permission checking
+ * Depending on the situation, there are several methods for ensuring that
+ * access checks are done properly in Drupal:
+ * - Routes: When you register a route, include a 'requirements' section that
+ *   either gives the machine name of the permission that is needed to visit the
+ *   URL of the route, or tells Drupal to use an access check method or service
+ *   to check access. See the @link menu Routing topic @endlink for more
+ *   information.
+ * - Entities: Access for various entity operations is designated either with
+ *   simple permissions or access controller classes in the entity annotation.
+ *   See the @link entity_api Entity API topic @endlink for more information.
+ * - Other code: There is a 'current_user' service, which can be injected into
+ *   classes to provide access to the current user account (see the
+ *   @link container Services and Dependency Injection topic @endlink for more
+ *   information on dependency injection). In code that cannot use dependency
+ *   injection, you can access this service and retrieve the current user
+ *   account object by calling \Drupal::currentUser(). Once you have a user
+ *   object for the current user (implementing \Drupal\user\UserInterface), you
+ *   can call inherited method
+ *   \Drupal\Core\Session\AccountInterface::hasPermission() to check
+ *   permissions, or pass this object into other functions/methods.
+ * - Forms: Each element of a form array can have a Boolean '#access' property,
+ *   which determines whether that element is visible and/or usable. This is a
+ *   common need in forms, so the current user service (described above) is
+ *   injected into the form base class as method
+ *   \Drupal\Core\Form\FormBase::currentUser().
+ *
+ * @sec sec_entities User and role objects
+ * User objects in Drupal are entity items, implementing
+ * \Drupal\user\UserInterface. Role objects in Drupal are also entity items,
+ * implementing \Drupal\user\RoleInterface. See the
+ * @link entity_api Entity API topic @endlink for more information about
+ * entities in general (including how to load, create, modify, and query them).
+ *
+ * Roles often need to be manipulated in automated test code, such as to add
+ * permissions to them. Here's an example:
+ * @code
+ * $role = \Drupal\user\Entity\Role::load('authenticated');
+ * $role->grantPermission('access comments');
+ * $role->save();
+ * @endcode
+ *
+ * Other important interfaces:
+ * - \Drupal\Core\Session\AccountInterface: The part of UserInterface that
+ *   deals with access checking. In writing code that checks access, your
+ *   method parameters should use this interface, not UserInterface.
+ * - \Drupal\Core\Session\AccountProxyInterface: The interface for the
+ *   current_user service (described above).
  * @}
  */
 

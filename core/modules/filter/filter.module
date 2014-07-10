@@ -12,16 +12,16 @@ use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Template\Attribute;
 use Drupal\filter\FilterFormatInterface;
 use Drupal\filter\Plugin\FilterInterface;
-use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Implements hook_help().
  */
-function filter_help($route_name, Request $request) {
+function filter_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
     case 'help.page.filter':
       $output = '';
@@ -152,7 +152,7 @@ function filter_pre_render_text(array $element) {
   // If the requested text format does not exist, the text cannot be filtered.
   /** @var \Drupal\filter\Entity\FilterFormat $format **/
   if (!$format = entity_load('filter_format', $format_id)) {
-    watchdog('filter', 'Missing text format: %format.', array('%format' => $format_id), WATCHDOG_ALERT);
+    \Drupal::logger('filter')->alert('Missing text format: %format.', array('%format' => $format_id));
     $element['#markup'] = '';
     return $element;
   }
@@ -1206,6 +1206,10 @@ function filter_filter_secure_image_alter(&$image) {
   $image->setAttribute('src', base_path() . 'core/misc/message-16-error.png');
   $image->setAttribute('alt', t('Image removed.'));
   $image->setAttribute('title', t('This image has been removed. For security reasons, only images from the local domain are allowed.'));
+  $image_factory = \Drupal::service('image.factory');
+  $error_image = $image_factory->get('core/misc/message-16-error.png');
+  $image->setAttribute('height', $error_image->getHeight());
+  $image->setAttribute('width',  $error_image->getWidth());
 
   // Add a CSS class to aid in styling.
   $class = ($image->getAttribute('class') ? trim($image->getAttribute('class')) . ' ' : '');

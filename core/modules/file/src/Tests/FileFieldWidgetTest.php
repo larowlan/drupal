@@ -6,6 +6,8 @@
  */
 
 namespace Drupal\file\Tests;
+
+use Drupal\comment\Entity\Comment;
 use Drupal\field\Entity\FieldInstanceConfig;
 
 /**
@@ -279,7 +281,7 @@ class FileFieldWidgetTest extends FileFieldTestBase {
     // Log in as normal user.
     $this->drupalLogin($user);
 
-    $comment = comment_load($cid);
+    $comment = Comment::load($cid);
     $comment_file = $comment->{'field_' . $name}->entity;
     $this->assertFileExists($comment_file, 'New file saved to disk on node creation.');
     // Test authenticated file download.

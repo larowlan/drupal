@@ -20,7 +20,6 @@ use Drupal\Core\Page\LinkElement;
 use Drupal\Core\Page\MetaElement;
 use Drupal\Core\Routing\RouteMatch;
 use Drupal\Core\Template\Attribute;
-use Drupal\Core\Template\RenderWrapper;
 use Drupal\Core\Theme\ThemeSettings;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Render\Element;
@@ -459,7 +458,7 @@ function _theme($hook, $variables = array()) {
       // Only log a message when not trying theme suggestions ($hook being an
       // array).
       if (!isset($candidate)) {
-        watchdog('theme', 'Theme hook %hook not found.', array('%hook' => $hook), WATCHDOG_WARNING);
+        \Drupal::logger('theme')->warning('Theme hook %hook not found.', array('%hook' => $hook));
       }
       // There is no theme implementation for the hook passed. Return FALSE so
       // the function calling _theme() can differentiate between a hook that
@@ -1562,7 +1561,13 @@ function template_preprocess_table(&$variables) {
   if (!empty($variables['header'])) {
     $ts = tablesort_init($variables['header']);
 
+    // Use a separate index with responsive classes as headers
+    // may be associative.
+    $responsive_index = -1;
     foreach ($variables['header'] as $col_key => $cell) {
+      // Increase the responsive index.
+      $responsive_index++;
+
       if (!is_array($cell)) {
         $cell_content = $cell;
         $cell_attributes = new Attribute();
@@ -1584,10 +1589,10 @@ function template_preprocess_table(&$variables) {
         // must be transferred to the content cells.
         if (!empty($cell['class']) && is_array($cell['class'])) {
           if (in_array(RESPONSIVE_PRIORITY_MEDIUM, $cell['class'])) {
-            $responsive_classes[$col_key] = RESPONSIVE_PRIORITY_MEDIUM;
+            $responsive_classes[$responsive_index] = RESPONSIVE_PRIORITY_MEDIUM;
           }
           elseif (in_array(RESPONSIVE_PRIORITY_LOW, $cell['class'])) {
-            $responsive_classes[$col_key] = RESPONSIVE_PRIORITY_LOW;
+            $responsive_classes[$responsive_index] = RESPONSIVE_PRIORITY_LOW;
           }
         }
 
@@ -1638,7 +1643,12 @@ function template_preprocess_table(&$variables) {
       $variables['rows'][$row_key]['attributes'] = new Attribute($row_attributes);
       $variables['rows'][$row_key]['cells'] = array();
       if (!empty($cells)) {
+        // Reset the responsive index.
+        $responsive_index = -1;
         foreach ($cells as $col_key => $cell) {
+          // Increase the responsive index.
+          $responsive_index++;
+
           if (!is_array($cell)) {
             $cell_content = $cell;
             $cell_attributes = array();
@@ -1666,8 +1676,8 @@ function template_preprocess_table(&$variables) {
           }
           // Copy RESPONSIVE_PRIORITY_LOW/RESPONSIVE_PRIORITY_MEDIUM
           // class from header to cell as needed.
-          if (isset($responsive_classes[$col_key])) {
-            $cell_attributes['class'][] = $responsive_classes[$col_key];
+          if (isset($responsive_classes[$responsive_index])) {
+            $cell_attributes['class'][] = $responsive_classes[$responsive_index];
           }
 
           $variables['rows'][$row_key]['cells'][$col_key]['tag'] = $is_header ? 'th' : 'td';
@@ -1958,7 +1968,7 @@ function template_preprocess_html(&$variables) {
 
   $variables['html_attributes'] = $page->getHtmlAttributes();
   $variables['attributes'] = $page->getBodyAttributes();
-  $variables['page'] = $page->getContent();
+  $variables['page'] = $page;
 
   // Compile a list of classes that are going to be applied to the body element.
   // This allows advanced theming based on context (home page, node of certain type, etc.).
@@ -2028,21 +2038,8 @@ function template_preprocess_html(&$variables) {
       $page->addMetaElement($metatag);
     }
   }
-
   $variables['page_top'][] = array('#markup' => $page->getBodyTop());
   $variables['page_bottom'][] = array('#markup' => $page->getBodyBottom());
-
-  // Add footer scripts as '#markup' so they can be rendered with other
-  // elements in page_bottom.
-  $footer_scripts = new RenderWrapper('drupal_get_js', array('footer'));
-  $variables['page_bottom'][] = array('#markup' => $footer_scripts);
-
-  // Wrap function calls in an object so they can be called when printed.
-  $variables['head'] = new RenderWrapper(function() use ($page) {
-    return implode("\n", $page->getMetaElements()) . implode("\n", $page->getLinkElements());
-  });
-  $variables['styles'] = new RenderWrapper('drupal_get_css');
-  $variables['scripts'] = new RenderWrapper('drupal_get_js');
 }
 
 /**
@@ -2375,6 +2372,11 @@ function template_preprocess_field(&$variables, $hook) {
     $variables['attributes']['class'][] = 'clearfix';
   }
 
+  // Hide labels visually, but display them to screenreaders if applicable.
+  if ($element['#label_display'] == 'visually-hidden') {
+    $variables['title_attributes']['class'][] = 'visually-hidden';
+  }
+
   static $default_attributes;
   if (!isset($default_attributes)) {
     $default_attributes = new Attribute;
@@ -2444,7 +2446,7 @@ function template_preprocess_field_multiple_value_form(&$variables) {
         $items[] = &$element[$key];
       }
     }
-    usort($items, '_field_sort_items_value_helper');
+    usort($items, '_field_multiple_value_form_sort_helper');
 
     // Add the items as table rows.
     foreach ($items as $item) {
@@ -2491,6 +2493,17 @@ function template_preprocess_field_multiple_value_form(&$variables) {
       $variables['elements'][] = $element[$key];
     }
   }
+}
+
+/**
+ * Callback for usort() within template_preprocess_field_multiple_value_form().
+ *
+ * Sorts using ['_weight']['#value']
+ */
+function _field_multiple_value_form_sort_helper($a, $b) {
+  $a_weight = (is_array($a) && isset($a['_weight']['#value']) ? $a['_weight']['#value'] : 0);
+  $b_weight = (is_array($b) && isset($b['_weight']['#value']) ? $b['_weight']['#value'] : 0);
+  return $a_weight - $b_weight;
 }
 
 /**

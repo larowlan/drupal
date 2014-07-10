@@ -144,6 +144,8 @@ class FilterHtmlImageSecureTest extends WebTestBase {
           $this->assertEqual($element->getAttribute('src'), $red_x_image);
           $this->assertEqual($element->getAttribute('alt'), $alt_text);
           $this->assertEqual($element->getAttribute('title'), $title_text);
+          $this->assertEqual($element->getAttribute('height'), '16');
+          $this->assertEqual($element->getAttribute('width'), '16');
         }
         else {
           $this->assertEqual($element->getAttribute('src'), $converted);

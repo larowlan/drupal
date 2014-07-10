@@ -156,9 +156,9 @@ function _drupal_log_error($error, $fatal = FALSE) {
     $number++;
   }
 
-  watchdog('php', '%type: !message in %function (line %line of %file).', $error, $error['severity_level']);
+  \Drupal::logger('php')->log($error['severity_level'], '%type: !message in %function (line %line of %file).', $error);
 
-  if (drupal_is_cli()) {
+  if (PHP_SAPI === 'cli') {
     if ($fatal) {
       // When called from CLI, simply output a plain text message.
       // Should not translate the string to avoid errors producing more errors.

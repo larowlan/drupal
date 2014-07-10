@@ -45,8 +45,8 @@ field.field.*.*:
         - type: sequence
           label: 'Indexes'
           sequence:
-            - type: string
-              label: 'Column'
+            - type: ignore
+              label: 'Index'
 
 field.instance.*.*.*:
   type: config_entity
@@ -58,9 +58,6 @@ field.instance.*.*.*:
     label:
       type: label
       label: 'Label'
-    field_uuid:
-      type: string
-      label: 'Field UUID'
     field_name:
       type: string
       label: 'Field name'

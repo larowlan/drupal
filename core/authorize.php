@@ -49,7 +49,7 @@ const MAINTENANCE_MODE = 'update';
  *   TRUE if the current user can run authorize.php, and FALSE if not.
  */
 function authorize_access_allowed() {
-  \Drupal::service('session_manager')->initialize();
+  \Drupal::service('session_manager')->startLazy();
   return Settings::get('allow_authorize_operations', TRUE) && user_access('administer software updates');
 }
 
@@ -140,7 +140,7 @@ if (authorize_access_allowed()) {
 }
 else {
   drupal_add_http_header('Status', '403 Forbidden');
-  watchdog('access denied', 'authorize.php', array(), WATCHDOG_WARNING);
+  \Drupal::logger('access denied')->warning('authorize.php');
   $page_title = t('Access denied');
   $output = t('You are not allowed to access this page.');
 }
