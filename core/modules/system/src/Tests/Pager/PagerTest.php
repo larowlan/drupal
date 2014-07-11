@@ -12,6 +12,8 @@ use Drupal\simpletest\WebTestBase;
 
 /**
  * Tests pager functionality.
+ *
+ * @group Pager
  */
 class PagerTest extends WebTestBase {
 
@@ -23,14 +25,6 @@ class PagerTest extends WebTestBase {
   public static $modules = array('dblog');
 
   protected $profile = 'testing';
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Pager functionality',
-      'description' => 'Tests pager functionality.',
-      'group' => 'Pager',
-    );
-  }
 
   function setUp() {
     parent::setUp();

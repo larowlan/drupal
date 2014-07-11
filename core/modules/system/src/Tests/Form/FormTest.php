@@ -14,7 +14,9 @@ use Drupal\simpletest\WebTestBase;
 use GuzzleHttp\Event\BeforeEvent;
 
 /**
- * Tests form element validation.
+ * Tests various form element validation mechanisms.
+ *
+ * @group Form
  */
 class FormTest extends WebTestBase {
 
@@ -31,14 +33,6 @@ class FormTest extends WebTestBase {
    * @var array
    */
   protected $forge;
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Form element validation',
-      'description' => 'Tests various form element validation mechanisms.',
-      'group' => 'Form API',
-    );
-  }
 
   function setUp() {
     parent::setUp();
