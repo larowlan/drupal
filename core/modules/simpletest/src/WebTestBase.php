@@ -12,6 +12,7 @@ use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Component\Utility\String;
+use Drupal\Component\Utility\Xss;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\ConnectionNotDefinedException;
@@ -45,6 +46,7 @@ use Symfony\Component\CssSelector\CssSelector;
  */
 abstract class WebTestBase extends TestBase implements SubscriberInterface {
 
+  use AssertContentTrait;
   /**
    * The profile to install as a basis for testing.
    *
@@ -282,7 +284,6 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     $this->mink->setDefaultSessionName('goutte');
     // Set the User agent.
     $this->getMink()->getSession()->setRequestHeader('User-Agent', $this->databasePrefix);
-    $this->session_name = session_name();
   }
 
   /**
@@ -1861,7 +1862,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
             $out = $new;
           }
 
-          if ($session_id = $this->getSession()->getCookie($this->session_name)) {
+          if ($session_id = $this->getSession()->getCookie($this->getSessionName())) {
             $this->session_id = $session_id;
           }
 
