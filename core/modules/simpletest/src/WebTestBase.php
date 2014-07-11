@@ -12,7 +12,6 @@ use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Component\Utility\String;
-use Drupal\Component\Utility\Xss;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\ConnectionNotDefinedException;
@@ -45,6 +44,8 @@ use Symfony\Component\CssSelector\CssSelector;
  * @ingroup testing
  */
 abstract class WebTestBase extends TestBase implements SubscriberInterface {
+
+  use AssertContentTrait;
 
   /**
    * The profile to install as a basis for testing.
@@ -1511,15 +1512,16 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
     */
 
     $this->drupalSetContent($content, isset($original_url) ? $original_url : $this->getSession()->getCurrentUrl());
+
     $message_vars = array(
       '!method' => !empty($curl_options[CURLOPT_NOBODY]) ? 'HEAD' : (empty($curl_options[CURLOPT_POSTFIELDS]) ? 'GET' : 'POST'),
       '@url' => isset($original_url) ? $original_url : $url,
       '@status' => $status,
-      '!length' => format_size(strlen($this->drupalGetContent()))
+      '!length' => format_size(strlen($this->getRawContent()))
     );
     $message = String::format('!method @url returned @status (!length).', $message_vars);
-    $this->assertTrue($this->drupalGetContent() !== FALSE, $message, 'Browser');
-    return $this->drupalGetContent();
+    $this->assertTrue($this->getRawContent() !== FALSE, $message, 'Browser');
+    return $this->getRawContent();
   }
 
   /**
@@ -1596,32 +1598,6 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Parse content returned from curlExec using DOM and SimpleXML.
-   *
-   * @return
-   *   A SimpleXMLElement or FALSE on failure.
-   */
-  protected function parse() {
-    if (!$this->elements) {
-      // DOM can load HTML soup. But, HTML soup can throw warnings, suppress
-      // them.
-      $htmlDom = new \DOMDocument();
-      @$htmlDom->loadHTML('<?xml encoding="UTF-8">' . $this->drupalGetContent());
-      if ($htmlDom) {
-        $this->pass(String::format('Valid HTML found on "@path"', array('@path' => $this->getUrl())), 'Browser');
-        // It's much easier to work with simplexml than DOM, luckily enough
-        // we can just simply import our DOM tree.
-        $this->elements = simplexml_import_dom($htmlDom);
-      }
-    }
-    if (!$this->elements) {
-      $this->fail('Parsed page successfully.', 'Browser');
-    }
-
-    return $this->elements;
-  }
-
-  /**
    * Retrieves a Drupal path or an absolute path.
    *
    * @param $path
@@ -1633,7 +1609,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   "name: value".
    *
    * @return
-   *   The retrieved HTML string, also available as $this->drupalGetContent()
+   *   The retrieved HTML string, also available as $this->getRawContent()
    */
   protected function drupalGet($path, array $options = array(), array $headers = array()) {
     $options['absolute'] = TRUE;
@@ -2297,7 +2273,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    *   "name: value".
    *
    * @return
-   *   The retrieved headers, also available as $this->drupalGetContent()
+   *   The retrieved headers, also available as $this->getRawContent()
    */
   protected function drupalHead($path, array $options = array(), array $headers = array()) {
     // @todo larowlan refactor around Mink
@@ -2792,6 +2768,9 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
 
   /**
    * Gets the current raw HTML of requested page.
+   *
+   * @deprecated 8.x
+   *   Use getRawContent().
    */
   protected function drupalGetContent() {
     // @todo Refactor to use $this->getSession()->getPage()->getContent() once
@@ -2802,10 +2781,11 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   /**
    * Gets the value of drupalSettings for the currently-loaded page.
    *
-   * drupalSettings refers to the drupalSettings JavaScript variable.
+   * @deprecated 8.x
+   *   Use getDrupalSettings().
    */
   protected function drupalGetSettings() {
-    return $this->drupalSettings;
+    return $this->getDrupalSettings();
   }
 
   /**
@@ -2837,12 +2817,8 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   /**
    * Sets the raw HTML content.
    *
-   * This can be useful when a page has been fetched outside of the internal
-   * browser and assertions need to be made on the returned page.
-   *
-   * A good example would be when testing HTTP request made by Drupal. After
-   * fetching the page the content can be set and page elements can be checked
-   * to ensure that the function worked properly.
+   * @deprecated 8.x
+   *   Use setRawContent().
    */
   protected function drupalSetContent($content, $url = 'internal:') {
     // @todo Subclass MinkSession to include the ability to setPage() for
@@ -2860,10 +2836,11 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
   /**
    * Sets the value of drupalSettings for the currently-loaded page.
    *
-   * drupalSettings refers to the drupalSettings JavaScript variable.
+   * @deprecated 8.x
+   *   Use setDrupalSettings().
    */
   protected function drupalSetSettings($settings) {
-    $this->drupalSettings = $settings;
+    $this->setDrupalSettings($settings);
   }
 
   /**
