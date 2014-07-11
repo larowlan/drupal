@@ -45,8 +45,6 @@ use Symfony\Component\CssSelector\CssSelector;
  */
 abstract class WebTestBase extends TestBase implements SubscriberInterface {
 
-  use AssertContentTrait;
-
   /**
    * The profile to install as a basis for testing.
    *
@@ -1595,6 +1593,34 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    */
   protected function isInChildSite() {
     return DRUPAL_TEST_IN_CHILD_SITE;
+  }
+
+  /**
+   * Parse content returned from curlExec using DOM and SimpleXML.
+   *
+   * @return
+   *   A SimpleXMLElement or FALSE on failure.
+   */
+  protected function parse() {
+    if (!$this->elements) {
+      // DOM can load H
+
+      TML soup. But, HTML soup can throw warnings, suppress
+      // them.
+      $htmlDom = new \DOMDocument();
+      @$htmlDom->loadHTML('<?xml encoding="UTF-8">' . $this->drupalGetContent());
+      if ($htmlDom) {
+        $this->pass(String::format('Valid HTML found on "@path"', array('@path' => $this->getUrl())), 'Browser');
+        // It's much easier to work with simplexml than DOM, luckily enough
+        // we can just simply import our DOM tree.
+        $this->elements = simplexml_import_dom($htmlDom);
+      }
+    }
+    if (!$this->elements) {
+      $this->fail('Parsed page successfully.', 'Browser');
+    }
+
+    return $this->elements;
   }
 
   /**
