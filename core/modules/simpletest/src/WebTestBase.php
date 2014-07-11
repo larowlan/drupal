@@ -1603,9 +1603,7 @@ abstract class WebTestBase extends TestBase implements SubscriberInterface {
    */
   protected function parse() {
     if (!$this->elements) {
-      // DOM can load H
-
-      TML soup. But, HTML soup can throw warnings, suppress
+      // DOM can load HTML soup. But, HTML soup can throw warnings, suppress
       // them.
       $htmlDom = new \DOMDocument();
       @$htmlDom->loadHTML('<?xml encoding="UTF-8">' . $this->drupalGetContent());
