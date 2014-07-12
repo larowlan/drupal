@@ -7,12 +7,10 @@
 
 namespace Drupal\simpletest;
 
-use Behat\Mink\Element\NodeElement;
 use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Component\Utility\String;
-use Drupal\Component\Utility\Xss;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\ConnectionNotDefinedException;
@@ -25,26 +23,14 @@ use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\block\Entity\Block;
-use Behat\Mink\Driver\Goutte\Client;
-use GuzzleHttp\Event\AbstractTransferEvent;
-use GuzzleHttp\Event\BeforeEvent;
-use GuzzleHttp\Event\RequestEvents;
-use GuzzleHttp\Event\SubscriberInterface;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Post\PostFile;
 use Symfony\Component\HttpFoundation\Request;
-use Behat\Mink\Mink;
-use Behat\Mink\Session;
-use Behat\Mink\Driver\GoutteDriver;
-use GuzzleHttp\Client as GuzzleClient;
-use Symfony\Component\CssSelector\CssSelector;
 
 /**
  * Test case for typical Drupal tests.
  *
  * @ingroup testing
  */
-abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
+abstract class WebTestBase extends TestBase {
 
   use AssertContentTrait;
 
@@ -85,13 +71,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    * @var bool
    */
   protected $dumpHeaders = FALSE;
-
-  /**
-   * The response code for the last request.
-   *
-   * @var int
-   */
-  protected $responseCode = NULL;
 
   /**
    * The current user logged in using the internal browser.
@@ -185,11 +164,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
   protected $curlCookies = array();
 
   /**
-   * Cookies send back in headers.
-   */
-  protected $cookies = array();
-
-  /**
    * An array of custom translations suitable for drupal_rewrite_settings().
    *
    * @var array
@@ -197,127 +171,11 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
   protected $customTranslations;
 
   /**
-   * Current mink object.
-   *
-   * @var \Behat\Mink\Mink
-   */
-  protected $mink;
-
-  /**
-   * Guzzle connection.
-   *
-   * @var \
-   */
-  protected $guzzle;
-
-  /**
    * Constructor for \Drupal\simpletest\WebTestBase.
    */
   function __construct($test_id = NULL) {
     parent::__construct($test_id);
     $this->skipClasses[__CLASS__] = TRUE;
-  }
-
-  /**
-   * Resets the mink sessions.
-   */
-  protected function resetMink() {
-    $this->getMink()->resetSessions();
-  }
-
-  /**
-   * Initializes Mink session.
-   */
-  protected function initMink() {
-    global $base_url;
-    $defaults = array(
-      'timeout' => 30,
-      'verify' => FALSE,
-      // @todo remove/replace
-      'headers' => array(
-        'User-Agent' => $this->databasePrefix,
-      ),
-    );
-    $guzzle = new GuzzleClient(array('base_url' => $base_url, 'defaults' => $defaults));
-    $guzzle->getEmitter()->attach($this);
-    $client = new Client();
-    $client->setClient($guzzle);
-    $client->setHeader('User-Agent', $this->databasePrefix);
-    $client->followRedirects(FALSE);
-
-    if (isset($this->httpauth_credentials)) {
-      list($username, $password) = explode(':', $this->httpauth_credentials);
-      $client->setAuth($username, $password, $this->httpauth_method);
-    }
-    $this->mink = new Mink(array(
-      'goutte' => new Session(new GoutteDriver($client)),
-    ));
-    $this->mink->setDefaultSessionName('goutte');
-    // Set the User agent.
-    $this->getMink()->getSession()->setRequestHeader('User-Agent', $this->databasePrefix);
-  }
-
-  /**
-   * Transforms legacy Curl options into the format expected by Guzzle.
-   *
-   * @param array $options
-   *   Array of curl options.
-   *
-   * @return array
-   *   Array of curl options transformed into the format expected by Guzzle.
-   */
-  protected function transformLegacyCurlOptions($options) {
-    foreach ($options as $key => $value) {
-      if (substr($key, 0, 5) == 'curl.') {
-        // Already in expected format.
-        continue;
-      }
-      $options['curl.' . $key] = $value;
-      unset($options[$key]);
-    }
-    return $options;
-  }
-
-  /**
-   * Sets Curl options on the Guzzle client used by the Goutte driver.
-   *
-   * @param array $options
-   *   Array of curl options to be set on the Guzzle client.
-   */
-  protected function setClientOptions($options) {
-    return;
-    /** @var \GuzzleHttp\ClientInterface $guzzle_client */
-    $guzzle_client = $this->getMink()->getSession()->getDriver()->getClient()->getClient();
-    $existing_config = $guzzle_client->getConfig();
-    $options = $this->transformLegacyCurlOptions($options);
-    foreach ($options as $key => $value) {
-      $existing_config[$key] = $value;
-    }
-    $guzzle_client->setConfig($existing_config);
-  }
-
-  /**
-   * Returns the current mink object.
-   *
-   * @return \Behat\Mink\Mink
-   */
-  protected function getMink() {
-    if (!isset($this->mink)) {
-      $this->initMink();
-    }
-    return $this->mink;
-  }
-
-  /**
-   * Returns the named Mink session.
-   *
-   * @param string $name
-   *   (optional) Mink session name. Defaults to null.
-   *
-   * @return \Behat\Mink\Session
-   */
-  protected function getSession($name = null) {
-    return $this->getMink()->getSession($name);
   }
 
   /**
@@ -590,7 +448,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   The result from the xpath query.
    */
   protected function findBlockInstance(Block $block) {
-    return $this->getSession()->getPage()->find('css', '#block-' . $block->id());
+    return $this->xpath('//div[@id = :id]', array(':id' => 'block-' . $block->id()));
   }
 
   /**
@@ -1318,8 +1176,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
     // testing so test classes containing multiple tests are not polluted.
     $this->curlClose();
     $this->curlCookies = array();
-    $this->cookies = array();
-    $this->resetMink();
   }
 
   /**
@@ -1332,15 +1188,43 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    */
   protected function curlInitialize() {
     global $base_url;
-    $this->responseCode = NULL;
 
-    if (!isset($this->mink)) {
-      $this->initMink();
+    if (!isset($this->curlHandle)) {
+      $this->curlHandle = curl_init();
+
+      // Some versions/configurations of cURL break on a NULL cookie jar, so
+      // supply a real file.
+      if (empty($this->cookieFile)) {
+        $this->cookieFile = $this->public_files_directory . '/cookie.jar';
+      }
+
+      $curl_options = array(
+        CURLOPT_COOKIEJAR => $this->cookieFile,
+        CURLOPT_URL => $base_url,
+        CURLOPT_FOLLOWLOCATION => FALSE,
+        CURLOPT_RETURNTRANSFER => TRUE,
+        // Required to make the tests run on HTTPS.
+        CURLOPT_SSL_VERIFYPEER => FALSE,
+        // Required to make the tests run on HTTPS.
+        CURLOPT_SSL_VERIFYHOST => FALSE,
+        CURLOPT_HEADERFUNCTION => array(&$this, 'curlHeaderCallback'),
+        CURLOPT_USERAGENT => $this->databasePrefix,
+      );
+      if (isset($this->httpauth_credentials)) {
+        $curl_options[CURLOPT_HTTPAUTH] = $this->httpauth_method;
+        $curl_options[CURLOPT_USERPWD] = $this->httpauth_credentials;
+      }
+      // curl_setopt_array() returns FALSE if any of the specified options
+      // cannot be set, and stops processing any further options.
+      $result = curl_setopt_array($this->curlHandle, $this->additionalCurlOptions + $curl_options);
+      if (!$result) {
+        throw new \UnexpectedValueException('One or more cURL options could not be set.');
+      }
     }
     // We set the user agent header on each request so as to use the current
     // time and a new uniqid.
     if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
-      $this->getMink()->getSession()->setRequestHeader('User-Agent', drupal_generate_test_ua($matches[0]));
+      curl_setopt($this->curlHandle, CURLOPT_USERAGENT, drupal_generate_test_ua($matches[0]));
     }
   }
 
@@ -1375,7 +1259,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
       }
     }
 
-    $url = empty($curl_options[CURLOPT_URL]) ? $this->getSession()->getCurrentUrl() : $curl_options[CURLOPT_URL];
+    $url = empty($curl_options[CURLOPT_URL]) ? curl_getinfo($this->curlHandle, CURLINFO_EFFECTIVE_URL) : $curl_options[CURLOPT_URL];
 
     if (!empty($curl_options[CURLOPT_POST])) {
       // This is a fix for the Curl library to prevent Expect: 100-continue
@@ -1428,20 +1312,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
       $curl_options[CURLOPT_COOKIE] .= implode('; ', $cookies) . ';';
     }
 
-    // Set request headers
-    if (!empty($curl_options[CURLOPT_HTTPHEADER])) {
-      $http_headers = array();
-      foreach ($curl_options[CURLOPT_HTTPHEADER] as $header) {
-        $pos = strpos($header, ':');
-        $header_name = substr($header, 0, $pos);
-        $header_value = trim(substr($header, $pos + 1));
-        $http_headers[$header_name] = $header_value;
-        $this->getSession()->setRequestHeader($header_name, $header_value);
-      }
-    }
-
-    // Set client options on Goutte's Guzzle client.
-    $this->setClientOptions($this->additionalCurlOptions + $curl_options);
+    curl_setopt_array($this->curlHandle, $this->additionalCurlOptions + $curl_options);
 
     if (!$redirect) {
       // Reset headers, the session ID and the redirect counter.
@@ -1450,21 +1321,9 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
       $this->redirect_count = 0;
     }
 
-    $this->getSession()->visit($url);
+    $content = curl_exec($this->curlHandle);
+    $status = curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE);
 
-    if (isset($http_headers)) {
-      foreach ($http_headers as $header_name => $header_value) {
-        $this->getSession()->setRequestHeader($header_name, NULL);
-      }
-    }
-
-    $content = $this->getSession()->getPage()->getContent();
-    $status = $this->getSession()->getStatusCode();
-    $this->responseCode = $status;
-
-    /**
-     * May not be needed. @todo larowlan confirm
-     *
     // cURL incorrectly handles URLs with fragments, so instead of
     // letting cURL handle redirects we take of them ourselves to
     // to prevent fragments being sent to the web server as part
@@ -1479,9 +1338,9 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
         return $this->curlExec($curl_options, TRUE);
       }
     }
-    */
 
-    $this->drupalSetContent($content, isset($original_url) ? $original_url : $this->getSession()->getCurrentUrl());
+    $this->setRawContent($content);
+    $this->url = isset($original_url) ? $original_url : curl_getinfo($this->curlHandle, CURLINFO_EFFECTIVE_URL);
 
     $message_vars = array(
       '!method' => !empty($curl_options[CURLOPT_NOBODY]) ? 'HEAD' : (empty($curl_options[CURLOPT_POSTFIELDS]) ? 'GET' : 'POST'),
@@ -1497,49 +1356,52 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
   /**
    * Reads headers and registers errors received from the tested site.
    *
-   * @param \GuzzleHttp\Event\AbstractTransferEvent $event
-   *   Complete event for request
+   * @param $curlHandler
+   *   The cURL handler.
+   * @param $header
+   *   An header.
    *
    * @see _drupal_log_error().
    */
-  public function curlHeaderCallback(AbstractTransferEvent $event) {
-    if ($response = $event->getResponse()) {
-      $headers = $response->getHeaders();
-      foreach ($headers as $name => $value) {
-        $this->headers[$name] = implode(";", $value);
+  protected function curlHeaderCallback($curlHandler, $header) {
+    // Header fields can be extended over multiple lines by preceding each
+    // extra line with at least one SP or HT. They should be joined on receive.
+    // Details are in RFC2616 section 4.
+    if ($header[0] == ' ' || $header[0] == "\t") {
+      // Normalize whitespace between chucks.
+      $this->headers[] = array_pop($this->headers) . ' ' . trim($header);
+    }
+    else {
+      $this->headers[] = $header;
+    }
 
-        // Errors are being sent via X-Drupal-Assertion-* headers,
-        // generated by _drupal_log_error() in the exact form required
-        // by \Drupal\simpletest\WebTestBase::error().
-        if (preg_match('/^X-Drupal-Assertion-[0-9]+$/', $name)) {
-          // Call \Drupal\simpletest\WebTestBase::error() with the parameters from
-          // the header.
-          foreach ($value as $v) {
-            call_user_func_array(array(&$this, 'error'), unserialize(urldecode($v)));
-          }
+    // Errors are being sent via X-Drupal-Assertion-* headers,
+    // generated by _drupal_log_error() in the exact form required
+    // by \Drupal\simpletest\WebTestBase::error().
+    if (preg_match('/^X-Drupal-Assertion-[0-9]+: (.*)$/', $header, $matches)) {
+      // Call \Drupal\simpletest\WebTestBase::error() with the parameters from
+      // the header.
+      call_user_func_array(array(&$this, 'error'), unserialize(urldecode($matches[1])));
+    }
+
+    // Save cookies.
+    if (preg_match('/^Set-Cookie: ([^=]+)=(.+)/', $header, $matches)) {
+      $name = $matches[1];
+      $parts = array_map('trim', explode(';', $matches[2]));
+      $value = array_shift($parts);
+      $this->cookies[$name] = array('value' => $value, 'secure' => in_array('secure', $parts));
+      if ($name == $this->session_name) {
+        if ($value != 'deleted') {
+          $this->session_id = $value;
         }
-
-        // Save cookies.
-        if ($name === 'Set-Cookie') {
-          foreach ($value as $cookie) {
-            if (preg_match('/^([^=]+)=(.+)/', $cookie, $matches)) {
-              $cookie_name = $matches[1];
-              $parts = array_map('trim', explode(';', $matches[2]));
-              $cookie_value = array_shift($parts);
-              $this->cookies[$cookie_name] = array('value' => $cookie_value, 'secure' => in_array('secure', $parts));
-              if ($cookie_name == $this->session_name) {
-                if ($cookie_value != 'deleted') {
-                  $this->session_id = $cookie_value;
-                }
-                else {
-                  $this->session_id = NULL;
-                }
-              }
-            }
-          }
+        else {
+          $this->session_id = NULL;
         }
       }
     }
+
+    // This is required by cURL.
+    return strlen($header);
   }
 
   /**
@@ -1733,7 +1595,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   POST data, so it must already be urlencoded and contain a leading "&"
    *   (e.g., "&extra_var1=hello+world&extra_var2=you%26me").
    */
-  protected function drupalPostForm($path, $edit, $submit, array $options = array(), array $headers = array(), $form_html_id = NULL, $extra_post = array()) {
+  protected function drupalPostForm($path, $edit, $submit, array $options = array(), array $headers = array(), $form_html_id = NULL, $extra_post = NULL) {
     $submit_matches = FALSE;
     $ajax = is_array($submit);
     if (isset($path)) {
@@ -1746,26 +1608,24 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
       if (!empty($form_html_id)) {
         $xpath .= "[@id='" . $form_html_id . "']";
       }
-      /** @var \Behat\Mink\Element\NodeElement[] $forms */
       $forms = $this->xpath($xpath);
       foreach ($forms as $form) {
         // We try to set the fields of this form as specified in $edit.
         $edit = $edit_save;
         $post = array();
         $upload = array();
-        $submit_element = $this->handleForm($post, $edit, $upload, $ajax ? NULL : $submit, $form);
-        $action = $form->getAttribute('action') ? $this->getAbsoluteUrl($form->getAttribute('action')) : $this->getUrl();
+        $submit_matches = $this->handleForm($post, $edit, $upload, $ajax ? NULL : $submit, $form);
+        $action = isset($form['action']) ? $this->getAbsoluteUrl((string) $form['action']) : $this->getUrl();
         if ($ajax) {
           $action = $this->getAbsoluteUrl(!empty($submit['path']) ? $submit['path'] : 'system/ajax');
           // Ajax callbacks verify the triggering element if necessary, so while
           // we may eventually want extra code that verifies it in the
           // handleForm() function, it's not currently a requirement.
-          // @todo this needs to be an Element.
-          $submit_element = TRUE;
+          $submit_matches = TRUE;
         }
         // We post only if we managed to handle every field in edit and the
         // submit button matches.
-        if (!$edit && ($submit_element || !isset($submit))) {
+        if (!$edit && ($submit_matches || !isset($submit))) {
           $post_array = $post;
           if ($upload) {
             foreach ($upload as $key => $file) {
@@ -1783,20 +1643,10 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
               }
             }
           }
-          if (!$ajax) {
-            $submit_element->press();
-            $out = $this->getSession()->getPage()->getContent();
-          }
           else {
-            // Guzzle only supports strings for submitted values.
-            $post = $post + ($extra_post ?: array());
-            foreach ($post as $key => $value) {
-              if (is_bool($value)) {
-                $post[$key] = '1';
-              }
-            }
-            $out = $this->drupalPost($action, 'application/vnd.drupal-ajax', $post, $options, $upload);
+            $post = $this->serializePostValues($post) . $extra_post;
           }
+          $out = $this->curlExec(array(CURLOPT_URL => $action, CURLOPT_POST => TRUE, CURLOPT_POSTFIELDS => $post, CURLOPT_HTTPHEADER => $headers));
           // Ensure that any changes to variables in the other thread are picked
           // up.
           $this->refreshVariables();
@@ -1805,10 +1655,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
           // page(s).
           if ($new = $this->checkForMetaRefresh()) {
             $out = $new;
-          }
-
-          if ($session_id = $this->getSession()->getCookie($this->getSessionName())) {
-            $this->session_id = $session_id;
           }
 
           $verbose = 'POST request to: ' . $path;
@@ -1820,7 +1666,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
           $verbose .= '<hr />' . $out;
 
           $this->verbose($verbose);
-          $this->drupalSetContent($out, $this->getUrl());
           return $out;
         }
       }
@@ -1901,7 +1746,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
         $xpath = '//form[@id="' . $form_html_id . '"]' . $xpath;
       }
       $element = $this->xpath($xpath);
-      $element_id = $element[0]->getAttribute('id');
+      $element_id = (string) $element[0]['id'];
       $ajax_settings = $drupal_settings['ajax'][$element_id];
     }
 
@@ -1914,12 +1759,14 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
     }
     $ajax_html_ids = array();
     foreach ($this->xpath('//*[@id]') as $element) {
-      $ajax_html_ids[] = $element->getAttribute('id');
+      $ajax_html_ids[] = (string) $element['id'];
     }
     if (!empty($ajax_html_ids)) {
       $extra_post['ajax_html_ids'] = implode(' ', $ajax_html_ids);
     }
     $extra_post += $this->getAjaxPageStatePostData();
+    // Now serialize all the $extra_post values, and prepend it with an '&'.
+    $extra_post = '&' . $this->serializePostValues($extra_post);
 
     // Unless a particular path is specified, use the one specified by the
     // Ajax settings, or else 'system/ajax'.
@@ -1968,7 +1815,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    * @see ajax.js
    */
   protected function drupalProcessAjaxResponse($content, array $ajax_response, array $ajax_settings, array $drupal_settings) {
-    // @todo larowlan refactor around Mink
+
     // ajax.js applies some defaults to the settings object, so do the same
     // for what's used by this function.
     $ajax_settings += array(
@@ -2055,16 +1902,8 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
       }
     }
     $content = $dom->saveHTML();
-    $this->drupalSetContent($content);
-    $this->drupalSetSettings($drupal_settings);
-    // Hack this into the mink session. When we use a real JavaScript driver we
-    // can remove this nastiness.
-    $reflection = new \ReflectionClass($this->getSession()->getDriver());
-    $method = $reflection->getMethod('getCrawler');
-    $method->setAccessible(TRUE);
-    $crawler = $method->invoke($this->getSession()->getDriver());
-    $crawler->clear();
-    $crawler->addContent($content, 'text/html');
+    $this->setRawContent($content);
+    $this->setDrupalSettings($drupal_settings);
   }
 
   /**
@@ -2083,56 +1922,24 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    * @param array $options
    *   (optional) Options to be forwarded to the url generator. The 'absolute'
    *   option will automatically be enabled.
-   * @param array $files
-   *   (optional) Array of files to upload.
    *
-   * @return string
-   *   The content returned from the Guzzle call.
+   * @return
+   *   The content returned from the call to curl_exec().
    *
    * @see WebTestBase::getAjaxPageStatePostData()
+   * @see WebTestBase::curlExec()
    * @see url()
    */
-  protected function drupalPost($path, $accept, array $post, $options = array(), $files = array()) {
-    /** @var \GuzzleHttp\Client $guzzle */
-    $guzzle = $this->getSession()->getDriver()->getClient()->getClient();
-    $cookies = [];
-    if ($session_id = $this->getSession()->getCookie($this->session_name)) {
-      $cookies[$this->session_name] = $session_id;
-    }
-    $request = $guzzle->createRequest('POST', url($path, $options + array('absolute' => TRUE)), array(
-      'body' => $post,
-      'cookies' => $cookies,
-      'allow_redirects' => FALSE,
-      'timeout' => 30
+  protected function drupalPost($path, $accept, array $post, $options = array()) {
+    return $this->curlExec(array(
+      CURLOPT_URL => url($path, $options + array('absolute' => TRUE)),
+      CURLOPT_POST => TRUE,
+      CURLOPT_POSTFIELDS => $this->serializePostValues($post),
+      CURLOPT_HTTPHEADER => array(
+        'Accept: ' . $accept,
+        'Content-Type: application/x-www-form-urlencoded',
+      ),
     ));
-    if ($accept) {
-      $request->addHeader('Accept', $accept);
-    }
-    $request->addHeader('Content-Type', 'application/x-www-form-urlencoded');
-    if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
-      $request->setHeader('User-Agent', drupal_generate_test_ua($matches[0]));
-    }
-    foreach ($files as $name => $file) {
-      $request->getBody()->addFile(new PostFile($name, fopen($file, 'r')));
-    }
-    try {
-      $response = $guzzle->send($request);
-      $this->drupalSetContent($response->getBody());
-      $this->responseCode = $response->getStatusCode();
-    }
-    catch (RequestException $e) {
-      $response = $e->getResponse();
-      if ($response == NULL) {
-        $this->fail($e->getMessage());
-      }
-      else {
-        $this->drupalSetContent($response->getBody());
-        $this->responseCode = $response->getStatusCode();
-      }
-    }
-    $this->verbose('POST request to: ' . $path .
-      '<hr />' . $this->content);
-    return $this->content;
   }
 
   /**
@@ -2142,17 +1949,16 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   The Ajax page state POST data.
    */
   protected function getAjaxPageStatePostData() {
-    // @todo larowlan refactor around Mink
     $post = array();
     $drupal_settings = $this->drupalSettings;
     if (isset($drupal_settings['ajaxPageState'])) {
       $post['ajax_page_state[theme]'] = $drupal_settings['ajaxPageState']['theme'];
       $post['ajax_page_state[theme_token]'] = $drupal_settings['ajaxPageState']['theme_token'];
       foreach ($drupal_settings['ajaxPageState']['css'] as $key => $value) {
-        $post["ajax_page_state[css][$key]"] = '1';
+        $post["ajax_page_state[css][$key]"] = 1;
       }
       foreach ($drupal_settings['ajaxPageState']['js'] as $key => $value) {
-        $post["ajax_page_state[js][$key]"] = '1';
+        $post["ajax_page_state[js][$key]"] = 1;
       }
     }
     return $post;
@@ -2217,13 +2023,12 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   Either the new page content or FALSE.
    */
   protected function checkForMetaRefresh() {
-    // @todo larowlan refactor around Mink
-    if (strpos($this->drupalGetContent(), '<meta ') && $this->parse()) {
+    if (strpos($this->getRawContent(), '<meta ') && $this->parse()) {
       $refresh = $this->xpath('//meta[@http-equiv="Refresh"]');
       if (!empty($refresh)) {
         // Parse the content attribute of the meta tag for the format:
         // "[delay]: URL=[page_to_redirect_to]".
-        if (preg_match('/\d+;\s*URL=(?<url>.*)/i', $refresh[0]->getAttribute('content'), $match)) {
+        if (preg_match('/\d+;\s*URL=(?<url>.*)/i', $refresh[0]['content'], $match)) {
           return $this->drupalGet($this->getAbsoluteUrl(decode_entities($match['url'])));
         }
       }
@@ -2246,7 +2051,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   The retrieved headers, also available as $this->getRawContent()
    */
   protected function drupalHead($path, array $options = array(), array $headers = array()) {
-    // @todo larowlan refactor around Mink
     $options['absolute'] = TRUE;
     $url = $this->container->get('url_generator')->generateFromPath($path, $options);
     $out = $this->curlExec(array(CURLOPT_NOBODY => TRUE, CURLOPT_URL => $url, CURLOPT_HTTPHEADER => $headers));
@@ -2268,32 +2072,29 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    * Ensure that the specified fields exist and attempt to create POST data in
    * the correct manner for the particular field type.
    *
-   * @param array $post
+   * @param $post
    *   Reference to array of post values.
-   * @param array $edit
+   * @param $edit
    *   Reference to array of edit values to be checked against the form.
-   * @param array $upload
-   *   Array of file uploads
-   * @param string $submit
+   * @param $submit
    *   Form submit button value.
-   * @param \Behat\Mink\Element\NodeElement|\Drupal\simpletest\MinkNodeElementDecorator $form
+   * @param $form
    *   Array of form elements.
    *
-   * @return \Behat\Mink\Element\NodeElement|\Drupal\simpletest\MinkNodeElementDecorator|bool
-   *   The submit button for the form to trigger the POST.
+   * @return
+   *   Submit value matches a valid submit input in the form.
    */
   protected function handleForm(&$post, &$edit, &$upload, $submit, $form) {
     // Retrieve the form elements.
-    /** @var \Behat\Mink\Element\NodeElement[] $elements */
-    $elements = $form->findAll('xpath', './/input[not(@disabled)]|.//textarea[not(@disabled)]|.//select[not(@disabled)]');
+    $elements = $form->xpath('.//input[not(@disabled)]|.//textarea[not(@disabled)]|.//select[not(@disabled)]');
     $submit_matches = FALSE;
     foreach ($elements as $element) {
       // SimpleXML objects need string casting all the time.
-      $name = $element->getAttribute('name');
+      $name = (string) $element['name'];
       // This can either be the type of <input> or the name of the tag itself
       // for <select> or <textarea>.
-      $type = $element->getAttribute('type') ? $element->getAttribute('type') : $element->getTagName();
-      $value = $element->getValue();
+      $type = isset($element['type']) ? (string) $element['type'] : $element->getName();
+      $value = isset($element['value']) ? (string) $element['value'] : '';
       $done = FALSE;
       if (isset($edit[$name])) {
         switch ($type) {
@@ -2312,23 +2113,12 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
           case 'time':
           case 'datetime':
           case 'datetime-local';
-            $element->setValue($edit[$name]);
-            unset($edit[$name]);
-            break;
-          case 'select':
-            if (!$element->getAttribute('multiple') && is_array($edit[$name])) {
-              // Handle faulty edit values that pass an array to a single value
-              // select field.
-              $element->setValue(reset($edit[$name]));
-            }
-            else {
-              $element->setValue($edit[$name]);
-            }
+            $post[$name] = $edit[$name];
             unset($edit[$name]);
             break;
           case 'radio':
-            if ($element->getAttribute('name') == $name && $element->getAttribute('value') == $edit[$name]) {
-              $element->setValue($edit[$name]);
+            if ($edit[$name] == $value) {
+              $post[$name] = $edit[$name];
               unset($edit[$name]);
             }
             break;
@@ -2337,17 +2127,51 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
             // otherwise the checkbox will be set to its value regardless
             // of $edit.
             if ($edit[$name] === FALSE) {
-              $element->uncheck();
               unset($edit[$name]);
               continue 2;
             }
             else {
               unset($edit[$name]);
-              $element->check();
+              $post[$name] = $value;
+            }
+            break;
+          case 'select':
+            $new_value = $edit[$name];
+            $options = $this->getAllOptions($element);
+            if (is_array($new_value)) {
+              // Multiple select box.
+              if (!empty($new_value)) {
+                $index = 0;
+                $key = preg_replace('/\[\]$/', '', $name);
+                foreach ($options as $option) {
+                  $option_value = (string) $option['value'];
+                  if (in_array($option_value, $new_value)) {
+                    $post[$key . '[' . $index++ . ']'] = $option_value;
+                    $done = TRUE;
+                    unset($edit[$name]);
+                  }
+                }
+              }
+              else {
+                // No options selected: do not include any POST data for the
+                // element.
+                $done = TRUE;
+                unset($edit[$name]);
+              }
+            }
+            else {
+              // Single select box.
+              foreach ($options as $option) {
+                if ($new_value == $option['value']) {
+                  $post[$name] = $new_value;
+                  unset($edit[$name]);
+                  $done = TRUE;
+                  break;
+                }
+              }
             }
             break;
           case 'file':
-            $element->attachFile($edit[$name]);
             $upload[$name] = $edit[$name];
             unset($edit[$name]);
             break;
@@ -2356,11 +2180,27 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
       if (!isset($post[$name]) && !$done) {
         switch ($type) {
           case 'textarea':
-            $post[$name] = $element->getValue();
+            $post[$name] = (string) $element;
             break;
           case 'select':
-            $single = !$element->getAttribute('multiple');
-            $post[$name] = $element->getValue();
+            $single = empty($element['multiple']);
+            $first = TRUE;
+            $index = 0;
+            $key = preg_replace('/\[\]$/', '', $name);
+            $options = $this->getAllOptions($element);
+            foreach ($options as $option) {
+              // For single select, we load the first option, if there is a
+              // selected option that will overwrite it later.
+              if ($option['selected'] || ($first && $single)) {
+                $first = FALSE;
+                if ($single) {
+                  $post[$name] = (string) $option['value'];
+                }
+                else {
+                  $post[$key . '[' . $index++ . ']'] = (string) $option['value'];
+                }
+              }
+            }
             break;
           case 'file':
             break;
@@ -2368,12 +2208,12 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
           case 'image':
             if (isset($submit) && $submit == $value) {
               $post[$name] = $value;
-              $submit_matches = $element;
+              $submit_matches = TRUE;
             }
             break;
           case 'radio':
           case 'checkbox':
-            if (!$element->isChecked()) {
+            if (!isset($element['checked'])) {
               break;
             }
             // Deliberate no break.
@@ -2385,70 +2225,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
     // An empty name means the value is not sent.
     unset($post['']);
     return $submit_matches;
-  }
-
-  /**
-   * Performs an xpath search on the contents of the internal browser.
-   *
-   * The search is relative to the root element (HTML tag normally) of the page.
-   *
-   * @param string $xpath
-   *   The xpath string to use in the search.
-   * @param array $arguments
-   *   An array of arguments with keys in the form ':name' matching the
-   *   placeholders in the query. The values may be either strings or numeric
-   *   values.
-   *
-   * @return \Behat\Mink\Element\NodeElement[]
-   *   The return value of the xpath search. For details on the xpath string
-   *   format and return values see the SimpleXML documentation,
-   *   http://php.net/manual/function.simplexml-element-xpath.php.
-   */
-  protected function xpath($xpath, array $arguments = array()) {
-    $xpath = $this->buildXPathQuery($xpath, $arguments);
-    $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
-    $decorated = array();
-    foreach ($elements as $element) {
-      $decorated[] = MinkNodeElementDecorator::decorate($element);
-    }
-    return $decorated;
-  }
-
-  /**
-   * Performs a CSS selection based search on the contents of the internal
-   * browser. The search is relative to the root element (HTML tag normally) of
-   * the page.
-   *
-   * @param $selector string
-   *   CSS selector to use in the search.
-   *
-   * @return \SimpleXMLElement
-   *   The return value of the xpath search performed after converting the css
-   *   selector to an XPath selector.
-   */
-  protected function cssSelect($selector) {
-    return $this->xpath(CssSelector::toXPath($selector));
-  }
-
-  /**
-   * Get all option elements, including nested options, in a select.
-   *
-   * @param $element
-   *   The element for which to get the options.
-   *
-   * @return NodeElement[]
-   *   Option elements in select.
-   */
-  protected function getAllOptions($element) {
-    $options = $element->findAll('css', 'option');
-    $decorated = array();
-    foreach ($options as $option) {
-      $decorated[] = MinkNodeElementDecorator::decorate($option);
-    }
-    if (count($decorated) === 1) {
-      return $decorated[0];
-    }
-    return MinkNodeElementCollectionDecorator::decorate($decorated);
   }
 
   /**
@@ -2470,15 +2246,10 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    */
   protected function clickLink($label, $index = 0) {
     $url_before = $this->getUrl();
-    /** @var \Behat\Mink\Element\NodeElement[] $urls */
     $urls = $this->xpath('//a[normalize-space()=:label]', array(':label' => $label));
     if (isset($urls[$index])) {
-      $url_target = $this->getAbsoluteUrl($urls[$index]->getAttribute('href'));
-    }
-
-    $this->assertTrue(isset($urls[$index]), String::format('Clicked link %label (@url_target) from @url_before', array('%label' => $label, '@url_target' => $url_target, '@url_before' => $url_before)), 'Browser');
-
-    if (isset($url_target)) {
+      $url_target = $this->getAbsoluteUrl($urls[$index]['href']);
+      $this->pass(String::format('Clicked link %label (@url_target) from @url_before', array('%label' => $label, '@url_target' => $url_target, '@url_before' => $url_before)), 'Browser');
       return $this->drupalGet($url_target);
     }
     $this->fail(String::format('Link $label does not exist on @url_before', array('%label' => $label, '@url_before' => $url_before)), 'Browser');
@@ -2523,7 +2294,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   The current URL.
    */
   protected function getUrl() {
-    return $this->getSession()->getCurrentUrl();
+    return $this->url;
   }
 
   /**
@@ -2548,8 +2319,32 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   Values for duplicate headers are stored as a single comma-separated list.
    */
   protected function drupalGetHeaders($all_requests = FALSE) {
-    if (!($headers = $this->headers)) {
-      $headers = $this->getSession()->getResponseHeaders();
+    $request = 0;
+    $headers = array($request => array());
+    foreach ($this->headers as $header) {
+      $header = trim($header);
+      if ($header === '') {
+        $request++;
+      }
+      else {
+        if (strpos($header, 'HTTP/') === 0) {
+          $name = ':status';
+          $value = $header;
+        }
+        else {
+          list($name, $value) = explode(':', $header, 2);
+          $name = strtolower($name);
+        }
+        if (isset($headers[$request][$name])) {
+          $headers[$request][$name] .= ',' . trim($value);
+        }
+        else {
+          $headers[$request][$name] = trim($value);
+        }
+      }
+    }
+    if (!$all_requests) {
+      $headers = array_pop($headers);
     }
     return $headers;
   }
@@ -2573,16 +2368,23 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   The HTTP header value or FALSE if not found.
    */
   protected function drupalGetHeader($name, $all_requests = FALSE) {
-    $headers = $this->drupalGetHeaders();
-    if (isset($headers[$name])) {
-      if (is_array($headers[$name])) {
-        return reset($headers[$name]);
-      }
-      else {
-        return $headers[$name];
+    $name = strtolower($name);
+    $header = FALSE;
+    if ($all_requests) {
+      foreach (array_reverse($this->drupalGetHeaders(TRUE)) as $headers) {
+        if (isset($headers[$name])) {
+          $header = $headers[$name];
+          break;
+        }
       }
     }
-    return FALSE;
+    else {
+      $headers = $this->drupalGetHeaders();
+      if (isset($headers[$name])) {
+        $header = $headers[$name];
+      }
+    }
+    return $header;
   }
 
   /**
@@ -2592,9 +2394,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   Use getRawContent().
    */
   protected function drupalGetContent() {
-    // @todo Refactor to use $this->getSession()->getPage()->getContent() once
-    //   MinkSession has been sub-classed to allow setting content.
-    return $this->content;
+    return $this->getRawContent();
   }
 
   /**
@@ -2639,17 +2439,8 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    * @deprecated 8.x
    *   Use setRawContent().
    */
-  protected function drupalSetContent($content, $url = 'internal:') {
-    // @todo Subclass MinkSession to include the ability to setPage() for
-    //   internal paths.
-    $this->content = $content;
-    $this->url = $url;
-    $this->plainTextContent = FALSE;
-    $this->elements = FALSE;
-    $this->drupalSettings = array();
-    if (preg_match('/var drupalSettings = (.*?);$/m', $content, $matches)) {
-      $this->drupalSettings = Json::decode($matches[1]);
-    }
+  protected function drupalSetContent($content) {
+    $this->setRawContent($content);
   }
 
   /**
@@ -2697,345 +2488,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
   }
 
   /**
-   * Pass if the page title is the given string.
-   *
-   * @param $title
-   *   The string the title should be.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Other'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertTitle($title, $message = '', $group = 'Other') {
-    $element = current($this->xpath('//title'));
-    $actual = $element->getText();
-    if (!$message) {
-      $message = String::format('Page title @actual is equal to @expected.', array(
-        '@actual' => var_export($actual, TRUE),
-        '@expected' => var_export($title, TRUE),
-      ));
-    }
-    return $this->assertEqual($actual, $title, $message, $group);
-  }
-
-  /**
-   * Pass if the page title is not the given string.
-   *
-   * @param $title
-   *   The string the title should not be.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Other'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertNoTitle($title, $message = '', $group = 'Other') {
-    $element = current($this->xpath('//title'));
-    $actual = $element->getText();
-    if (!$message) {
-      $message = String::format('Page title @actual is not equal to @unexpected.', array(
-        '@actual' => var_export($actual, TRUE),
-        '@unexpected' => var_export($title, TRUE),
-      ));
-    }
-    return $this->assertNotEqual($actual, $title, $message, $group);
-  }
-
-  /**
-   * Asserts that a field exists in the current page by the given XPath.
-   *
-   * @param $xpath
-   *   XPath used to find the field.
-   * @param $value
-   *   (optional) Value of the field to assert. You may pass in NULL (default)
-   *   to skip checking the actual value, while still checking that the field
-   *   exists.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Other'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertFieldByXPath($xpath, $value = NULL, $message = '', $group = 'Other') {
-    $xpath = $this->buildXPathQuery($xpath);
-    $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
-    if (!isset($value)) {
-      return $this->assert(!empty($elements), $message, $group);
-    }
-    if (empty($elements)) {
-      return $this->assert(FALSE, $message, $group);
-    }
-
-    /** @var $element NodeElement */
-    foreach ($elements as $element) {
-      if ($element->hasAttribute('value') && $element->getAttribute('value') == $value) {
-        return $this->assert(TRUE, $message, $group);
-      }
-      elseif ($element->getTagName() === 'select') {
-        $selected_option = $element->find('xpath', '//option[@selected="selected"]');
-        if (empty($selected_option)) {
-          $first_option = $element->find('xpath', '//option');
-          if (!empty($first_option) && $first_option->getAttribute('value') == $value) {
-            return $this->assert(TRUE, $message, $group);
-          }
-        }
-        elseif ($selected_option->getAttribute('value') == $value) {
-          return $this->assert(TRUE, $message, $group);
-        }
-      }
-      elseif ($element->getText() == $value) {
-        return $this->assert(TRUE, $message, $group);
-      }
-    }
-    return $this->assert(FALSE, $message, $group);
-  }
-
-  /**
-   * Get the selected value from a select field.
-   *
-   * @param NodeElement $element
-   *   The select element.
-   *
-   * @return
-   *   The selected value or FALSE.
-   */
-  protected function getSelectedItem($element) {
-    $selected_option = $element->find('xpath', '//option[@selected="selected"]');
-    if ($selected_option) {
-      return $selected_option->getAttribute('value');
-    }
-    return FALSE;
-  }
-
-  /**
-   * Asserts that a field doesn't exist or its value doesn't match, by XPath.
-   *
-   * @param $xpath
-   *   XPath used to find the field.
-   * @param $value
-   *   (optional) Value for the field, to assert that the field's value on the
-   *   page doesn't match it.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Other'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertNoFieldByXPath($xpath, $value = NULL, $message = '', $group = 'Other') {
-    $xpath = $this->buildXPathQuery($xpath);
-    $elements = $this->getSession()->getPage()->findAll('xpath', $xpath);
-    if (!isset($value)) {
-      return $this->assert(empty($elements), $message, $group);
-    }
-    if (empty($elements)) {
-      return $this->assert(TRUE, $message, $group);
-    }
-
-    /** @var $element NodeElement */
-    foreach ($elements as $element) {
-      if ($element->hasAttribute('value') && $element->getAttribute('value') == $value) {
-        return $this->assert(FALSE, $message, $group);
-      }
-      elseif ($element->getTagName() === 'select') {
-        $selected_option = $element->find('xpath', '//option[@selected="selected"]');
-        if (empty($selected_option)) {
-          $first_option = $element->find('xpath', '//option');
-          if (!empty($first_option) && $first_option->getAttribute('value') == $value) {
-            return $this->assert(FALSE, $message, $group);
-          }
-        }
-        elseif ($selected_option->getAttribute('value') == $value) {
-          return $this->assert(FALSE, $message, $group);
-        }
-      }
-      elseif ($element->getText() == $value) {
-        return $this->assert(FALSE, $message, $group);
-      }
-    }
-    return $this->assert(TRUE, $message, $group);
-  }
-
-  /**
-   * Asserts that a checkbox field in the current page is checked.
-   *
-   * @param $id
-   *   ID of field to assert.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Browser'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertFieldChecked($id, $message = '', $group = 'Browser') {
-    $elements = $this->xpath('//input[@id=:id]', array(':id' => $id));
-    if ($elements[0]->getAttribute('type') == 'radio') {
-      return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() == $elements[0]->getAttribute('value'), $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
-    }
-    else {
-      return $this->assertTrue(isset($elements[0]) && $elements[0]->getAttribute('checked') == 'checked', $message ? $message : String::format('Checkbox field @id is checked.', array('@id' => $id)), $group);
-    }
-  }
-
-  /**
-   * Asserts that a checkbox field in the current page is not checked.
-   *
-   * @param $id
-   *   ID of field to assert.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Browser'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertNoFieldChecked($id, $message = '', $group = 'Browser') {
-    /** @var \Behat\Mink\Element\NodeElement[] $elements */
-    $elements = $this->xpath('//input[@id=:id]', array(':id' => $id));
-    if ($elements[0]->getAttribute('type') == 'radio') {
-      return $this->assertTrue(isset($elements[0]) && $elements[0]->getValue() != $elements[0]->getAttribute('value'), $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
-    }
-    else {
-      return $this->assertTrue(isset($elements[0]) && $elements[0]->getAttribute('checked') != 'checked', $message ? $message : String::format('Checkbox field @id is not checked.', array('@id' => $id)), $group);
-    }
-  }
-
-  /**
-   * Asserts that a select option in the current page is checked.
-   *
-   * @param $id
-   *   ID of select field to assert.
-   * @param $option
-   *   Option to assert.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Browser'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   *
-   * @todo $id is unusable. Replace with $name.
-   */
-  protected function assertOptionSelected($id, $option, $message = '', $group = 'Browser') {
-    if ($option) {
-      $elements = $this->getSession()->getPage()->find('css', "#$id option[value=$option]");
-      return $this->assertTrue($elements && $elements->getAttribute('selected') == 'selected', $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
-    }
-    else {
-      $elements = $this->getSession()->getPage()->find('css', "#$id option[selected=selected]");
-      return $this->assertTrue($elements && $option == $elements->getAttribute('value'), $message ? $message : String::format('Option @option for field @id is selected.', array('@option' => $option, '@id' => $id)), $group);
-    }
-  }
-
-  /**
-   * Asserts that a select option in the current page is not checked.
-   *
-   * @param $id
-   *   ID of select field to assert.
-   * @param $option
-   *   Option to assert.
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Browser'; most tests do not override
-   *   this default.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertNoOptionSelected($id, $option, $message = '', $group = 'Browser') {
-    $elements = $this->getSession()->getPage()->find('css', "#$id option[value=$option]");
-    return $this->assertTrue($elements && $elements->getAttribute('selected') != 'selected', $message ? $message : String::format('Option @option for field @id is not selected.', array('@option' => $option, '@id' => $id)), $group);
-  }
-
-  /**
-   * Asserts that each HTML ID is used for just a single element.
-   *
-   * @param $message
-   *   (optional) A message to display with the assertion. Do not translate
-   *   messages: use format_string() to embed variables in the message text, not
-   *   t(). If left blank, a default message will be displayed.
-   * @param $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Other'; most tests do not override
-   *   this default.
-   * @param $ids_to_skip
-   *   An optional array of ids to skip when checking for duplicates. It is
-   *   always a bug to have duplicate HTML IDs, so this parameter is to enable
-   *   incremental fixing of core code. Whenever a test passes this parameter,
-   *   it should add a "todo" comment above the call to this function explaining
-   *   the legacy bug that the test wishes to ignore and including a link to an
-   *   issue that is working to fix that legacy bug.
-   *
-   * @return
-   *   TRUE on pass, FALSE on fail.
-   */
-  protected function assertNoDuplicateIds($message = '', $group = 'Other', $ids_to_skip = array()) {
-    $status = TRUE;
-    foreach ($this->xpath('//*[@id]') as $element) {
-      $id = $element->getAttribute('id');
-      if (isset($seen_ids[$id]) && !in_array($id, $ids_to_skip)) {
-        $this->fail(String::format('The HTML ID %id is unique.', array('%id' => $id)), $group);
-        $status = FALSE;
-      }
-      $seen_ids[$id] = TRUE;
-    }
-    return $this->assert($status, $message, $group);
-  }
-
-  /**
    * Asserts the page responds with the specified response code.
    *
    * @param $code
@@ -3055,9 +2507,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   Assertion result.
    */
   protected function assertResponse($code, $message = '', $group = 'Browser') {
-    if (!($curl_code = $this->responseCode)) {
-      $curl_code = $this->getSession()->getStatusCode();
-    }
+    $curl_code = curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE);
     $match = is_array($code) ? in_array($curl_code, $code) : $curl_code == $code;
     return $this->assertTrue($match, $message ? $message : String::format('HTTP response expected !code, actual !curl_code', array('!code' => $code, '!curl_code' => $curl_code)), $group);
   }
@@ -3082,7 +2532,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
    *   Assertion result.
    */
   protected function assertNoResponse($code, $message = '', $group = 'Browser') {
-    $curl_code = $this->getSession()->getStatusCode();
+    $curl_code = curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE);
     $match = is_array($code) ? in_array($curl_code, $code) : $curl_code == $code;
     return $this->assertFalse($match, $message ? $message : String::format('HTTP response not expected !code, actual !curl_code', array('!code' => $code, '!curl_code' => $curl_code)), $group);
   }
@@ -3246,29 +2696,4 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
     $generator->setRequest($request);
     return $request;
   }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getEvents() {
-    return [
-      'before'   => ['onBefore', 100],
-      'complete' => ['curlHeaderCallback', RequestEvents::EARLY],
-      'error'    => ['curlHeaderCallback', RequestEvents::EARLY],
-    ];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function onBefore(BeforeEvent $event) {
-    $request = $event->getRequest();
-    // We set the user agent header on each request so as to use the current
-    // time and a new uniqid.
-    if (preg_match('/simpletest\d+/', $this->databasePrefix, $matches)) {
-      // Ensure redirects get a new User-Agent.
-      $request->setHeader('User-Agent', drupal_generate_test_ua($matches[0]));
-    }
-  }
-
 }
