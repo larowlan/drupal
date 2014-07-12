@@ -297,6 +297,7 @@ function comment_node_links_alter(array &$node_links, NodeInterface $node, array
   }
 
   $fields = \Drupal::service('comment.manager')->getFields('node');
+  $current_user = \Drupal::currentUser();
   foreach ($fields as $field_name => $detail) {
     // Skip fields that the node does not have.
     if (!$node->hasField($field_name)) {
@@ -322,7 +323,7 @@ function comment_node_links_alter(array &$node_links, NodeInterface $node, array
         // Teaser view: display the number of comments that have been posted,
         // or a link to add new comments if the user has permission, the node
         // is open to new comments, and there currently are none.
-        if (user_access('access comments')) {
+        if ($current_user->hasPermission('access comments')) {
           if (!empty($node->get($field_name)->comment_count)) {
             $links['comment-comments'] = array(
               'title' => format_plural($node->get($field_name)->comment_count, '1 comment', '@count comments'),
@@ -348,7 +349,7 @@ function comment_node_links_alter(array &$node_links, NodeInterface $node, array
         // Provide a link to new comment form.
         if ($commenting_status == CommentItemInterface::OPEN) {
           $comment_form_location = $field_definition->getSetting('form_location');
-          if (user_access('post comments')) {
+          if ($current_user->hasPermission('post comments')) {
             $links['comment-add'] = array(
               'title' => t('Add new comment'),
               'language' => $node->language(),
@@ -380,10 +381,10 @@ function comment_node_links_alter(array &$node_links, NodeInterface $node, array
         // allowed to post comments and if this node is allowing new comments.
         if ($commenting_status == CommentItemInterface::OPEN) {
           $comment_form_location = $field_definition->getSetting('form_location');
-          if (user_access('post comments')) {
+          if ($current_user->hasPermission('post comments')) {
             // Show the "post comment" link if the form is on another page, or
             // if there are existing comments that the link will skip past.
-            if ($comment_form_location == COMMENT_FORM_SEPARATE_PAGE || (!empty($node->get($field_name)->comment_count) && user_access('access comments'))) {
+            if ($comment_form_location == COMMENT_FORM_SEPARATE_PAGE || (!empty($node->get($field_name)->comment_count) && $current_user->hasPermission('access comments'))) {
               $links['comment-add'] = array(
                 'title' => t('Add new comment'),
                 'attributes' => array('title' => t('Share your thoughts and opinions related to this posting.')),
@@ -434,7 +435,7 @@ function comment_node_links_alter(array &$node_links, NodeInterface $node, array
 }
 
 /**
- * Implements hook_node_view_alter().
+ * Implements hook_ENTITY_TYPE_view_alter() for node entities.
  */
 function comment_node_view_alter(array &$build, EntityInterface $node, EntityViewDisplayInterface $display) {
   if (\Drupal::moduleHandler()->moduleExists('history')) {
@@ -515,7 +516,7 @@ function comment_node_view_alter(array &$build, EntityInterface $node, EntityVie
  * to consider the trailing "/" so we use a substring only.
  */
 function comment_get_thread(EntityInterface $entity, $field_name, $mode, $comments_per_page, $pager_id = 0) {
-  $query = db_select('comment', 'c')
+  $query = db_select('comment_field_data', 'c')
     ->extend('Drupal\Core\Database\Query\PagerSelectExtender');
   if ($pager_id) {
     $query->element($pager_id);
@@ -525,6 +526,7 @@ function comment_get_thread(EntityInterface $entity, $field_name, $mode, $commen
     ->condition('c.entity_id', $entity->id())
     ->condition('c.entity_type', $entity->getEntityTypeId())
     ->condition('c.field_name', $field_name)
+    ->condition('default_langcode', 1)
     ->addTag('entity_access')
     ->addTag('comment_filter')
     ->addMetaData('base_table', 'comment')
@@ -532,19 +534,20 @@ function comment_get_thread(EntityInterface $entity, $field_name, $mode, $commen
     ->addMetaData('field_name', $field_name)
     ->limit($comments_per_page);
 
-  $count_query = db_select('comment', 'c');
+  $count_query = db_select('comment_field_data', 'c');
   $count_query->addExpression('COUNT(*)');
   $count_query
     ->condition('c.entity_id', $entity->id())
     ->condition('c.entity_type', $entity->getEntityTypeId())
     ->condition('c.field_name', $field_name)
+    ->condition('default_langcode', 1)
     ->addTag('entity_access')
     ->addTag('comment_filter')
     ->addMetaData('base_table', 'comment')
     ->addMetaData('entity', $entity)
     ->addMetaData('field_name', $field_name);
 
-  if (!user_access('administer comments')) {
+  if (!\Drupal::currentUser()->hasPermission('administer comments')) {
     $query->condition('c.status', CommentInterface::PUBLISHED);
     $count_query->condition('c.status', CommentInterface::PUBLISHED);
   }
@@ -637,7 +640,7 @@ function comment_view_multiple($comments, $view_mode = 'full', $langcode = NULL)
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
+ * Implements hook_form_FORM_ID_alter() for field_ui_field_overview_form.
  */
 function comment_form_field_ui_field_overview_form_alter(&$form, $form_state) {
   $request = \Drupal::request();
@@ -884,7 +887,7 @@ function comment_user_cancel($edit, $account, $method) {
 }
 
 /**
- * Implements hook_user_predelete().
+ * Implements hook_ENTITY_TYPE_predelete() for user entities.
  */
 function comment_user_predelete($account) {
   $entity_query = \Drupal::entityQuery('comment');
@@ -1248,7 +1251,8 @@ function comment_ranking() {
  */
 function comment_file_download_access($field, EntityInterface $entity, FileInterface $file) {
   if ($entity instanceof CommentInterface) {
-    if (user_access('access comments') && $entity->isPublished() || user_access('administer comments')) {
+    $current_user = \Drupal::currentUser();
+    if ($current_user->hasPermission('access comments') && $entity->isPublished() || $current_user->hasPermission('administer comments')) {
       $commented_entity = $entity->getCommentedEntity();
       // Check access to parent entity.
       return $commented_entity->access('view');

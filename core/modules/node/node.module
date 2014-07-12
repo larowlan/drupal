@@ -93,7 +93,7 @@ function node_help($route_name, RouteMatchInterface $route_match) {
   // for rebuild. We don't need to issue the message on the confirm form, or
   // while the rebuild is being processed.
   if ($route_name != 'node.configure_rebuild_confirm' && $route_name != 'system.batch_page.normal' && $route_name != 'help.page.node' && $route_name != 'help.main'
-    && user_access('access administration pages') && node_access_needs_rebuild()) {
+    && \Drupal::currentUser()->hasPermission('access administration pages') && node_access_needs_rebuild()) {
     if ($route_name == 'system.status') {
       $message = t('The content access permissions need to be rebuilt.');
     }
@@ -785,7 +785,7 @@ function node_user_cancel($edit, $account, $method) {
 }
 
 /**
- * Implements hook_user_predelete().
+ * Implements hook_ENTITY_TYPE_predelete() for user entities.
  */
 function node_user_predelete($account) {
   // Delete nodes (current revisions).
@@ -1134,10 +1134,12 @@ function node_form_system_themes_admin_form_submit($form, &$form_state) {
  * default home page at path 'node', an RSS feed, a recent content block, etc.),
  * the process above is followed except that hook_node_access() is not called on
  * each node for performance reasons and for proper functioning of the pager
- * system. When adding a node listing to your module, be sure to use a dynamic
- * entity query and add a tag of "node_access". This will allow modules dealing
+ * system. When adding a node listing to your module, be sure to use an entity
+ * query, which will add a tag of "node_access". This will allow modules dealing
  * with node access to ensure only nodes to which the user has access are
- * retrieved, through the use of hook_query_TAG_alter().
+ * retrieved, through the use of hook_query_TAG_alter(). See the
+ * @link entity_api Entity API topic @endlink for more information on entity
+ * queries.
  *
  * Note: Even a single module returning NODE_ACCESS_DENY from hook_node_access()
  * will block access to the node. Therefore, implementers should take care to
@@ -1157,18 +1159,18 @@ function node_node_access(NodeInterface $node, $op, $account) {
 
   $configured_types = node_permissions_get_configured_types();
   if (isset($configured_types[$type])) {
-    if ($op == 'create' && user_access('create ' . $type . ' content', $account)) {
+    if ($op == 'create' && $account->hasPermission('create ' . $type . ' content', $account)) {
       return NODE_ACCESS_ALLOW;
     }
 
     if ($op == 'update') {
-      if (user_access('edit any ' . $type . ' content', $account) || (user_access('edit own ' . $type . ' content', $account) && ($account->id() == $node->getOwnerId()))) {
+      if ($account->hasPermission('edit any ' . $type . ' content', $account) || ($account->hasPermission('edit own ' . $type . ' content', $account) && ($account->id() == $node->getOwnerId()))) {
         return NODE_ACCESS_ALLOW;
       }
     }
 
     if ($op == 'delete') {
-      if (user_access('delete any ' . $type . ' content', $account) || (user_access('delete own ' . $type . ' content', $account) && ($account->id() == $node->getOwnerId()))) {
+      if ($account->hasPermission('delete any ' . $type . ' content', $account) || ($account->hasPermission('delete own ' . $type . ' content', $account) && ($account->id() == $node->getOwnerId()))) {
         return NODE_ACCESS_ALLOW;
       }
     }
@@ -1347,7 +1349,7 @@ function node_query_node_access_alter(AlterableInterface $query) {
   // If $account can bypass node access, or there are no node access modules,
   // or the operation is 'view' and the $account has a global view grant
   // (such as a view grant for node ID 0), we don't need to alter the query.
-  if (user_access('bypass node access', $account)) {
+  if ($account->hasPermission('bypass node access')) {
     return;
   }
   if (!count(\Drupal::moduleHandler()->getImplementations('node_grants'))) {
@@ -1628,7 +1630,7 @@ function node_reindex_node_search($nid) {
 }
 
 /**
- * Implements hook_comment_insert().
+ * Implements hook_ENTITY_TYPE_insert() for comment entities.
  */
 function node_comment_insert($comment) {
   // Reindex the node when comments are added.
@@ -1638,7 +1640,7 @@ function node_comment_insert($comment) {
 }
 
 /**
- * Implements hook_comment_update().
+ * Implements hook_ENTITY_TYPE_update() for comment entities.
  */
 function node_comment_update($comment) {
   // Reindex the node when comments are changed.
@@ -1648,7 +1650,7 @@ function node_comment_update($comment) {
 }
 
 /**
- * Implements hook_comment_delete().
+ * Implements hook_ENTITY_TYPE_delete() for comment entities.
  */
 function node_comment_delete($comment) {
   // Reindex the node when comments are deleted.

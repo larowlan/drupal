@@ -296,12 +296,6 @@ function drupal_get_feeds() {
 }
 
 /**
- * @defgroup http_handling HTTP handling
- * @{
- * Functions to properly handle HTTP responses.
- */
-
-/**
  * Prepares a 'destination' URL query parameter for use with url().
  *
  * Used to direct the user back to the referring page after completing a form.
@@ -337,10 +331,6 @@ function drupal_get_destination() {
   }
   return $destination;
 }
-
-/**
- * @} End of "defgroup http_handling".
- */
 
 /**
  * @defgroup validation Input validation
@@ -2492,36 +2482,6 @@ function drupal_clear_js_cache() {
   \Drupal::state()->delete('system.javascript_parsed');
   \Drupal::state()->delete('system.js_cache_files');
   file_scan_directory('public://js', '/.*/', array('callback' => 'drupal_delete_file_if_stale'));
-}
-
-/**
- * Converts a PHP variable into its JavaScript equivalent.
- *
- * We use HTML-safe strings, with several characters escaped.
- *
- * @see drupal_json_decode()
- *
- * @ingroup php_wrappers
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal\Component\Serialization\Json::encode().
- */
-function drupal_json_encode($var) {
-  return Json::encode($var);
-}
-
-/**
- * Converts an HTML-safe JSON string into its PHP equivalent.
- *
- * @see drupal_json_encode()
- *
- * @ingroup php_wrappers
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal\Component\Serialization\Json::decode().
- */
-function drupal_json_decode($var) {
-  return Json::decode($var);
 }
 
 /**

@@ -1150,25 +1150,6 @@ function module_invoke($module, $hook) {
 }
 
 /**
- * Invokes a hook in all enabled modules that implement it.
- *
- * All arguments are passed by value. Use \Drupal::moduleHandler()->alter() if
- * you need to pass arguments by reference.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::moduleHandler()->invokeAll($hook).
- *
- * @see \Drupal\Core\Extension\ModuleHandler::alter()
- * @see \Drupal\Core\Extension\ModuleHandler::invokeAll()
- */
-function module_invoke_all($hook) {
-  $args = func_get_args();
-  // Remove $hook from the arguments.
-  unset($args[0]);
-  return \Drupal::moduleHandler()->invokeAll($hook, $args);
-}
-
-/**
  * Passes alterable variables to specific hook_TYPE_alter() implementations.
  *
  * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
@@ -1178,30 +1159,6 @@ function module_invoke_all($hook) {
  */
 function drupal_alter($type, &$data, &$context1 = NULL, &$context2 = NULL) {
   return \Drupal::moduleHandler()->alter($type, $data, $context1, $context2);
-}
-
-/**
- * Determines whether a given module exists.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::moduleHandler()->moduleExists($module).
- *
- * @see \Drupal\Core\Extension\ModuleHandler::moduleExists()
- */
-function module_exists($module) {
-  return \Drupal::moduleHandler()->moduleExists($module);
-}
-
-/**
- * Determines whether a module implements a hook.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::moduleHandler()->implementsHook($module, $hook).
- *
- * @see \Drupal\Core\Extension\ModuleHandler::implementsHook()
- */
-function module_hook($module, $hook) {
-  return \Drupal::moduleHandler()->implementsHook($module, $hook);
 }
 
 /**
@@ -1662,16 +1619,6 @@ function drupal_static_reset($name = NULL) {
 }
 
 /**
- * Detects whether the current script is running in a command-line environment.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Check the PHP_SAPI value directly instead.
- */
-function drupal_is_cli() {
-  return PHP_SAPI === 'cli';
-}
-
-/**
  * Formats text for emphasized display in a placeholder inside a sentence.
  *
  * @see \Drupal\Component\Utility\String::placeholder()
@@ -1747,14 +1694,3 @@ function _drupal_shutdown_function() {
   }
 }
 
-/**
- * Get locking layer instance.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::lock().
- *
- * @return \Drupal\Core\Lock\LockBackendInterface
- */
-function lock() {
-  return \Drupal::lock();
-}
