@@ -279,12 +279,14 @@ class DbLogTest extends BrowserTestBase {
     if ($links = $this->xpath('//a[text()="' . html_entity_decode($message_text) . '"]')) {
       // Found link with the message text.
       $links = array_shift($links);
-      $value = $links->getAttribute('href');
-      // Extract link to details page.
-      $link = drupal_substr($value, strpos($value, 'admin/reports/event/'));
-      $this->drupalGet($link);
-      // Check for full message text on the details page.
-      $this->assertRaw($message, 'DBLog event details was found: [delete user]');
+      if ($links->hasAttribute('href')) {
+        $value = $links->getAttribute('href');
+          // Extract link to details page.
+        $link = drupal_substr($value, strpos($value, 'admin/reports/dblog/event/'));
+        $this->drupalGet($link);
+        // Check for full message text on the details page.
+        $this->assertRaw($message, 'DBLog event details was found: [delete user]');
+      }
     }
     $this->assertTrue($link, 'DBLog event was recorded: [delete user]');
     // Visit random URL (to generate page not found event).
