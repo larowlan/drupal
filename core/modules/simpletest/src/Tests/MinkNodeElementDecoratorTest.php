@@ -8,7 +8,7 @@
 namespace Drupal\simpletest\Tests;
 
 use Drupal\simpletest\MinkNodeElementDecorator;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests helper methods provided by the Mink node decorator.
@@ -17,7 +17,7 @@ use Drupal\simpletest\WebTestBase;
  * @group Drupal
  * @group simpletest
  */
-class MinkNodeElementDecoratorTest extends WebTestBase {
+class MinkNodeElementDecoratorTest extends BrowserTestBase {
 
   /**
    * Modules to enable.
