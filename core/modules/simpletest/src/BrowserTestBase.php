@@ -2642,14 +2642,7 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
   protected function drupalSetContent($content, $url = 'internal:') {
     // @todo Subclass MinkSession to include the ability to setPage() for
     //   internal paths.
-    $this->content = $content;
-    $this->url = $url;
-    $this->plainTextContent = FALSE;
-    $this->elements = FALSE;
-    $this->drupalSettings = array();
-    if (preg_match('/var drupalSettings = (.*?);$/m', $content, $matches)) {
-      $this->drupalSettings = Json::decode($matches[1]);
-    }
+    $this->setRawContent($content);
   }
 
   /**
