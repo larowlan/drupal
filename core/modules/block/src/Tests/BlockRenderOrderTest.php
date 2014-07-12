@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests blocks are being rendered in order by weight.
  *
  * @group block
  */
-class BlockRenderOrderTest extends WebTestBase {
+class BlockRenderOrderTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

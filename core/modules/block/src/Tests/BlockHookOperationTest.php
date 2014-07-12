@@ -8,14 +8,14 @@
 namespace Drupal\block\Tests;
 
 use Drupal\Component\Utility\Unicode;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Implement hook entity operations alter.
  *
  * @group block
  */
-class BlockHookOperationTest extends WebTestBase {
+class BlockHookOperationTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

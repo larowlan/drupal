@@ -7,7 +7,7 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests if a block can be configure to be only visibile on a particular
@@ -15,7 +15,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group block
  */
-class BlockLanguageTest extends WebTestBase {
+class BlockLanguageTest extends BrowserTestBase {
 
   /**
    * An administrative user to configure the test environment.

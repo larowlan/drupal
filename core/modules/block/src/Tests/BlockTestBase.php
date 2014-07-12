@@ -7,12 +7,12 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Provides setup and helper methods for block module tests.
  */
-abstract class BlockTestBase extends WebTestBase {
+abstract class BlockTestBase extends BrowserTestBase {
 
   /**
    * Modules to enable.

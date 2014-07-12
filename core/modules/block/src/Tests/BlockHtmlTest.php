@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests block HTML ID validity.
  *
  * @group block
  */
-class BlockHtmlTest extends WebTestBase {
+class BlockHtmlTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

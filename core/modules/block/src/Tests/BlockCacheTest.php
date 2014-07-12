@@ -8,14 +8,14 @@
 namespace Drupal\block\Tests;
 
 use Drupal\Core\Cache\Cache;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests block caching.
  *
  * @group block
  */
-class BlockCacheTest extends WebTestBase {
+class BlockCacheTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

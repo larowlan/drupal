@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests the template_preprocess_block() function.
  *
  * @group block
  */
-class BlockPreprocessUnitTest extends WebTestBase {
+class BlockPreprocessUnitTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

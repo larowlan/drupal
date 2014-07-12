@@ -7,7 +7,7 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests that an active block assigned to a non-existing region triggers the
@@ -15,7 +15,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group block
  */
-class BlockInvalidRegionTest extends WebTestBase {
+class BlockInvalidRegionTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

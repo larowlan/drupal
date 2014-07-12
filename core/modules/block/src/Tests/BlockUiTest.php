@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests that the block configuration UI exists and stores data correctly.
  *
  * @group block
  */
-class BlockUiTest extends WebTestBase {
+class BlockUiTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests block XSS in title.
  *
  * @group block
  */
-class BlockTitleXSSTest extends WebTestBase {
+class BlockTitleXSSTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

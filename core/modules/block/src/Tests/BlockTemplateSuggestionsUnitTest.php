@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests the block_theme_suggestions_block() function.
  *
  * @group block
  */
-class BlockTemplateSuggestionsUnitTest extends WebTestBase {
+class BlockTemplateSuggestionsUnitTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

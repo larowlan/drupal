@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests the block administration page for a non-default theme.
  *
  * @group block
  */
-class NonDefaultBlockAdminTest extends WebTestBase {
+class NonDefaultBlockAdminTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests the block system with admin themes.
  *
  * @group block
  */
-class BlockAdminThemeTest extends WebTestBase {
+class BlockAdminThemeTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

@@ -9,14 +9,14 @@ namespace Drupal\block\Tests;
 
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Language\Language;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests display of menu blocks with multiple languages.
  *
  * @group block
  */
-class BlockLanguageCacheTest extends WebTestBase {
+class BlockLanguageCacheTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

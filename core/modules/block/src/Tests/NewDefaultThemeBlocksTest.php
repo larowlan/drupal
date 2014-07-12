@@ -7,14 +7,14 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests that the new default theme gets blocks.
  *
  * @group block
  */
-class NewDefaultThemeBlocksTest extends WebTestBase {
+class NewDefaultThemeBlocksTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

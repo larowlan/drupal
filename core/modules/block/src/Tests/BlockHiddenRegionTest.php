@@ -7,7 +7,7 @@
 
 namespace Drupal\block\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests that a newly enabled theme does not inherit blocks to its hidden
@@ -15,7 +15,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group block
  */
-class BlockHiddenRegionTest extends WebTestBase {
+class BlockHiddenRegionTest extends BrowserTestBase {
 
   /**
    * An administrative user to configure the test environment.
