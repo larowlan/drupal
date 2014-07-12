@@ -36,28 +36,31 @@ abstract class TourTestBase extends WebTestBase {
    */
   public function assertTourTips($tips = array()) {
     // Get the rendered tips and their data-id and data-class attributes.
-    $rendered_tips = array();
     if (empty($tips)) {
       // Tips are rendered as <li> elements inside <ol id="tour">.
       $rendered_tips = $this->xpath('//ol[@id = "tour"]//li[starts-with(@class, "tip")]');
+      foreach ($rendered_tips as $rendered_tip) {
+        $attributes = (array) $rendered_tip->attributes();
+        $tips[] = $attributes['@attributes'];
+      }
     }
 
     // If the tips are still empty we need to fail.
-    if (empty($rendered_tips)) {
+    if (empty($tips)) {
       $this->fail('Could not find tour tips on the current page.');
     }
     else {
       // Check for corresponding page elements.
       $total = 0;
       $modals = 0;
-      foreach ($rendered_tips as $tip) {
-        if ($tip_id = $tip->getAttribute('data-id')) {
-          $elements = \PHPUnit_Util_XML::cssSelect('#' . $tip_id, TRUE, $this->content, TRUE);
-          $this->assertTrue(!empty($elements) && count($elements) === 1, format_string('Found corresponding page element for tour tip with id #%data-id', array('%data-id' => $tip_id)));
+      foreach ($tips as $tip) {
+        if (!empty($tip['data-id'])) {
+          $elements = \PHPUnit_Util_XML::cssSelect('#' . $tip['data-id'], TRUE, $this->content, TRUE);
+          $this->assertTrue(!empty($elements) && count($elements) === 1, format_string('Found corresponding page element for tour tip with id #%data-id', array('%data-id' => $tip['data-id'])));
         }
-        elseif ($tip_class = $tip->getAttribute('data-class')) {
-          $elements = \PHPUnit_Util_XML::cssSelect('.' . $tip_class, TRUE, $this->content, TRUE);
-          $this->assertFalse(empty($elements), format_string('Found corresponding page element for tour tip with class .%data-class', array('%data-class' => $tip_class)));
+        else if (!empty($tip['data-class'])) {
+          $elements = \PHPUnit_Util_XML::cssSelect('.' . $tip['data-class'], TRUE, $this->content, TRUE);
+          $this->assertFalse(empty($elements), format_string('Found corresponding page element for tour tip with class .%data-class', array('%data-class' => $tip['data-class'])));
         }
         else {
           // It's a modal.
