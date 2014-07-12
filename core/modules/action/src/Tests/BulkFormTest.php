@@ -7,7 +7,7 @@
 
 namespace Drupal\action\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 use Drupal\views\Views;
 
 /**
@@ -16,7 +16,7 @@ use Drupal\views\Views;
  * @group action
  * @see \Drupal\action\Plugin\views\field\BulkForm
  */
-class BulkFormTest extends WebTestBase {
+class BulkFormTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

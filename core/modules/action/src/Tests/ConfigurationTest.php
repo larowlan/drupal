@@ -8,7 +8,7 @@
 namespace Drupal\action\Tests;
 
 use Drupal\Component\Utility\Crypt;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests complex actions configuration by adding, editing, and deleting a
@@ -16,7 +16,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group action
  */
-class ConfigurationTest extends WebTestBase {
+class ConfigurationTest extends BrowserTestBase {
 
   /**
    * Modules to enable.
