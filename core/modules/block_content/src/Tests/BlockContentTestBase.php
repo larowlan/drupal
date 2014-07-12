@@ -7,12 +7,12 @@
 
 namespace Drupal\block_content\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Sets up page and article content types.
  */
-abstract class BlockContentTestBase extends WebTestBase {
+abstract class BlockContentTestBase extends BrowserTestBase {
 
   /**
    * Profile to use.

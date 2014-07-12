@@ -8,9 +8,9 @@
 namespace Drupal\system\Tests\Menu;
 
 use Drupal\Component\Utility\String;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
-abstract class MenuTestBase extends WebTestBase {
+abstract class MenuTestBase extends BrowserTestBase {
 
   /**
    * Assert that a given path shows certain breadcrumb links.

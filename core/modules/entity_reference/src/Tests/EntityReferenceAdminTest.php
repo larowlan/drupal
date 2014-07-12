@@ -7,14 +7,14 @@
 
 namespace Drupal\entity_reference\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests for the administrative UI.
  *
  * @group entity_reference
  */
-class EntityReferenceAdminTest extends WebTestBase {
+class EntityReferenceAdminTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

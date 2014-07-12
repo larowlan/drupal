@@ -10,7 +10,7 @@ namespace Drupal\dblog\Tests;
 use Drupal\Component\Utility\Xss;
 use Drupal\dblog\Controller\DbLogController;
 use Drupal\simpletest\MinkNodeElementDecorator;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Generate events and verify dblog entries; verify user access to log reports
@@ -18,7 +18,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group dblog
  */
-class DbLogTest extends WebTestBase {
+class DbLogTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

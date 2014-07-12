@@ -12,7 +12,7 @@ use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationSelected;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl;
 use Drupal\user\Plugin\LanguageNegotiation\LanguageNegotiationUser;
 use Drupal\user\Plugin\LanguageNegotiation\LanguageNegotiationUserAdmin;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Language\LanguageInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -46,7 +46,7 @@ use Drupal\language\LanguageNegotiatorInterface;
  *
  * @group language
  */
-class LanguageUILanguageNegotiationTest extends WebTestBase {
+class LanguageUILanguageNegotiationTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

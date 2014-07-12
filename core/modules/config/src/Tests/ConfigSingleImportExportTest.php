@@ -8,14 +8,14 @@
 namespace Drupal\config\Tests;
 
 use Drupal\Component\Serialization\Yaml;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests the user interface for importing/exporting a single configuration.
  *
  * @group config
  */
-class ConfigSingleImportExportTest extends WebTestBase {
+class ConfigSingleImportExportTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

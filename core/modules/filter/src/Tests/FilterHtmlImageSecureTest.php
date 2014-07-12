@@ -8,14 +8,14 @@
 namespace Drupal\filter\Tests;
 
 use Drupal\Core\StreamWrapper\PublicStream;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests restriction of IMG tags in HTML input.
  *
  * @group filter
  */
-class FilterHtmlImageSecureTest extends WebTestBase {
+class FilterHtmlImageSecureTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

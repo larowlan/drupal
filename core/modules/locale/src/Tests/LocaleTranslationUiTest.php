@@ -7,7 +7,7 @@
 
 namespace Drupal\locale\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Component\Utility\String;
@@ -18,7 +18,7 @@ use Drupal\Component\Utility\String;
  *
  * @group locale
  */
-class LocaleTranslationUiTest extends WebTestBase {
+class LocaleTranslationUiTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

@@ -7,14 +7,14 @@
 
 namespace Drupal\filter\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests access to text formats.
  *
  * @group filter
  */
-class FilterFormatAccessTest extends WebTestBase {
+class FilterFormatAccessTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

@@ -147,7 +147,7 @@ class NodeFormButtonsTest extends NodeTestBase {
       $elements = $this->xpath('//div[@class="dropbutton-wrapper"]//input[@type="submit"]');
       $this->assertEqual($count, count($elements));
       foreach ($elements as $element) {
-        $value = $element->getValue();
+        $value = isset($element['value']) ? (string) $element['value'] : '';
         $this->assertEqual($buttons[$i], $value);
         $i++;
       }

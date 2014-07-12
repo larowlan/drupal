@@ -9,14 +9,14 @@ namespace Drupal\ckeditor\Tests;
 
 use Drupal\editor\Entity\Editor;
 use Drupal\filter\FilterFormatInterface;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests administration of CKEditor.
  *
  * @group ckeditor
  */
-class CKEditorAdminTest extends WebTestBase {
+class CKEditorAdminTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

@@ -61,7 +61,7 @@ class FieldUITest extends FieldTestBase {
     // Tests the available formatter options.
     $result = $this->xpath('//select[@id=:id]/option', array(':id' => 'edit-options-type'));
     $options = array_map(function($item) {
-      return $item->getAttribute('value');
+      return (string) $item->attributes()->value[0];
     }, $result);
     // @todo Replace this sort by assertArray once it's in.
     sort($options, SORT_STRING);

@@ -7,7 +7,7 @@
 
 namespace Drupal\system\Tests\Form;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests form API checkbox handling of various combinations of #default_value
@@ -15,7 +15,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group Form
  */
-class CheckboxTest extends WebTestBase {
+class CheckboxTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

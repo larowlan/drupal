@@ -181,7 +181,7 @@ class CommentPagerTest extends CommentTestBase {
     $comment_anchors = $this->xpath('//a[starts-with(@id,"comment-")]');
     $result_order = array();
     foreach ($comment_anchors as $anchor) {
-      $result_order[] = substr($anchor->getAttribute('id'), 8);
+      $result_order[] = substr($anchor['id'], 8);
     }
     return $this->assertEqual($expected_cids, $result_order, format_string('Comment order: expected @expected, returned @returned.', array('@expected' => implode(',', $expected_cids), '@returned' => implode(',', $result_order))));
   }

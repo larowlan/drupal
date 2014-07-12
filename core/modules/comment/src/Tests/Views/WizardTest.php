@@ -65,7 +65,7 @@ class WizardTest extends WizardTestBase {
     foreach ($fields as $field) {
       $items = $this->getAllOptions($field);
       foreach ($items as $item) {
-        $options[] = $item->getAttribute('value');
+        $options[] = $item->attributes()->value;
       }
     }
     $expected_options = array('comment', 'fields');

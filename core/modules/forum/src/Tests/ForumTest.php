@@ -8,7 +8,7 @@
 namespace Drupal\forum\Tests;
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Create, view, edit, delete, and change forum entries and verify its
@@ -16,7 +16,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group forum
  */
-class ForumTest extends WebTestBase {
+class ForumTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

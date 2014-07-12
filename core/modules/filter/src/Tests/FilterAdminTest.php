@@ -8,14 +8,14 @@
 namespace Drupal\filter\Tests;
 
 use Drupal\Component\Utility\String;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Thoroughly test the administrative interface of the filter module.
  *
  * @group filter
  */
-class FilterAdminTest extends WebTestBase {
+class FilterAdminTest extends BrowserTestBase {
 
   /**
    * {@inheritdoc}

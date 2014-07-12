@@ -78,7 +78,7 @@ class FieldWebTest extends HandlerTestBase {
     $fields = $this->xpath("//td[contains(@class, 'views-field-id')]");
     $ids = array();
     foreach ($fields as $field) {
-      $ids[] = (int) $field->getText();
+      $ids[] = (int) $field[0];
     }
     return $ids;
   }

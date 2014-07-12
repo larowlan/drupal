@@ -7,14 +7,14 @@
 
 namespace Drupal\system\Tests\Menu;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests local actions derived from router and added/altered via hooks.
  *
  * @group Menu
  */
-class LocalActionTest extends WebTestBase {
+class LocalActionTest extends BrowserTestBase {
 
   /**
    * {@inheritdoc}

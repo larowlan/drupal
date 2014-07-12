@@ -7,14 +7,14 @@
 
 namespace Drupal\system\Tests\Form;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests form element labels, required markers and associated output.
  *
  * @group Form
  */
-class ElementsLabelsTest extends WebTestBase {
+class ElementsLabelsTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

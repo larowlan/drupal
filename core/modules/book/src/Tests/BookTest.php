@@ -8,14 +8,14 @@
 namespace Drupal\book\Tests;
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Create a book, add pages, and test book interface.
  *
  * @group book
  */
-class BookTest extends WebTestBase {
+class BookTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

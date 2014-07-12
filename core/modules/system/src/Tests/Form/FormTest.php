@@ -10,7 +10,7 @@ namespace Drupal\system\Tests\Form;
 use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\String;
 use Drupal\Core\Render\Element;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 use GuzzleHttp\Event\BeforeEvent;
 
 /**
@@ -18,7 +18,7 @@ use GuzzleHttp\Event\BeforeEvent;
  *
  * @group Form
  */
-class FormTest extends WebTestBase {
+class FormTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

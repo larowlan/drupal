@@ -8,12 +8,12 @@
 namespace Drupal\field_ui\Tests;
 
 use Drupal\Core\Language\LanguageInterface;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Provides common functionality for the Field UI test classes.
  */
-abstract class FieldUiTestBase extends WebTestBase {
+abstract class FieldUiTestBase extends BrowserTestBase {
 
   /**
    * Modules to enable.

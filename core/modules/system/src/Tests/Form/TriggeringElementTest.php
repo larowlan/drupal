@@ -7,14 +7,14 @@
 
 namespace Drupal\system\Tests\Form;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests that FAPI correctly determines $form_state['triggering_element'].
  *
  * @group Form
  */
-class TriggeringElementTest extends WebTestBase {
+class TriggeringElementTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

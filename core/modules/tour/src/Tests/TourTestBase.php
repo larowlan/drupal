@@ -7,12 +7,12 @@
 
 namespace Drupal\tour\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Base class for testing Tour functionality.
  */
-abstract class TourTestBase extends WebTestBase {
+abstract class TourTestBase extends BrowserTestBase {
 
   /**
    * Assert function to determine if tips rendered to the page

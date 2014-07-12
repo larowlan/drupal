@@ -27,7 +27,7 @@ class HistoryTest extends WebTestBase {
   /**
    * The main user for testing.
    *
-   * @var objec
+   * @var object
    */
   protected $user;
 
@@ -64,8 +64,25 @@ class HistoryTest extends WebTestBase {
       $post['node_ids[' . $i . ']'] = $node_ids[$i];
     }
 
+    // Serialize POST values.
+    foreach ($post as $key => $value) {
+      // Encode according to application/x-www-form-urlencoded
+      // Both names and values needs to be urlencoded, according to
+      // http://www.w3.org/TR/html4/interact/forms.html#h-17.13.4.1
+      $post[$key] = urlencode($key) . '=' . urlencode($value);
+    }
+    $post = implode('&', $post);
+
     // Perform HTTP request.
-    return $this->drupalPost(url('history/get_node_read_timestamps', array('absolute' => TRUE)), 'application/json', $post);
+    return $this->curlExec(array(
+      CURLOPT_URL => url('history/get_node_read_timestamps', array('absolute' => TRUE)),
+      CURLOPT_POST => TRUE,
+      CURLOPT_POSTFIELDS => $post,
+      CURLOPT_HTTPHEADER => array(
+        'Accept: application/json',
+        'Content-Type: application/x-www-form-urlencoded',
+      ),
+    ));
   }
 
   /**

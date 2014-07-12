@@ -8,14 +8,14 @@
 namespace Drupal\system\Tests\Pager;
 
 use Drupal\simpletest\MinkNodeElementDecorator;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests pager functionality.
  *
  * @group Pager
  */
-class PagerTest extends WebTestBase {
+class PagerTest extends BrowserTestBase {
 
   /**
    * Modules to enable.

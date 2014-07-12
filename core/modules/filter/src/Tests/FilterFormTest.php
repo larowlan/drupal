@@ -8,14 +8,14 @@
 namespace Drupal\filter\Tests;
 
 use Drupal\Component\Utility\String;
-use Drupal\simpletest\WebTestBase;
+use Drupal\simpletest\BrowserTestBase;
 
 /**
  * Tests form elements with associated text formats.
  *
  * @group filter
  */
-class FilterFormTest extends WebTestBase {
+class FilterFormTest extends BrowserTestBase {
 
   /**
    * Modules to enable for this test.
