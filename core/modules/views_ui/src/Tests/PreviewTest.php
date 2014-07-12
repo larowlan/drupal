@@ -265,18 +265,18 @@ class PreviewTest extends UITestBase {
   /**
    * Asserts that an element has a given class.
    *
-   * @param object $element
+   * @param \SimpleXMLElement $element
    *   The element to test.
    * @param string $class
    *   The class to assert.
    * @param string $message
    *   (optional) A verbose message to output.
    */
-  protected function assertClass($element, $class, $message = NULL) {
+  protected function assertClass(\SimpleXMLElement $element, $class, $message = NULL) {
     if (!isset($message)) {
       $message = "Class .$class found.";
     }
-    $this->assertTrue(strpos($element->getAttribute('class'), $class) !== FALSE, $message);
+    $this->assertTrue(strpos($element['class'], $class) !== FALSE, $message);
   }
 
 }

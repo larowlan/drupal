@@ -7,14 +7,14 @@
 
 namespace Drupal\system\Tests\Form;
 
-use Drupal\simpletest\BrowserTestBase;
+use Drupal\simpletest\WebTestBase;
 
 /**
  * Tests that FAPI correctly determines $form_state['triggering_element'].
  *
  * @group Form
  */
-class TriggeringElementTest extends BrowserTestBase {
+class TriggeringElementTest extends WebTestBase {
 
   /**
    * Modules to enable.
@@ -90,11 +90,9 @@ class TriggeringElementTest extends BrowserTestBase {
     // a little trickery here, to work around the safeguards in drupalPostForm(): by
     // renaming the text field that is in the form to 'button1', we can get the
     // data we want into \Drupal::request()->request.
-    // @todo re-instate this somehow, but doesn't seem supported with Mink.
     $elements = $this->xpath('//form[@id="' . $form_html_id . '"]//input[@name="text"]');
-    /*$elements[0]['name'] = 'button1';
-    $this->drupalPostForm(NULL, array('button1' => 'button1'), NULL, array(), array(), $form_html_id);*/
-    $this->fail('Not supported with mink');
+    $elements[0]['name'] = 'button1';
+    $this->drupalPostForm(NULL, array('button1' => 'button1'), NULL, array(), array(), $form_html_id);
 
     // Ensure that $form_state['triggering_element'] was not set to the
     // restricted button. Do this with both a negative and positive assertion,

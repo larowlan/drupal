@@ -147,11 +147,20 @@ class FileFieldWidgetTest extends FileFieldTestBase {
           $button_name = $current_field_name . '_' . $delta . '_remove_button';
           switch ($type) {
             case 'nojs':
-              // Mmm Mink.
-              $button = $this->getMink()->getSession()->getPage()->findButton($button_name);
-              $button->press();
+              // drupalPostForm() takes a $submit parameter that is the value of the
+              // button whose click we want to emulate. Since we have multiple
+              // buttons with the value "Remove", and want to control which one we
+              // use, we change the value of the other ones to something else.
+              // Since non-clicked buttons aren't included in the submitted POST
+              // data, and since drupalPostForm() will result in $this being updated
+              // with a newly rebuilt form, this doesn't cause problems.
+              foreach ($buttons as $button) {
+                if ($button['name'] != $button_name) {
+                  $button['value'] = 'DUMMY';
+                }
+              }
+              $this->drupalPostForm(NULL, array(), t('Remove'));
               break;
-
             case 'js':
               // drupalPostAjaxForm() lets us target the button precisely, so we don't
               // require the workaround used above for nojs.
@@ -216,12 +225,12 @@ class FileFieldWidgetTest extends FileFieldTestBase {
     // Ensure we can't change 'uri_scheme' field settings while there are some
     // entities with uploaded files.
     $this->drupalGet("admin/structure/types/manage/$type_name/fields/$instance->id/field");
-    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and @disabled="disabled"]', 'private', 'Upload destination setting disabled.');
+    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and @disabled="disabled"]', 'public', 'Upload destination setting disabled.');
 
     // Delete node and confirm that setting could be changed.
     $node->delete();
     $this->drupalGet("admin/structure/types/manage/$type_name/fields/$instance->id/field");
-    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and not(@disabled)]', 'private', 'Upload destination setting enabled.');
+    $this->assertFieldByXpath('//input[@id="edit-field-settings-uri-scheme-public" and not(@disabled)]', 'public', 'Upload destination setting enabled.');
   }
 
   /**

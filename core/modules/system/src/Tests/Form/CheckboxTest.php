@@ -7,7 +7,7 @@
 
 namespace Drupal\system\Tests\Form;
 
-use Drupal\simpletest\BrowserTestBase;
+use Drupal\simpletest\WebTestBase;
 
 /**
  * Tests form API checkbox handling of various combinations of #default_value
@@ -15,7 +15,7 @@ use Drupal\simpletest\BrowserTestBase;
  *
  * @group Form
  */
-class CheckboxTest extends BrowserTestBase {
+class CheckboxTest extends WebTestBase {
 
   /**
    * Modules to enable.
@@ -73,16 +73,16 @@ class CheckboxTest extends BrowserTestBase {
     $this->drupalPostForm('form-test/checkboxes-zero/0', array(), 'Save');
     $checkboxes = $this->xpath('//input[@type="checkbox"]');
     foreach ($checkboxes as $checkbox) {
-      $checked = $checkbox->isChecked();
-      $name = $checkbox->getAttribute('name');
+      $checked = isset($checkbox['checked']);
+      $name = (string) $checkbox['name'];
       $this->assertIdentical($checked, $name == 'checkbox_zero_default[0]' || $name == 'checkbox_string_zero_default[0]', format_string('Checkbox %name correctly checked', array('%name' => $name)));
     }
     $edit = array('checkbox_off[0]' => '0');
     $this->drupalPostForm('form-test/checkboxes-zero/0', $edit, 'Save');
     $checkboxes = $this->xpath('//input[@type="checkbox"]');
     foreach ($checkboxes as $checkbox) {
-      $checked = $checkbox->isChecked();
-      $name = $checkbox->getAttribute('name');
+      $checked = isset($checkbox['checked']);
+      $name = (string) $checkbox['name'];
       $this->assertIdentical($checked, $name == 'checkbox_off[0]' || $name == 'checkbox_zero_default[0]' || $name == 'checkbox_string_zero_default[0]', format_string('Checkbox %name correctly checked', array('%name' => $name)));
     }
   }
