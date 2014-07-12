@@ -62,15 +62,13 @@ class CsrfTest extends RESTTestBase {
     // Login so the session cookie is sent in addition to the basic auth header.
     $this->drupalLogin($this->account);
 
-    $this->httpRequest('entity/' . $this->testEntityType, 'POST', $this->serialized, NULL, array(
-      $this->account->getUsername(),
-      $this->account->pass_raw,
-      'basic',
-    ));
-
+    $curl_options = $this->getCurlOptions();
+    $curl_options[CURLOPT_HTTPAUTH] = CURLAUTH_BASIC;
+    $curl_options[CURLOPT_USERPWD] = $this->account->getUsername() . ':' . $this->account->pass_raw;
+    $this->curlExec($curl_options);
     $this->assertResponse(201);
     // Ensure that the entity was created.
-    $loaded_entity = $this->loadEntityFromLocationHeader($this->drupalGetHeader('Location'));
+    $loaded_entity = $this->loadEntityFromLocationHeader($this->drupalGetHeader('location'));
     $this->assertTrue($loaded_entity, 'An entity was created in the database');
   }
 
@@ -80,8 +78,10 @@ class CsrfTest extends RESTTestBase {
   public function testCookieAuth() {
     $this->drupalLogin($this->account);
 
+    $curl_options = $this->getCurlOptions();
+
     // Try to create an entity without the CSRF token.
-    $this->httpRequest('entity/' . $this->testEntityType, 'POST', $this->serialized, NULL, NULL, FALSE);
+    $this->curlExec($curl_options);
     $this->assertResponse(403);
     // Ensure that the entity was not created.
     $this->assertFalse(entity_load_multiple($this->testEntityType, NULL, TRUE), 'No entity has been created in the database.');
@@ -89,12 +89,29 @@ class CsrfTest extends RESTTestBase {
     // Create an entity with the CSRF token.
     $token = $this->drupalGet('rest/session/token');
     $curl_options[CURLOPT_HTTPHEADER][] = "X-CSRF-Token: $token";
-    $this->httpRequest('entity/' . $this->testEntityType, 'POST', $this->serialized, NULL, NULL, $token);
-
+    $this->curlExec($curl_options);
     $this->assertResponse(201);
     // Ensure that the entity was created.
-    $loaded_entity = $this->loadEntityFromLocationHeader($this->drupalGetHeader('Location'));
+    $loaded_entity = $this->loadEntityFromLocationHeader($this->drupalGetHeader('location'));
     $this->assertTrue($loaded_entity, 'An entity was created in the database');
   }
 
+  /**
+   * Gets the cURL options to create an entity with POST.
+   *
+   * @return array
+   *   The array of cURL options.
+   */
+  protected function getCurlOptions() {
+    return array(
+      CURLOPT_HTTPGET => FALSE,
+      CURLOPT_POST => TRUE,
+      CURLOPT_POSTFIELDS => $this->serialized,
+      CURLOPT_URL => url('entity/' . $this->testEntityType, array('absolute' => TRUE)),
+      CURLOPT_NOBODY => FALSE,
+      CURLOPT_HTTPHEADER => array(
+        "Content-Type: {$this->defaultMimeType}",
+      ),
+    );
+  }
 }

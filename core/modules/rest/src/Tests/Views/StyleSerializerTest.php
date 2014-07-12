@@ -71,7 +71,7 @@ class StyleSerializerTest extends PluginTestBase {
 
     // Test the http Content-type.
     $headers = $this->drupalGetHeaders();
-    $this->assertEqual($headers['Content-Type'], 'application/json', 'The header Content-type is correct.');
+    $this->assertEqual($headers['content-type'], 'application/json', 'The header Content-type is correct.');
 
     $expected = array();
     foreach ($view->result as $row) {
