@@ -29,6 +29,9 @@ use Symfony\Component\HttpFoundation\Request;
  * Test case for typical Drupal tests.
  *
  * @ingroup testing
+ *
+ * @deprecated Deprecated since Drupal 8.x-dev, to be removed in Drupal 8.0.
+ *   Use \Drupal\simpletest\BrowserTestBase for new browser-based tests.
  */
 abstract class WebTestBase extends TestBase {
 
