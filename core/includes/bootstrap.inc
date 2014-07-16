@@ -716,19 +716,6 @@ function format_string($string, array $args = array()) {
 }
 
 /**
- * Encodes special characters in a plain-text string for display as HTML.
- *
- * @see drupal_validate_utf8()
- * @ingroup sanitization
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal\Component\Utility\String::checkPlain().
- */
-function check_plain($text) {
-  return String::checkPlain($text);
-}
-
-/**
  * Checks whether a string is valid UTF-8.
  *
  * All functions designed to filter input should use drupal_validate_utf8
@@ -1150,18 +1137,6 @@ function module_invoke($module, $hook) {
 }
 
 /**
- * Passes alterable variables to specific hook_TYPE_alter() implementations.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::moduleHandler()->alter($hook).
- *
- * @see \Drupal\Core\Extension\ModuleHandler::alter()
- */
-function drupal_alter($type, &$data, &$context1 = NULL, &$context2 = NULL) {
-  return \Drupal::moduleHandler()->alter($type, $data, $context1, $context2);
-}
-
-/**
  * Returns the test prefix if this is an internal request from SimpleTest.
  *
  * @param string $new_prefix
@@ -1273,21 +1248,6 @@ function drupal_installation_attempted() {
   // executed code does not involve the installer at all.
   // @see install_drupal()
   return isset($GLOBALS['install_state']) && empty($GLOBALS['install_state']['installation_finished']);
-}
-
-/**
- * Returns the language object for a given language type.
- *
- * @see \Drupal\Core\Language\LanguageManager
- *
- * @param string $type
- *   The type of language object needed, e.g. Language::TYPE_INTERFACE.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::languageManager()->getCurrentLanguage().
- */
-function language($type) {
-  return \Drupal::languageManager()->getCurrentLanguage($type);
 }
 
 /**
@@ -1693,4 +1653,3 @@ function _drupal_shutdown_function() {
     error_log($exception);
   }
 }
-

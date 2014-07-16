@@ -533,6 +533,7 @@
  * $query \Drupal::entityQueryAggregate('your_entity_type');
  * // Or:
  * $query = $query_service->getAggregate('your_entity_type');
+ * @endcode
  * Also, you should use dependency injection to get this object if
  * possible; the service you need is entity.query, and its methods getQuery()
  * or getAggregateQuery() will get the query object.
@@ -631,7 +632,7 @@
  *   call is \Drupal\Core\Datetime\Date::format().
  * - Some YML files contain UI text that is automatically translatable:
  *   - *.routing.yml files: route titles. This also applies to
- *     *.local_tasks.yml, *.local_actions, and *.contextual_links.yml files.
+ *     *.links.task.yml, *.links.action.yml, and *.links.contextual.yml files.
  *   - *.info.yml files: module names and descriptions.
  * - For configuration, make sure any configuration that is displayable to
  *   users is marked as translatable in the configuration schema. Configuration

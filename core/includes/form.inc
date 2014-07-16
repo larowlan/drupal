@@ -143,30 +143,6 @@ function drupal_build_form($form_id, &$form_state) {
 }
 
 /**
- * Retrieves default values for the $form_state array.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::formBuilder()->getFormStateDefaults().
- *
- * @see \Drupal\Core\Form\FormBuilderInterface::getFormStateDefaults().
- */
-function form_state_defaults() {
-  return \Drupal::formBuilder()->getFormStateDefaults();
-}
-
-/**
- * Constructs a new $form from the information in $form_state.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::formBuilder()->rebuildForm().
- *
- * @see \Drupal\Core\Form\FormBuilderInterface::rebuildForm().
- */
-function drupal_rebuild_form($form_id, &$form_state, $old_form = NULL) {
-  return \Drupal::formBuilder()->rebuildForm($form_id, $form_state, $old_form);
-}
-
-/**
  * Fetches a form from the cache.
  *
  * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
@@ -273,30 +249,6 @@ function drupal_retrieve_form($form_id, &$form_state) {
  */
 function drupal_process_form($form_id, &$form, &$form_state) {
   \Drupal::formBuilder()->processForm($form_id, $form, $form_state);
-}
-
-/**
- * Prepares a structured form array.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::formBuilder()->prepareForm().
- *
- * @see \Drupal\Core\Form\FormBuilderInterface::prepareForm().
- */
-function drupal_prepare_form($form_id, &$form, &$form_state) {
-  \Drupal::formBuilder()->prepareForm($form_id, $form, $form_state);
-}
-
-/**
- * Validates user-submitted form data in the $form_state array.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal::formBuilder()->validateForm().
- *
- * @see \Drupal\Core\Form\FormValidatorInterface::validateForm().
- */
-function drupal_validate_form($form_id, &$form, &$form_state) {
-  \Drupal::formBuilder()->validateForm($form_id, $form, $form_state);
 }
 
 /**

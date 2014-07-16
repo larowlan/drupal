@@ -166,7 +166,6 @@ abstract class KernelTestBase extends UnitTestBase {
 
     // Set the request scope.
     $this->container = $this->kernel->getContainer();
-    $this->container->set('request', $request);
     $this->container->get('request_stack')->push($request);
 
     $this->container->get('state')->set('system.module.files', $this->moduleFiles);
@@ -301,7 +300,7 @@ abstract class KernelTestBase extends UnitTestBase {
     }
 
     $request = Request::create('/');
-    $this->container->set('request', $request);
+    $container->get('request_stack')->push($request);
   }
 
   /**
@@ -491,7 +490,7 @@ abstract class KernelTestBase extends UnitTestBase {
    */
   protected function registerStreamWrapper($scheme, $class, $type = STREAM_WRAPPERS_LOCAL_NORMAL) {
     if (isset($this->streamWrappers[$scheme])) {
-      $this->unregisterStreamWrapper($scheme);
+      $this->unregisterStreamWrapper($scheme, $this->streamWrappers[$scheme]);
     }
     $this->streamWrappers[$scheme] = $type;
     if (($type & STREAM_WRAPPERS_LOCAL) == STREAM_WRAPPERS_LOCAL) {

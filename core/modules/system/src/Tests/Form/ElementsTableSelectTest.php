@@ -207,7 +207,7 @@ class ElementsTableSelectTest extends WebTestBase {
    */
   private function formSubmitHelper($form, $edit) {
     $form_id = $this->randomName();
-    $form_state = form_state_defaults();
+    $form_state = \Drupal::formBuilder()->getFormStateDefaults();
 
     $form['op'] = array('#type' => 'submit', '#value' => t('Submit'));
     // The form token CSRF protection should not interfere with this test, so we
@@ -217,7 +217,7 @@ class ElementsTableSelectTest extends WebTestBase {
     $form_state['input'] = $edit;
     $form_state['input']['form_id'] = $form_id;
 
-    drupal_prepare_form($form_id, $form, $form_state);
+    \Drupal::formBuilder()->prepareForm($form_id, $form, $form_state);
 
     drupal_process_form($form_id, $form, $form_state);
 

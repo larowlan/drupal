@@ -27,6 +27,20 @@ class MigrateCommentVariableFieldTest extends MigrateDrupalTestBase {
     foreach (array('page', 'story', 'test') as $type) {
       entity_create('node_type', array('type' => $type))->save();
     }
+    foreach (['comment', 'comment_no_subject'] as $comment_type) {
+      entity_create('comment_type', array(
+        'id' => $comment_type,
+        'target_entity_type_id' => 'node',
+      ))
+      ->save();
+    }
+    // Add some id mappings for the dependant migrations.
+    $id_mappings = array(
+      'd6_comment_type' => array(
+        array(array('comment'), array('comment_no_subject')),
+      ),
+    );
+    $this->prepareIdMappings($id_mappings);
     /** @var \Drupal\migrate\entity\Migration $migration */
     $migration = entity_load('migration', 'd6_comment_field');
     $dumps = array(
@@ -42,6 +56,7 @@ class MigrateCommentVariableFieldTest extends MigrateDrupalTestBase {
    */
   public function testCommentField() {
     $this->assertTrue(is_object(entity_load('field_config', 'node.comment')));
+    $this->assertTrue(is_object(entity_load('field_config', 'node.comment_no_subject')));
   }
 
 }
