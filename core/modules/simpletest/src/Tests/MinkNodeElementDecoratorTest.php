@@ -13,8 +13,6 @@ use Drupal\simpletest\BrowserTestBase;
 /**
  * Tests helper methods provided by the Mink node decorator.
  *
- * @coversDefaultClass \Drupal\simpletest\MinkNodeElementDecorator
- * @group Drupal
  * @group simpletest
  */
 class MinkNodeElementDecoratorTest extends BrowserTestBase {
@@ -26,29 +24,14 @@ class MinkNodeElementDecoratorTest extends BrowserTestBase {
    */
   public static $modules = array('mink_test');
 
-  public static function getInfo() {
-    return array(
-      'name' => 'Mink node element decorator',
-      'description' => 'Test Mink node element decorator logic.',
-      'group' => 'Simpletest',
-    );
-  }
-
   /**
    * Test decorator.
-   *
-   * @covers MinkNodeElementDecorator::__get
    */
   public function testDecorator() {
     $this->drupalGet("/mink-test-1");
     $element = $this->getSession()->getPage();
     $container = $element->find("css", "#test-lists-1");
     $container = new MinkNodeElementDecorator($container);
-
-    // Ensure we are not working all the way down the tree every time we do a
-    // find. We want to make sure it's working in a jQuery like fashion so we
-    // don't end up with weird results.
-    // @todo, @nick_schuch, for laters.
 
     // Look for a multiple lists on the page. Should return an array of objects
     // since that list has children (list items).

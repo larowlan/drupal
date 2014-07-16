@@ -1384,9 +1384,6 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
       }
     }
 
-    // Set client options on Goutte's Guzzle client.
-    $this->setClientOptions($this->additionalCurlOptions + $curl_options);
-
     if (!$redirect) {
       // Reset headers, the session ID and the redirect counter.
       $this->session_id = NULL;
@@ -3180,7 +3177,8 @@ abstract class BrowserTestBase extends TestBase implements SubscriberInterface {
     $server = array_merge($server, $override_server_vars);
 
     $request = Request::create($request_path, 'GET', array(), array(), array(), $server);
-    $generator->setRequest($request);
+    $this->container->get('request_stack')->push($request);
+    $generator->updateFromRequest();
     return $request;
   }
 
