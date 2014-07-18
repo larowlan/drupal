@@ -8,12 +8,13 @@
 namespace Drupal\rest\Tests;
 
 use Drupal\Core\Session\AccountInterface;
+use Drupal\simpletest\HttpTestBase;
 use Drupal\simpletest\WebTestBase;
 
 /**
  * Test helper class that provides a REST client method to send HTTP requests.
  */
-abstract class RESTTestBase extends WebTestBase {
+abstract class RESTTestBase extends HttpTestBase {
 
   /**
    * The default serialization format to use for testing REST operations.
@@ -21,13 +22,6 @@ abstract class RESTTestBase extends WebTestBase {
    * @var string
    */
   protected $defaultFormat;
-
-  /**
-   * The default MIME type to use for testing REST operations.
-   *
-   * @var string
-   */
-  protected $defaultMimeType;
 
   /**
    * The entity type to use for testing.
@@ -57,104 +51,6 @@ abstract class RESTTestBase extends WebTestBase {
     $this->defaultAuth = array('cookie');
     // Create a test content type for node testing.
     $this->drupalCreateContentType(array('name' => 'resttest', 'type' => 'resttest'));
-  }
-
-  /**
-   * Helper function to issue a HTTP request with simpletest's cURL.
-   *
-   * @param string $url
-   *   The relative URL, e.g. "entity/node/1"
-   * @param string $method
-   *   HTTP method, one of GET, POST, PUT or DELETE.
-   * @param array $body
-   *   Either the body for POST and PUT or additional URL parameters for GET.
-   * @param string $mime_type
-   *   The MIME type of the transmitted content.
-   */
-  protected function httpRequest($url, $method, $body = NULL, $mime_type = NULL) {
-    if (!isset($mime_type)) {
-      $mime_type = $this->defaultMimeType;
-    }
-    if (!in_array($method, array('GET', 'HEAD', 'OPTIONS', 'TRACE'))) {
-      // GET the CSRF token first for writing requests.
-      $token = $this->drupalGet('rest/session/token');
-    }
-    switch ($method) {
-      case 'GET':
-        // Set query if there are additional GET parameters.
-        $options = isset($body) ? array('absolute' => TRUE, 'query' => $body) : array('absolute' => TRUE);
-        $curl_options = array(
-          CURLOPT_HTTPGET => TRUE,
-          CURLOPT_CUSTOMREQUEST => 'GET',
-          CURLOPT_URL => url($url, $options),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array('Accept: ' . $mime_type),
-        );
-        break;
-
-      case 'POST':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_POST => TRUE,
-          CURLOPT_POSTFIELDS => $body,
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array(
-            'Content-Type: ' . $mime_type,
-            'X-CSRF-Token: ' . $token,
-          ),
-        );
-        break;
-
-      case 'PUT':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_CUSTOMREQUEST => 'PUT',
-          CURLOPT_POSTFIELDS => $body,
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array(
-            'Content-Type: ' . $mime_type,
-            'X-CSRF-Token: ' . $token,
-          ),
-        );
-        break;
-
-      case 'PATCH':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_CUSTOMREQUEST => 'PATCH',
-          CURLOPT_POSTFIELDS => $body,
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array(
-            'Content-Type: ' . $mime_type,
-            'X-CSRF-Token: ' . $token,
-          ),
-        );
-        break;
-
-      case 'DELETE':
-        $curl_options = array(
-          CURLOPT_HTTPGET => FALSE,
-          CURLOPT_CUSTOMREQUEST => 'DELETE',
-          CURLOPT_URL => url($url, array('absolute' => TRUE)),
-          CURLOPT_NOBODY => FALSE,
-          CURLOPT_HTTPHEADER => array('X-CSRF-Token: ' . $token),
-        );
-        break;
-    }
-
-    $response = $this->curlExec($curl_options);
-    $headers = $this->drupalGetHeaders();
-    $headers = implode("\n", $headers);
-
-    $this->verbose($method . ' request to: ' . $url .
-      '<hr />Code: ' . curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE) .
-      '<hr />Response headers: ' . $headers .
-      '<hr />Response body: ' . $response);
-
-    return $response;
   }
 
   /**
@@ -250,53 +146,11 @@ abstract class RESTTestBase extends WebTestBase {
   }
 
   /**
-   * Check if a HTTP response header exists and has the expected value.
-   *
-   * @param string $header
-   *   The header key, example: Content-Type
-   * @param string $value
-   *   The header value.
-   * @param string $message
-   *   (optional) A message to display with the assertion.
-   * @param string $group
-   *   (optional) The group this message is in, which is displayed in a column
-   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
-   *   translate this string. Defaults to 'Other'; most tests do not override
-   *   this default.
-   *
-   * @return bool
-   *   TRUE if the assertion succeeded, FALSE otherwise.
-   */
-  protected function assertHeader($header, $value, $message = '', $group = 'Browser') {
-    $header_value = $this->drupalGetHeader($header);
-    return $this->assertTrue($header_value == $value, $message ? $message : 'HTTP response header ' . $header . ' with value ' . $value . ' found.', $group);
-  }
-
-  /**
-   * {@inheritdoc}
-   *
-   * This method is overridden to deal with a cURL quirk: the usage of
-   * CURLOPT_CUSTOMREQUEST cannot be unset on the cURL handle, so we need to
-   * override it every time it is omitted.
-   */
-  protected function curlExec($curl_options, $redirect = FALSE) {
-    if (!isset($curl_options[CURLOPT_CUSTOMREQUEST])) {
-      if (!empty($curl_options[CURLOPT_HTTPGET])) {
-        $curl_options[CURLOPT_CUSTOMREQUEST] = 'GET';
-      }
-      if (!empty($curl_options[CURLOPT_POST])) {
-        $curl_options[CURLOPT_CUSTOMREQUEST] = 'POST';
-      }
-    }
-    return parent::curlExec($curl_options, $redirect);
-  }
-
-  /**
    * Provides the necessary user permissions for entity operations.
    *
    * @param string $entity_type
    *   The entity type.
-   * @param type $operation
+   * @param string $operation
    *   The operation, one of 'view', 'create', 'update' or 'delete'.
    *
    * @return array
@@ -313,6 +167,7 @@ abstract class RESTTestBase extends WebTestBase {
           case 'delete':
             return array('administer entity_test content');
         }
+        break;
       case 'node':
         switch ($operation) {
           case 'view':
@@ -324,7 +179,9 @@ abstract class RESTTestBase extends WebTestBase {
           case 'delete':
             return array('delete any resttest content');
         }
+        break;
     }
+    return array();
   }
 
   /**

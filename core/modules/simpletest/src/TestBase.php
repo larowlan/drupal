@@ -62,6 +62,13 @@ abstract class TestBase {
   protected $originalSite;
 
   /**
+   * The profile of the original parent site.
+   *
+   * @var string
+   */
+  protected $originalProfile;
+
+  /**
    * The original file directory, before it was changed for testing purposes.
    *
    * @var string
@@ -159,6 +166,33 @@ abstract class TestBase {
    * @var string
    */
   protected $public_files_directory;
+
+  /**
+   * The private file directory for the test environment.
+   *
+   * This is set in TestBase::prepareEnvironment().
+   *
+   * @var string
+   */
+  protected $private_files_directory;
+
+  /**
+   * The temporary file directory for the test environment.
+   *
+   * This is set in TestBase::prepareEnvironment().
+   *
+   * @var string
+   */
+  protected $temp_files_directory;
+
+  /**
+   * The translation file directory for the test environment.
+   *
+   * This is set in TestBase::prepareEnvironment().
+   *
+   * @var string
+   */
+  protected $translation_files_directory;
 
   /**
    * Whether to die in case any test assertion fails.
