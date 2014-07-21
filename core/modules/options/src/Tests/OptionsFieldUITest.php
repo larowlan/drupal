@@ -7,7 +7,7 @@
 
 namespace Drupal\options\Tests;
 
-use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\field\Tests\FieldTestBase;
 
 /**
@@ -202,34 +202,6 @@ class OptionsFieldUITest extends FieldTestBase {
   }
 
   /**
-   * Options (boolean) : test 'On/Off' values input.
-   */
-  function testOptionsAllowedValuesBoolean() {
-    $this->field_name = 'field_options_boolean';
-    $this->createOptionsField('list_boolean');
-
-    // Check that the separate 'On' and 'Off' form fields work.
-    $on = $this->randomName();
-    $off = $this->randomName();
-    $allowed_values = array(1 => $on, 0 => $off);
-    $edit = array(
-      'on' => $on,
-      'off' => $off,
-    );
-    $this->drupalPostForm($this->admin_path, $edit, t('Save field settings'));
-    $this->assertRaw(t('Updated field %label field settings.', array('%label' => $this->field_name)));
-
-    // Test the allowed_values on the field settings form.
-    $this->drupalGet($this->admin_path);
-    $this->assertFieldByName('on', $on, t("The 'On' value is stored correctly."));
-    $this->assertFieldByName('off', $off, t("The 'Off' value is stored correctly."));
-    $field = FieldConfig::loadByName('node', $this->field_name);
-    $this->assertEqual($field->getSetting('allowed_values'), $allowed_values, 'The allowed value is correct');
-    $this->assertNull($field->getSetting('on'), 'The on value is not saved into settings');
-    $this->assertNull($field->getSetting('off'), 'The off value is not saved into settings');
-  }
-
-  /**
    * Options (text) : test 'trimmed values' input.
    */
   function testOptionsTrimmedValuesText() {
@@ -246,11 +218,11 @@ class OptionsFieldUITest extends FieldTestBase {
    * Helper function to create list field of a given type.
    *
    * @param string $type
-   *   'list_integer', 'list_float', 'list_text' or 'list_boolean'
+   *   'list_integer', 'list_float' or 'list_text'
    */
   protected function createOptionsField($type) {
     // Create a test field and instance.
-    entity_create('field_config', array(
+    entity_create('field_storage_config', array(
       'name' => $this->field_name,
       'entity_type' => 'node',
       'type' => $type,
@@ -263,7 +235,7 @@ class OptionsFieldUITest extends FieldTestBase {
 
     entity_get_form_display('node', $this->type, 'default')->setComponent($this->field_name)->save();
 
-    $this->admin_path = 'admin/structure/types/manage/' . $this->type . '/fields/node.' . $this->type . '.' . $this->field_name . '/field';
+    $this->admin_path = 'admin/structure/types/manage/' . $this->type . '/fields/node.' . $this->type . '.' . $this->field_name . '/storage';
   }
 
   /**
@@ -286,8 +258,8 @@ class OptionsFieldUITest extends FieldTestBase {
       $this->assertText($result, $message);
     }
     else {
-      $field = FieldConfig::loadByName('node', $this->field_name);
-      $this->assertIdentical($field->getSetting('allowed_values'), $result, $message);
+      $field_storage = FieldStorageConfig::loadByName('node', $this->field_name);
+      $this->assertIdentical($field_storage->getSetting('allowed_values'), $result, $message);
     }
   }
 
@@ -296,14 +268,15 @@ class OptionsFieldUITest extends FieldTestBase {
    */
   function testNodeDisplay() {
     $this->field_name = strtolower($this->randomName());
-    $this->createOptionsField('list_boolean');
+    $this->createOptionsField('list_integer');
     $node = $this->drupalCreateNode(array('type' => $this->type));
 
     $on = $this->randomName();
     $off = $this->randomName();
     $edit = array(
-      'on' => $on,
-      'off' => $off,
+      'field[settings][allowed_values]' =>
+        "1|$on
+        0|$off",
     );
 
     $this->drupalPostForm($this->admin_path, $edit, t('Save field settings'));

@@ -488,6 +488,18 @@ class MessageFactoryTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('{"foo":"bar"}', (string) $request->getBody());
     }
 
+    public function testCanAddJsonDataToAPostRequest()
+    {
+        $request = (new MessageFactory)->createRequest('POST', 'http://f.com', [
+            'json' => ['foo' => 'bar']
+        ]);
+        $this->assertEquals(
+            'application/json',
+            $request->getHeader('Content-Type')
+        );
+        $this->assertEquals('{"foo":"bar"}', (string) $request->getBody());
+    }
+
     public function testCanAddJsonDataAndNotOverwriteContentType()
     {
         $request = (new MessageFactory)->createRequest('PUT', 'http://f.com', [
@@ -513,6 +525,21 @@ class MessageFactoryTest extends \PHPUnit_Framework_TestCase
         } catch (\InvalidArgumentException $e) {
             $this->assertContains('foo config', $e->getMessage());
         }
+    }
+
+    /**
+     * @ticket https://github.com/guzzle/guzzle/issues/706
+     */
+    public function testDoesNotApplyPostBodyRightAway()
+    {
+        $request = (new MessageFactory)->createRequest('POST', 'http://f.cn', [
+            'body' => ['foo' => ['bar', 'baz']]
+        ]);
+        $this->assertEquals('', $request->getHeader('Content-Type'));
+        $this->assertEquals('', $request->getHeader('Content-Length'));
+        $request->getBody()->setAggregator(Query::duplicateAggregator());
+        $request->getBody()->applyRequestHeaders($request);
+        $this->assertEquals('foo=bar&foo=baz', $request->getBody());
     }
 }
 

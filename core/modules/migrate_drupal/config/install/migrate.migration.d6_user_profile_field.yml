@@ -13,7 +13,7 @@ process:
     plugin: static_map
     source: type
     map:
-      checkbox: list_boolean
+      checkbox: boolean
       date: datetime
       list: text
       selection: list_text
@@ -31,4 +31,4 @@ process:
     map:
       list: -1
 destination:
-  plugin: entity:field_config
+  plugin: entity:field_storage_config

@@ -14,6 +14,7 @@
  * @see batch_get()
  */
 
+use Drupal\Component\Utility\SafeMarkup;
 use Drupal\Component\Utility\Timer;
 use Drupal\Core\Batch\Percentage;
 use Drupal\Core\Page\DefaultHtmlPageRenderer;
@@ -44,7 +45,12 @@ function _batch_page(Request $request) {
       return new RedirectResponse(url('<front>', array('absolute' => TRUE)));
     }
   }
-
+  // Restore safe strings from previous batches.
+  // @todo Ensure we are not storing an excessively large string list in:
+  //   https://www.drupal.org/node/2295823
+  if (!empty($batch['safe_strings'])) {
+    SafeMarkup::setMultiple($batch['safe_strings']);
+  }
   // Register database update for the end of processing.
   drupal_register_shutdown_function('_batch_shutdown');
 
@@ -379,7 +385,7 @@ function _batch_next_set() {
     if (isset($current_set['form_submit']) && ($callback = $current_set['form_submit']) && is_callable($callback)) {
       // We use our stored copies of $form and $form_state to account for
       // possible alterations by previous form submit handlers.
-      call_user_func_array($callback, array($batch['form_state']['complete_form'], &$batch['form_state']));
+      call_user_func_array($callback, array(&$batch['form_state']['complete_form'], &$batch['form_state']));
     }
     return TRUE;
   }
@@ -481,6 +487,10 @@ function _batch_finished() {
  */
 function _batch_shutdown() {
   if ($batch = batch_get()) {
+    // Update safe strings.
+    // @todo Ensure we are not storing an excessively large string list in:
+    //   https://www.drupal.org/node/2295823
+    $batch['safe_strings'] = SafeMarkup::getAll();
     \Drupal::service('batch.storage')->update($batch);
   }
 }

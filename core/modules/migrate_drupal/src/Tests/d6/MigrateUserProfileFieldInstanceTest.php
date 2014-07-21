@@ -98,15 +98,15 @@ class MigrateUserProfileFieldInstanceTest extends MigrateDrupalTestBase {
     $fields = array(
       'profile_color' => 'text',
       'profile_biography' => 'text_long',
-      'profile_sell_address' => 'list_boolean',
+      'profile_sell_address' => 'boolean',
       'profile_sold_to' => 'list_text',
       'profile_bands' => 'text',
       'profile_blog' => 'link',
       'profile_birthdate' => 'datetime',
-      'profile_love_migrations' => 'list_boolean',
+      'profile_love_migrations' => 'boolean',
     );
     foreach ($fields as $name => $type) {
-      entity_create('field_config', array(
+      entity_create('field_storage_config', array(
         'name' => $name,
         'entity_type' => 'user',
         'type' => $type,
