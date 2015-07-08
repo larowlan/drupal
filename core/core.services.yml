@@ -371,10 +371,19 @@ services:
   path.current:
     class: Drupal\Core\Path\CurrentPathStack
     arguments: ['@request_stack']
+  http_handler_stack:
+    class: GuzzleHttp\HandlerStack
+    public: false
+    tags:
+      - { name: http_client_handler }
+    calls:
+      - [setHandler, ['@http_handler_curl']]
+  http_handler_curl:
+    class: GuzzleHttp\Handler\CurlHandler
+    public: false
   http_client:
     class: Drupal\Core\Http\Client
-    tags:
-      - { name: service_collector, tag: http_client_subscriber, call: attach }
+    arguments: ['@http_handler_stack']
   theme.negotiator:
     class: Drupal\Core\Theme\ThemeNegotiator
     arguments: ['@access_check.theme']
