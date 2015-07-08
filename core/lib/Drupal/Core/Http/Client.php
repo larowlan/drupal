@@ -20,7 +20,7 @@ class Client extends GuzzleClient {
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $config = []) {
+  public function __construct(callable $handler, array $config = []) {
     $default_config = array(
       // Security consideration: we must not use the certificate authority
       // file shipped with Guzzle because it can easily get outdated if a
@@ -31,8 +31,9 @@ class Client extends GuzzleClient {
       'verify' => TRUE,
       'timeout' => 30,
       'headers' => array(
-        'User-Agent' => 'Drupal/' . \Drupal::VERSION . ' (+https://www.drupal.org/) ' . static::getDefaultUserAgent(),
+        'User-Agent' => 'Drupal/' . \Drupal::VERSION . ' (+https://www.drupal.org/) ' . \GuzzleHttp\default_user_agent(),
       ),
+      'handler' => $handler,
     );
 
     // The entire config array is merged/configurable to allow Guzzle client
@@ -41,30 +42,6 @@ class Client extends GuzzleClient {
     $config = NestedArray::mergeDeep(array('defaults' => $default_config), $config, Settings::get('http_client_config', array()));
 
     parent::__construct($config);
-  }
-
-  /**
-   * Attaches an event subscriber.
-   *
-   * @param \GuzzleHttp\Event\SubscriberInterface $subscriber
-   *   The subscriber to attach.
-   *
-   * @see \GuzzleHttp\Event\Emitter::attach()
-   */
-  public function attach(SubscriberInterface $subscriber) {
-    $this->getEmitter()->attach($subscriber);
-  }
-
-  /**
-   * Detaches an event subscriber.
-   *
-   * @param \GuzzleHttp\Event\SubscriberInterface $subscriber
-   *   The subscriber to detach.
-   *
-   * @see \GuzzleHttp\Event\Emitter::detach()
-   */
-  public function detach(SubscriberInterface $subscriber) {
-    $this->getEmitter()->detach($subscriber);
   }
 
 }

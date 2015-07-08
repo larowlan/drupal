@@ -1,0 +1,61 @@
+language: php
+
+php:
+  - 5.4
+  - 5.5
+  - 5.6
+  - 7
+  - hhvm
+
+matrix:
+  allow_failures:
+    # PHP 7 testing is disabled for now since Drupal installation throws
+    # errors. See https://www.drupal.org/node/2454439
+    - php: 7
+    # We cannot use hhvm-nightly since that does not work in Travis CI's old
+    # Ubuntu 12.04.
+    - php: hhvm
+    - php: 5.4
+
+mysql:
+  database: drupal
+  username: root
+  encoding: utf8
+
+before_install:
+  - sudo apt-get update > /dev/null
+
+install:
+  # Install php packages required for running a web server from drush.
+  - sudo apt-get install -y --force-yes php5-cgi php5-mysql
+
+  # Add composer's global bin directory to the path.
+  # @see: https://github.com/drush-ops/drush#install---composer
+  - export PATH="$HOME/.composer/vendor/bin:$PATH"
+
+  # install drush globally
+  - composer global require drush/drush:dev-master
+  - composer global require youngj/httpserver:dev-master
+
+before_script:
+  - composer self-update
+  # Remove Xdebug as we don't need it and it causes
+  # PHP Fatal error:  Maximum function nesting level of '256' reached.
+  # We also don't care if that file exists or not on PHP 7.
+  - phpenv config-rm xdebug.ini || true
+  - php --version
+
+  - mysql -e 'create database drupal'
+
+  # Install Drupal.
+  - php -d sendmail_path=`which true` ~/.composer/vendor/bin/drush.php --yes site-install --db-url=mysql://root:@127.0.0.1/drupal testing
+
+  # Start a web server on port 8080, run in the background; wait for
+  # initialization. This is temporarly disabled since there are no web tests
+  # yet.
+  - drush runserver 127.0.0.1:8080 &
+  - until netstat -an 2>/dev/null | grep '8080.*LISTEN'; do true; done
+
+script:
+  - ./core/vendor/phpunit/phpunit/phpunit -v -c core --testsuite unit
+  - ./core/vendor/phpunit/phpunit/phpunit -v -c core --testsuite functional

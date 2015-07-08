@@ -10,6 +10,7 @@ namespace Drupal\Core;
 use Drupal\Core\Cache\Context\CacheContextsPass;
 use Drupal\Core\Cache\ListCacheBinsPass;
 use Drupal\Core\DependencyInjection\Compiler\BackendCompilerPass;
+use Drupal\Core\DependencyInjection\Compiler\GuzzleHandlerPass;
 use Drupal\Core\DependencyInjection\Compiler\ProxyServicesPass;
 use Drupal\Core\DependencyInjection\Compiler\RegisterLazyRouteEnhancers;
 use Drupal\Core\DependencyInjection\Compiler\RegisterLazyRouteFilters;
@@ -74,6 +75,7 @@ class CoreServiceProvider implements ServiceProviderInterface  {
     // Collect tagged handler services as method calls on consumer services.
     $container->addCompilerPass(new TaggedHandlersPass());
     $container->addCompilerPass(new RegisterStreamWrappersPass());
+    $container->addCompilerPass(new GuzzleHandlerPass());
 
     // Add a compiler pass for registering event subscribers.
     $container->addCompilerPass(new RegisterKernelListenersPass(), PassConfig::TYPE_AFTER_REMOVING);
@@ -132,8 +134,8 @@ class CoreServiceProvider implements ServiceProviderInterface  {
     }
     // Add the HTTP request subscriber to Guzzle.
     $container
-      ->register('test.http_client.request_subscriber', 'Drupal\Core\Test\EventSubscriber\HttpRequestSubscriber')
-      ->addTag('http_client_subscriber');
+      ->register('test.http_client.handler', 'Drupal\Core\Test\EventSubscriber\HttpRequestSubscriber')
+      ->addTag('http_client_handler');
   }
 
 }
