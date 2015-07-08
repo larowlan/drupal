@@ -15,6 +15,7 @@ matrix:
     # We cannot use hhvm-nightly since that does not work in Travis CI's old
     # Ubuntu 12.04.
     - php: hhvm
+    - php: 5.4
 
 mysql:
   database: drupal
