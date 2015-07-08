@@ -57,5 +57,4 @@ before_script:
 
 script:
   - ./core/vendor/phpunit/phpunit/phpunit -v -c core --testsuite unit
-  - ./core/vendor/phpunit/phpunit/phpunit -v -c core --testsuite kernel
   - ./core/vendor/phpunit/phpunit/phpunit -v -c core --testsuite functional
